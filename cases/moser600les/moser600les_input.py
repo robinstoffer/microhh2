@@ -4,7 +4,7 @@ import netCDF4 as nc
 float_type = 'f8'
 
 # set the height
-kmax  = 256
+kmax  = 64
 zsize = 2.
 
 # define the variables
@@ -12,12 +12,16 @@ z = numpy.zeros(kmax)
 u = numpy.zeros(kmax)
 s = numpy.zeros(kmax)
 
-# create non-equidistant grid
-alpha = 0.967
-for k in range(kmax):
-  eta  = -1. + 2.*((k+1)-0.5) / kmax
-  z[k] = zsize / (2.*alpha) * numpy.tanh(eta*0.5*(numpy.log(1.+alpha) - numpy.log(1.-alpha))) + 0.5*zsize
-  s[k] = z[k]
+## create non-equidistant grid
+#alpha = 0.967
+#for k in range(kmax):
+#  eta  = -1. + 2.*((k+1)-0.5) / kmax
+#  z[k] = zsize / (2.*alpha) * numpy.tanh(eta*0.5*(numpy.log(1.+alpha) - numpy.log(1.-alpha))) + 0.5*zsize
+#  s[k] = z[k]
+
+#create equidistant grid
+z = numpy.linspace(0.,2.,kmax,endpoint=False)
+s = z.copy()
 
 # create initial parabolic shape
 dpdxls = -3.0e-6
@@ -27,7 +31,7 @@ for k in range(kmax):
 
 
 # write the data to a file
-nc_file = nc.Dataset("moser600_input.nc", mode="w", datamodel="NETCDF4", clobber=False)
+nc_file = nc.Dataset("moser600les_input.nc", mode="w", datamodel="NETCDF4", clobber=False)
 
 nc_file.createDimension("z", kmax)
 nc_z  = nc_file.createVariable("z" , float_type, ("z"))
