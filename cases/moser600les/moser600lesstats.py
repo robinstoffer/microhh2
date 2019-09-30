@@ -4,11 +4,12 @@ import netCDF4
 
 from pylab import *
 
-nx = 384
-ny = 384
-nz = 256
+nx = 96
+ny = 48
+nz = 65
 
-iter = 60000
+#iter = 60000
+iter = 600;
 iterstep = 500
 nt   = 7
 

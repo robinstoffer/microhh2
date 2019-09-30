@@ -20,7 +20,8 @@ s = numpy.zeros(kmax)
 #  s[k] = z[k]
 
 #create equidistant grid
-z = numpy.linspace(0.,2.,kmax,endpoint=False)
+dz = zsize / kmax
+z = numpy.arange(dz/2., zsize, dz)
 s = z.copy()
 
 # create initial parabolic shape
