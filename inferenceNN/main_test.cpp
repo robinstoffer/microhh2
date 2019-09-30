@@ -14,9 +14,12 @@ int main()
 	// NOTE: Set this to explicitly to the path where the variables of the MLP are stored!
 	
 	//Windows
-	std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP12\\";
+	//std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP12\\";
 	//Linux
 	//std::string var_filepath = "/Variables_MLP13/";
+
+	//Ubuntu VM
+	std::string var_filepath = "/home/robin/microhh2/inferenceNN/Variables_MLP13/";
 
 	//Instantiate grid object, which in this test script just contains hard-coded variables
 	Grid grid;
