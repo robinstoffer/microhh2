@@ -633,117 +633,6 @@ namespace
                 }
     }
 
-    template<typename TF>
-    TF calc_dnmul(TF* restrict evisc, const TF* restrict dzi, const TF dxidxi, const TF dyidyi, const TF tPr,
-                  const int istart, const int iend, const int jstart, const int jend, const int kstart, const int kend,
-                  const int jj, const int kk)
-    {
-        const TF tPrfac = std::min(TF(1.), tPr);
-        TF dnmul = 0;
-
-        // get the maximum time step for diffusion
-        for (int k=kstart; k<kend; ++k)
-            for (int j=jstart; j<jend; ++j)
-                #pragma ivdep
-                for (int i=istart; i<iend; ++i)
-                {
-                    const int ijk = i + j*jj + k*kk;
-                    dnmul = std::max(dnmul, std::abs(evisc[ijk]/tPrfac*(dxidxi + dyidyi + dzi[k]*dzi[k])));
-                }
-
-        return dnmul;
-    }
-
-    template <typename TF, Surface_model surface_model>
-    void calc_diff_flux_c(
-            TF* const restrict out, const TF* const restrict data, const TF* const restrict evisc,
-            const TF* const restrict dzhi,
-            const TF tPr, const TF visc,
-            const int istart, const int iend, const int jstart, const int jend, const int kstart, const int kend,
-            const int jj, const int kk)
-    {
-        constexpr int k_offset = (surface_model == Surface_model::Disabled) ? 0 : 1;
-
-        #pragma omp parallel for
-        for (int k=kstart+k_offset; k<(kend+1-k_offset); ++k)
-        {
-            for (int j=jstart; j<jend; ++j)
-                #pragma ivdep
-                for (int i=istart; i<iend; ++i)
-                {
-                    const int ijk = i + j*jj + k*kk;
-                    const TF eviscc = 0.5*(evisc[ijk-kk]+evisc[ijk])/tPr + visc;
-
-                    out[ijk] = - eviscc*(data[ijk] - data[ijk-kk])*dzhi[k];
-                }
-        }
-    }
-
-    template <typename TF, Surface_model surface_model>
-    void calc_diff_flux_u(
-            TF* const restrict out, const TF* const restrict data, const TF* const restrict w, const TF* const evisc,
-            const TF dxi, const TF* const dzhi,
-            const TF visc,
-            const int istart, const int iend, const int jstart, const int jend, const int kstart, const int kend,
-            const int icells, const int ijcells)
-    {
-        constexpr int k_offset = (surface_model == Surface_model::Disabled) ? 0 : 1;
-
-        const int ii = 1;
-        #pragma omp parallel for
-        for (int k=kstart+k_offset; k<(kend+1-k_offset); ++k)
-        {
-            for (int j=jstart; j<jend; ++j)
-                #pragma ivdep
-                for (int i=istart; i<iend; ++i)
-                {
-                    const int ijk = i + j*icells + k*ijcells;
-                    const TF eviscu = 0.25*(evisc[ijk-ii-ijcells]+evisc[ijk-ii]+evisc[ijk-ijcells]+evisc[ijk]) + visc;
-                    out[ijk] = - eviscu*( (data[ijk]-data[ijk-ijcells])*dzhi[k] + (w[ijk]-w[ijk-ii])*dxi );
-                }
-        }
-    }
-
-    template <typename TF, Surface_model surface_model>
-    void calc_diff_flux_v(
-            TF* const restrict out, const TF* const restrict data, const TF* const restrict w, const TF* const evisc,
-            const TF dyi, const TF* const dzhi,
-            const TF visc,
-            const int istart, const int iend, const int jstart, const int jend, const int kstart, const int kend,
-            const int icells, const int ijcells)
-    {
-        constexpr int k_offset = (surface_model == Surface_model::Disabled) ? 0 : 1;
-
-        #pragma omp parallel for
-        for (int k=kstart+k_offset; k<(kend+1-k_offset); ++k)
-        {
-                for (int j=jstart; j<jend; ++j)
-                    #pragma ivdep
-                    for (int i=istart; i<iend; ++i)
-                    {
-                        const int ijk = i + j*icells + k*ijcells;
-                        const TF eviscv = 0.25*(evisc[ijk-icells-ijcells]+evisc[ijk-icells]+evisc[ijk-ijcells]+evisc[ijk]) + visc;
-                        out[ijk] = - eviscv*( (data[ijk]-data[ijk-ijcells])*dzhi[k] + (w[ijk]-w[ijk-icells])*dyi );
-                    }
-        }
-    }
-
-    template<typename TF>
-    void calc_diff_flux_bc(
-            TF* const restrict out, const TF* const restrict data,
-            const int istart, const int iend, const int jstart, const int jend, const int k,
-            const int icells, const int ijcells)
-    {
-        for (int j=jstart; j<jend; ++j)
-            #pragma ivdep
-            for (int i=istart; i<iend; ++i)
-            {
-                const int ij  = i + j*icells;
-                const int ijk = i + j*icells + k*ijcells;
-                out[ijk] = data[ij];
-            }
-    }
-
 } // End namespace.
 
 template<typename TF>
@@ -784,16 +673,6 @@ Diffusion_type Diff_NN<TF>::get_switch() const
 template<typename TF>
 unsigned long Diff_NN<TF>::get_time_limit(const unsigned long idt, const double dt)
 {
-    auto& gd = grid.get_grid_data();
-    double dnmul = calc_dnmul<TF>(fields.sd.at("evisc")->fld.data(), gd.dzi.data(), 1./(gd.dx*gd.dx), 1./(gd.dy*gd.dy), tPr,
-                                  gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                                  gd.icells, gd.ijcells);
-    master.max(&dnmul, 1);
-
-    // Avoid zero division.
-    dnmul = std::max(Constants::dsmall, dnmul);
-
-    return idt * dnmax / (dt * dnmul);
 }
 #endif
 
@@ -801,32 +680,12 @@ unsigned long Diff_NN<TF>::get_time_limit(const unsigned long idt, const double 
 template<typename TF>
 double Diff_NN<TF>::get_dn(const double dt)
 {
-    auto& gd = grid.get_grid_data();
-    double dnmul = calc_dnmul<TF>(fields.sd.at("evisc")->fld.data(), gd.dzi.data(), 1./(gd.dx*gd.dx), 1./(gd.dy*gd.dy), tPr,
-                                  gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                                  gd.icells, gd.ijcells);
-    master.max(&dnmul, 1);
-
-    return dnmul*dt;
 }
 #endif
 
 template<typename TF>
 void Diff_NN<TF>::create(Stats<TF>& stats)
 {
-    auto& gd = grid.get_grid_data();
-
-    // Get the maximum viscosity
-    TF viscmax = fields.visc;
-    for (auto& it : fields.sp)
-        viscmax = std::max(it.second->visc, viscmax);
-
-    // Calculate time step multiplier for diffusion number
-    dnmul = 0;
-    for (int k=gd.kstart; k<gd.kend; ++k)
-        dnmul = std::max(dnmul, std::abs(viscmax * (1./(gd.dx*gd.dx) + 1./(gd.dy*gd.dy) + 1./(gd.dz[k]*gd.dz[k]))));
-
-    create_stats(stats);
 }
 
 #ifndef USECUDA
@@ -930,11 +789,6 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
         }
     }
 
-    stats.calc_tend(*fields.mt.at("u"), tend_name);
-    stats.calc_tend(*fields.mt.at("v"), tend_name);
-    stats.calc_tend(*fields.mt.at("w"), tend_name);
-    for (auto it : fields.st)
-        stats.calc_tend(*it.second, tend_name);
 }
 
 template<typename TF>
@@ -1035,89 +889,16 @@ void Diff_NN<TF>::exec_viscosity(Thermo<TF>& thermo)
 template<typename TF>
 void Diff_NN<TF>::create_stats(Stats<TF>& stats)
 {
-    const std::string group_name = "default";
-
-    // Add variables to the statistics
-    if (stats.get_switch())
-    {
-        stats.add_profs(*fields.sd.at("evisc"), "z", {"mean", "2"}, group_name);
-        stats.add_tendency(*fields.mt.at("u"), "z", tend_name, tend_longname);
-        stats.add_tendency(*fields.mt.at("v"), "z", tend_name, tend_longname);
-        stats.add_tendency(*fields.mt.at("w"), "zh", tend_name, tend_longname);
-
-        for (auto it : fields.st)
-            stats.add_tendency(*it.second, "z", tend_name, tend_longname);
-    }
 }
 
 template<typename TF>
 void Diff_NN<TF>::exec_stats(Stats<TF>& stats)
 {
-    const TF no_offset = 0.;
-    const TF no_threshold = 0.;
-    stats.calc_stats("evisc", *fields.sd.at("evisc"), no_offset, no_threshold);
 }
 
 template<typename TF>
 void Diff_NN<TF>::diff_flux(Field3d<TF>& restrict out, const Field3d<TF>& restrict fld_in)
 {
-    auto& gd = grid.get_grid_data();
-
-    if (boundary.get_switch() == "surface" || boundary.get_switch() == "surface_bulk")
-    {
-        // Calculate the boundary fluxes.
-        calc_diff_flux_bc(out.fld.data(), fld_in.flux_bot.data(), gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.icells, gd.ijcells);
-        calc_diff_flux_bc(out.fld.data(), fld_in.flux_top.data(), gd.istart, gd.iend, gd.jstart, gd.jend, gd.kend  , gd.icells, gd.ijcells);
-
-        // Calculate the interior.
-        if (fld_in.loc[0] == 1)
-            calc_diff_flux_u<TF, Surface_model::Enabled>(
-                    out.fld.data(), fld_in.fld.data(), fields.mp.at("w")->fld.data(), fields.sd.at("evisc")->fld.data(),
-                    gd.dxi, gd.dzhi.data(),
-                    fields.visc,
-                    gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                    gd.icells, gd.ijcells);
-        else if (fld_in.loc[1] == 1)
-            calc_diff_flux_v<TF, Surface_model::Enabled>(
-                    out.fld.data(), fld_in.fld.data(), fields.mp.at("w")->fld.data(), fields.sd.at("evisc")->fld.data(),
-                    gd.dyi, gd.dzhi.data(),
-                    fields.visc,
-                    gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                    gd.icells, gd.ijcells);
-        else
-            calc_diff_flux_c<TF, Surface_model::Enabled>(
-                    out.fld.data(), fld_in.fld.data(), fields.sd.at("evisc")->fld.data(),
-                    gd.dzhi.data(),
-                    tPr, fld_in.visc,
-                    gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                    gd.icells, gd.ijcells);
-    }
-    else
-    {
-        // Include the wall.
-        if (fld_in.loc[0] == 1)
-            calc_diff_flux_u<TF, Surface_model::Disabled>(
-                    out.fld.data(), fld_in.fld.data(), fields.mp.at("w")->fld.data(), fields.sd.at("evisc")->fld.data(),
-                    gd.dxi, gd.dzhi.data(),
-                    fields.visc,
-                    gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                    gd.icells, gd.ijcells);
-        else if (fld_in.loc[1] == 1)
-            calc_diff_flux_v<TF, Surface_model::Disabled>(
-                    out.fld.data(), fld_in.fld.data(), fields.mp.at("w")->fld.data(), fields.sd.at("evisc")->fld.data(),
-                    gd.dyi, gd.dzhi.data(),
-                    fields.visc,
-                    gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                    gd.icells, gd.ijcells);
-        else
-            calc_diff_flux_c<TF, Surface_model::Disabled>(
-                    out.fld.data(), fld_in.fld.data(), fields.sd.at("evisc")->fld.data(),
-                    gd.dzhi.data(),
-                    tPr, fld_in.visc,
-                    gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-                    gd.icells, gd.ijcells);
-    }
 }
-
 template class Diff_NN<double>;
 template class Diff_NN<float>;
