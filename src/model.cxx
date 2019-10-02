@@ -131,6 +131,9 @@ Model<TF>::Model(Master& masterin, int argc, char *argv[]) :
         dump      = std::make_shared<Dump  <TF>>(master, *grid, *fields, *input);
         cross     = std::make_shared<Cross <TF>>(master, *grid, *fields, *input);
 
+	//Create shared pointer for network class
+	mlp       = std::make_shared<Network>()
+
         budget    = Budget<TF>::factory(master, *grid, *fields, *thermo, *diff, *advec, *force, *stats, *input);
 
         // Parse the statistics masks

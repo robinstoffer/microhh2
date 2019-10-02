@@ -39,7 +39,7 @@
 #include "diff_2.h"
 #include "diff_4.h"
 #include "diff_smag2.h"
-#include "diff_NN.h"
+#include "diff_nn.h"
 
 template<typename TF>
 Diff<TF>::Diff(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, Boundary<TF>& boundaryin, Input& input) :
