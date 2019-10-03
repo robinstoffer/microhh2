@@ -37,13 +37,15 @@ int main(int argc, char *argv[])
         master.print_message("Microhh git-hash: " GITHASH "\n");
 
         // Initialize the model in precision.
-        #ifdef FLOAT_SINGLE
-        master.print_message("Precision: Single (32-bits floats)\n");
-        Model<float> model(master, argc, argv);
-        #else
-        master.print_message("Precision: Double (64-bits floats)\n");
-        Model<double> model(master, argc, argv);
-        #endif
+	master.print_message("Precision: Single (32-bits floats)\n");
+	Model<float> model(master, argc, argv);
+        //#ifdef FLOAT_SINGLE
+        //master.print_message("Precision: Single (32-bits floats)\n");
+        //Model<float> model(master, argc, argv);
+        //#else
+        //master.print_message("Precision: Double (64-bits floats)\n");
+        //Model<double> model(master, argc, argv);
+        //#endif
 
         // Initialize the model components.
         model.init();
