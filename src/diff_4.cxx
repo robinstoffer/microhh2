@@ -313,5 +313,5 @@ void Diff_4<TF>::diff_flux(Field3d<TF>& restrict out, const Field3d<TF>& in)
             gd.icells, gd.ijcells);
 }
 
-//template class Diff_4<double>;
+template class Diff_4<double>;
 template class Diff_4<float>;

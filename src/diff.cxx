@@ -78,5 +78,5 @@ std::shared_ptr<Diff<TF>> Diff<TF>::factory(
     }
 }
 
-//template class Diff<double>;
+template class Diff<double>;
 template class Diff<float>;

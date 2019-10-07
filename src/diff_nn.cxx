@@ -25,6 +25,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <string>
 
 #include "grid.h"
 #include "fields.h"
@@ -43,9 +44,63 @@ extern "C"
 	//#include <cblas.h>
 	#include <mkl.h>
 }
+
+namespace
+{
+    template<typename TF>
+    void diff_c(TF* restrict at, const TF* restrict a, const TF visc,
+                const int istart, const int iend, const int jstart, const int jend, const int kstart, const int kend,
+                const int jj, const int kk, const TF dx, const TF dy, const TF* restrict dzi, const TF* restrict dzhi)
+    {
+        const int ii = 1;
+        const double dxidxi = 1/(dx*dx);
+        const double dyidyi = 1/(dy*dy);
+
+        for (int k=kstart; k<kend; k++)
+            for (int j=jstart; j<jend; j++)
+                #pragma ivdep
+                for (int i=istart; i<iend; i++)
+                {
+                    const int ijk = i + j*jj + k*kk;
+                    at[ijk] += visc * (
+                            + ( (a[ijk+ii] - a[ijk   ])
+                              - (a[ijk   ] - a[ijk-ii]) ) * dxidxi
+                            + ( (a[ijk+jj] - a[ijk   ])
+                              - (a[ijk   ] - a[ijk-jj]) ) * dyidyi
+                            + ( (a[ijk+kk] - a[ijk   ]) * dzhi[k+1]
+                              - (a[ijk   ] - a[ijk-kk]) * dzhi[k]   ) * dzi[k] );
+                }
+    }
+
+    template<typename TF>
+    void diff_w(TF* restrict wt, const TF* restrict w, const TF visc,
+                const int istart, const int iend, const int jstart, const int jend, const int kstart, const int kend,
+                const int jj, const int kk, const TF dx, const TF dy, const TF* restrict dzi, const TF* restrict dzhi)
+    {
+        const int ii = 1;
+        const double dxidxi = 1/(dx*dx);
+        const double dyidyi = 1/(dy*dy);
+
+        for (int k=kstart+1; k<kend; k++)
+            for (int j=jstart; j<jend; j++)
+                #pragma ivdep
+                for (int i=istart; i<iend; i++)
+                {
+                    const int ijk = i + j*jj + k*kk;
+                    wt[ijk] += visc * (
+                            + ( (w[ijk+ii] - w[ijk   ])
+                              - (w[ijk   ] - w[ijk-ii]) ) * dxidxi
+                            + ( (w[ijk+jj] - w[ijk   ])
+                              - (w[ijk   ] - w[ijk-jj]) ) * dyidyi
+                            + ( (w[ijk+kk] - w[ijk   ]) * dzi[k]
+                              - (w[ijk   ] - w[ijk-kk]) * dzi[k-1] ) * dzhi[k] );
+                }
+    }
+}
+
 template<typename TF>
 void Diff_NN<TF>::select_box(
-	const float* restrict const field_var,
+	const TF* restrict const field_var,
 	float* restrict const box_var,
 	const int k_center,
 	const int j_center,
@@ -76,7 +131,7 @@ void Diff_NN<TF>::select_box(
 			for (int i_field = i_center - b + skip_firstx; i_field < (i_center + b + 1 - skip_lastx); ++i_field)
 			{
 				//Extract grid box flow field
-				box_var[k_box * ji_box + j_box * (boxsize - skip_firstx - skip_lastx) + i_box] = field_var[k_field * gd.ijcells + j_field * gd.icells + i_field];
+				box_var[k_box * ji_box + j_box * (boxsize - skip_firstx - skip_lastx) + i_box] = static_cast<float>(field_var[k_field * gd.ijcells + j_field * gd.icells + i_field]);
 				i_box += 1;
 			}
 			j_box += 1;
@@ -88,12 +143,12 @@ void Diff_NN<TF>::select_box(
 // Function that loops over the whole flow field, and calculates for each grid cell the tendencies
 template<typename TF>
 void Diff_NN<TF>::diff_U(
-	const float* restrict const u,
-	const float* restrict const v,
-	const float* restrict const w,
-	float* restrict const ut,
-	float* restrict const vt,
-	float* restrict const wt
+	const TF* restrict const u,
+	const TF* restrict const v,
+	const TF* restrict const w,
+	TF* restrict const ut,
+	TF* restrict const vt,
+	TF* restrict const wt
 	)
 {
 	auto& gd  = grid.get_grid_data();
@@ -110,6 +165,8 @@ void Diff_NN<TF>::diff_U(
 	//NOTE1: offset factors included to ensure alternate sampling
 	for (int k = gd.kstart; k < gd.kend; ++k)
 	{
+        std::cout << "k: " << std::to_string(k) << "\n";
+        std::cout << "wt: " << std::to_string(wt[0,0,1]) << "\n";
 		int k_offset = k % 2;
 		for (int j = gd.jstart; j < gd.jend; ++j)
 		{
@@ -557,13 +614,18 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     boundary_cyclic(master, grid),
     field3d_operators(master, grid, fields)
 {
+    const int igc = 2;
+    const int jgc = 2;
+    const int kgc = 2;
+    grid.set_minimum_ghost_cells(igc, jgc, kgc);
+
     dnmax = inputin.get_item<TF>("diff", "dnmax", "", 0.4  );
 
-    if (grid.get_spatial_order() != Grid_order::Second)
-        throw std::runtime_error("Diff_NN only runs with second order grids");
+//   if (grid.get_spatial_order() != Grid_order::Second)
+//      throw std::runtime_error("Diff_NN only runs with second order grids");
 
     //Hard-code file directory where variables MLP are stored
-    std::string var_filepath = "../inferenNN/Variables_MLP13/";
+    std::string var_filepath = "../../inferenceNN/Variables_MLP13/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");
@@ -728,6 +790,20 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
 	fields.mt.at("v")->fld.data(),
 	fields.mt.at("w")->fld.data()
 	);
+
+
+    diff_c<TF>(fields.mt.at("u")->fld.data(), fields.mp.at("u")->fld.data(), fields.visc,
+               gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,
+               gd.dx, gd.dy, gd.dzi.data(), gd.dzhi.data());
+
+    diff_c<TF>(fields.mt.at("v")->fld.data(), fields.mp.at("v")->fld.data(), fields.visc,
+               gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,
+               gd.dx, gd.dy, gd.dzi.data(), gd.dzhi.data());
+
+    diff_w<TF>(fields.mt.at("w")->fld.data(), fields.mp.at("w")->fld.data(), fields.visc,
+               gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,
+               gd.dx, gd.dy, gd.dzi.data(), gd.dzhi.data());
+
 }
 
 template<typename TF>
@@ -750,4 +826,6 @@ template<typename TF>
 void Diff_NN<TF>::diff_flux(Field3d<TF>& restrict out, const Field3d<TF>& restrict fld_in)
 {
 }
+
 template class Diff_NN<float>;
+template class Diff_NN<double>;

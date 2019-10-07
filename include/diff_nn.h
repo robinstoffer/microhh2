@@ -56,7 +56,7 @@ class Diff_NN : public Diff<TF>
 
 	
 	void select_box(
-		const float* restrict const field_var,
+		const TF* restrict const field_var,
 		float* restrict const box_var,
 		const int k_center,
 		const int j_center,
@@ -71,12 +71,12 @@ class Diff_NN : public Diff<TF>
 	);
 	
 	void diff_U(
-		const float* restrict const u,
-		const float* restrict const v,
-		const float* restrict const w,
-		float* restrict const ut,
-		float* restrict const vt,
-		float* restrict const wt
+		const TF* restrict const u,
+		const TF* restrict const v,
+		const TF* restrict const w,
+		TF* restrict const ut,
+		TF* restrict const vt,
+		TF* restrict const wt
 	);
 
 	void hidden_layer1(
