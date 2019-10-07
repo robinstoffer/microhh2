@@ -53,8 +53,8 @@ namespace
                 const int jj, const int kk, const TF dx, const TF dy, const TF* restrict dzi, const TF* restrict dzhi)
     {
         const int ii = 1;
-        const double dxidxi = 1/(dx*dx);
-        const double dyidyi = 1/(dy*dy);
+        const TF dxidxi = 1/(dx*dx);
+        const TF dyidyi = 1/(dy*dy);
 
         for (int k=kstart; k<kend; k++)
             for (int j=jstart; j<jend; j++)
@@ -78,8 +78,8 @@ namespace
                 const int jj, const int kk, const TF dx, const TF dy, const TF* restrict dzi, const TF* restrict dzhi)
     {
         const int ii = 1;
-        const double dxidxi = 1/(dx*dx);
-        const double dyidyi = 1/(dy*dy);
+        const TF dxidxi = 1/(dx*dx);
+        const TF dyidyi = 1/(dy*dy);
 
         for (int k=kstart+1; k<kend; k++)
             for (int j=jstart; j<jend; j++)
@@ -158,15 +158,13 @@ void Diff_NN<TF>::diff_U(
 	std::vector<float> result_zw(N_output_zw, 0.0f);
 	
 	//Calculate inverse height differences
-	const float dxi = 1.f / gd.dx;
-	const float dyi = 1.f / gd.dy;
+	const TF dxi = 1.f / gd.dx;
+	const TF dyi = 1.f / gd.dy;
 
 	//Loop over field
 	//NOTE1: offset factors included to ensure alternate sampling
 	for (int k = gd.kstart; k < gd.kend; ++k)
 	{
-        std::cout << "k: " << std::to_string(k) << "\n";
-        std::cout << "wt: " << std::to_string(wt[0,0,1]) << "\n";
 		int k_offset = k % 2;
 		for (int j = gd.jstart; j < gd.jend; ++j)
 		{
@@ -202,76 +200,70 @@ void Diff_NN<TF>::diff_U(
 					m_output.data(), result.data(), false
 					);
 
-				//Calculate indices without ghost cells for storage of the tendencies
-				int k_nogc = k - gd.kstart;
-				int j_nogc = j - gd.jstart;
-				int i_nogc = i - gd.istart;
-				int k_1gc = k_nogc + 1;
-
 				//Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
-				int i_nogc_upbound = 0;
-				int i_nogc_downbound = 0;
-				int j_nogc_upbound = 0;
-				int j_nogc_downbound = 0;
+				int i_upbound = 0;
+				int i_downbound = 0;
+				int j_upbound = 0;
+				int j_downbound = 0;
 				// upstream boundary
 				if (i == (gd.istart))
 				{
-					i_nogc_upbound = gd.itot - 1;
+					i_upbound = gd.iend - 1;
 				}
 				else
 				{
-					i_nogc_upbound = i_nogc - 1;
+					i_upbound = i - 1;
 				}
 				if (j == (gd.jstart))
 				{
-					j_nogc_upbound = gd.jtot - 1;
+					j_upbound = gd.jend - 1;
 				}
 				else
 				{
-					j_nogc_upbound = j_nogc - 1;
+					j_upbound = j - 1;
 				}
 				// downstream boundary
 				if (i == (gd.iend - 1))
 				{
-					i_nogc_downbound = 0;
+					i_downbound = gd.istart;
 				}
 				else
 				{
-					i_nogc_downbound = i_nogc + 1;
+					i_downbound = i + 1;
 				}
 				if (j == (gd.jend - 1))
 				{
-					j_nogc_downbound = 0;
+					j_downbound = gd.jstart;
 				}
 				else
 				{
-					j_nogc_downbound = j_nogc + 1;
+					j_downbound = j + 1;
 				}
 
 				//Calculate tendencies using predictions from mlp
 				//xu_upstream
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]         += -result[0] * dxi;
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc_upbound] +=  result[0] * dxi;
+				ut[k*gd.ijcells + j * gd.icells + i]         += -result[0] * dxi;
+				ut[k*gd.ijcells + j * gd.icells + i_upbound] +=  result[0] * dxi;
 
 				//xu_downstream
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot+ i_nogc]           +=  result[1] * dxi;
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot+ i_nogc_downbound] += -result[1] * dxi;
+				ut[k*gd.ijcells + j * gd.icells+ i]           +=  result[1] * dxi;
+				ut[k*gd.ijcells + j * gd.icells+ i_downbound] += -result[1] * dxi;
 
 				//yu_upstream
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]         += -result[2] * dyi;
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc_upbound * gd.itot + i_nogc] +=  result[2] * dyi;
+				ut[k*gd.ijcells + j * gd.icells + i]         += -result[2] * dyi;
+				ut[k*gd.ijcells + j_upbound * gd.icells + i] +=  result[2] * dyi;
 
 				//yu_downstream
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           +=  result[3] * dyi;
-				ut[k_nogc*gd.jtot*gd.itot + j_nogc_downbound * gd.itot + i_nogc] += -result[3] * dyi;
+				ut[k*gd.ijcells + j * gd.icells + i]           +=  result[3] * dyi;
+				ut[k*gd.ijcells + j_downbound * gd.icells + i] += -result[3] * dyi;
 
 				//zu_upstream
 				if (k != gd.kstart)
 					// NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
 					// 2) ghost cell is not assigned.
 				{
-					ut[(k_nogc-1)*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc] +=  result[4] * gd.dzi[k_1gc-1];
-					ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]     += -result[4] * gd.dzi[k_1gc];
+					ut[(k-1)*gd.ijcells + j * gd.icells + i] +=  result[4] * gd.dzi[k-1];
+					ut[k*gd.ijcells + j * gd.icells + i]     += -result[4] * gd.dzi[k];
 				}
 
 				//zu_downstream
@@ -279,33 +271,33 @@ void Diff_NN<TF>::diff_U(
 					// NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
 					// 2) ghost cell is not assigned.
 				{
-					ut[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]     +=  result[5] * gd.dzi[k_1gc];
-					ut[(k_nogc+1)*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc] += -result[5] * gd.dzi[k_1gc+1];
+					ut[k*gd.ijcells + j * gd.icells + i]     +=  result[5] * gd.dzi[k];
+					ut[(k+1)*gd.ijcells + j * gd.icells + i] += -result[5] * gd.dzi[k+1];
 				}
 
 				//xv_upstream
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]         += -result[6] * dxi;
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc_upbound] +=  result[6] * dxi;
+				vt[k*gd.ijcells + j * gd.icells + i]         += -result[6] * dxi;
+				vt[k*gd.ijcells + j * gd.icells + i_upbound] +=  result[6] * dxi;
 
 				//xv_downstream
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           +=  result[7] * dxi;
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc_downbound] += -result[7] * dxi;
+				vt[k*gd.ijcells + j * gd.icells + i]           +=  result[7] * dxi;
+				vt[k*gd.ijcells + j * gd.icells + i_downbound] += -result[7] * dxi;
 
 				//yv_upstream
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]         += -result[8] * dyi;
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc_upbound * gd.itot + i_nogc] +=  result[8] * dyi;
+				vt[k*gd.ijcells + j * gd.icells + i]         += -result[8] * dyi;
+				vt[k*gd.ijcells + j_upbound * gd.icells + i] +=  result[8] * dyi;
 
 				//yv_downstream
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           +=  result[9] * dyi;
-				vt[k_nogc*gd.jtot*gd.itot + j_nogc_downbound * gd.itot + i_nogc] += -result[9] * dyi;
+				vt[k*gd.ijcells + j * gd.icells + i]           +=  result[9] * dyi;
+				vt[k*gd.ijcells + j_downbound * gd.icells + i] += -result[9] * dyi;
 
 				//zv_upstream
 				if (k != gd.kstart)
 					// NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
 					// 2) ghost cell is not assigned.
 				{
-					vt[(k_nogc - 1)*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc] +=  result[10] * gd.dzi[k_1gc - 1];
-					vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]       += -result[10] * gd.dzi[k_1gc];
+					vt[(k - 1)*gd.ijcells + j * gd.icells + i] +=  result[10] * gd.dzi[k - 1];
+					vt[k*gd.ijcells + j * gd.icells + i]       += -result[10] * gd.dzi[k];
 				}
 
 				//zv_downstream
@@ -313,43 +305,43 @@ void Diff_NN<TF>::diff_U(
 					// NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
 					// 2) ghost cell is not assigned.
 				{
-					vt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]       +=  result[11] * gd.dzi[k_1gc];
-					vt[(k_nogc + 1)*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc] += -result[11] * gd.dzi[k_1gc + 1];
+					vt[k*gd.ijcells + j * gd.icells + i]       +=  result[11] * gd.dzi[k];
+					vt[(k + 1)*gd.ijcells + j * gd.icells + i] += -result[11] * gd.dzi[k + 1];
 				}
 
 				if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
 				{
 					//xw_upstream
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]         += -result[12] * dxi;
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc_upbound] +=  result[12] * dxi;
+					wt[k*gd.ijcells + j * gd.icells + i]         += -result[12] * dxi;
+					wt[k*gd.ijcells + j * gd.icells + i_upbound] +=  result[12] * dxi;
 
 					//xw_downstream
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           +=  result[13] * dxi;
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc_downbound] += -result[13] * dxi;
+					wt[k*gd.ijcells + j * gd.icells + i]           +=  result[13] * dxi;
+					wt[k*gd.ijcells + j * gd.icells + i_downbound] += -result[13] * dxi;
 
 					//yw_upstream
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]         += -result[14] * dyi;
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc_upbound * gd.itot + i_nogc] +=  result[14] * dyi;
+					wt[k*gd.ijcells + j * gd.icells + i]         += -result[14] * dyi;
+					wt[k*gd.ijcells + j_upbound * gd.icells + i] +=  result[14] * dyi;
 
 					//yw_downstream
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           +=  result[15] * dyi;
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc_downbound * gd.itot + i_nogc] += -result[15] * dyi;
+					wt[k*gd.ijcells + j * gd.icells + i]           +=  result[15] * dyi;
+					wt[k*gd.ijcells + j_downbound * gd.icells + i] += -result[15] * dyi;
 
 					//zu_upstream
 					if (k != (gd.kstart+1))
 						//NOTE: Dont'adjust wt for bottom layer, should stay 0
 					{
-						wt[(k_nogc - 1)*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc] +=  result[16] * gd.dzhi[k_1gc - 1];
+						wt[(k - 1)*gd.ijcells + j * gd.icells + i] +=  result[16] * gd.dzhi[k - 1];
 					}
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           += -result[16] * gd.dzhi[k_1gc];
+					wt[k*gd.ijcells + j * gd.icells + i]           += -result[16] * gd.dzhi[k];
 
 					//zu_downstream
-					wt[k_nogc*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc]           +=  result[17] * gd.dzhi[k_1gc];
+					wt[k*gd.ijcells + j * gd.icells + i]           +=  result[17] * gd.dzhi[k];
 					if (k != (gd.kend - 1))
 					// NOTE:although this does not change wt at the bottom layer, 
 					// it is still not included for k=0 to keep consistency between the top and bottom of the domain.
 					{
-						wt[(k_nogc + 1)*gd.jtot*gd.itot + j_nogc * gd.itot + i_nogc] += -result[17] * gd.dzhi[k_1gc + 1];
+						wt[(k + 1)*gd.ijcells + j * gd.icells + i] += -result[17] * gd.dzhi[k + 1];
 					}
 				}
 
@@ -396,22 +388,16 @@ void Diff_NN<TF>::diff_U(
 						m_output_zw.data(), result_zw.data(), true
 					);
 
-					//Calculate new indices for storage
-					int k_nogc2 = k - gd.kstart;
-					int j_nogc2 = j - gd.jstart;
-					int i_nogc2 = i_2grid - gd.istart;
-					int k_1gc2  = k_nogc2 + 1;
-
 					//Store calculated tendencies
 					//zw_upstream
 					if (k == (gd.kstart + 1))
 					{
-						wt[k_nogc2 * gd.jtot*gd.itot + j_nogc2 * gd.itot + i_nogc2] += -result_zw[0] * gd.dzhi[k_1gc2];
+						wt[k * gd.ijcells + j * gd.icells + i_2grid] += -result_zw[0] * gd.dzhi[k];
 					}
 					//zw_downstream
 					else
 					{
-						wt[k_nogc2 * gd.jtot*gd.itot + j_nogc2 * gd.itot + i_nogc2] += result_zw[1] * gd.dzhi[k_1gc2];
+						wt[k * gd.ijcells + j * gd.icells + i_2grid] += result_zw[1] * gd.dzhi[k];
 					}			
 				}
 			}
@@ -460,7 +446,7 @@ void Diff_NN<TF>::output_layer(
 
 template<typename TF>
 void Diff_NN<TF>::Inference(
-        float* restrict const input_ctrlu_u,
+    float* restrict const input_ctrlu_u,
 	float* restrict const input_ctrlu_v,
 	float* restrict const input_ctrlu_w,
 	const float* restrict const hiddenu_wgth,
@@ -476,9 +462,9 @@ void Diff_NN<TF>::Inference(
 	const float hiddenv_alpha,
 	const float* restrict const outputv_wgth,
 	const float* restrict const outputv_bias,
-        float* restrict const input_ctrlw_u,
-        float* restrict const input_ctrlw_v,
-        float* restrict const input_ctrlw_w,
+    float* restrict const input_ctrlw_u,
+    float* restrict const input_ctrlw_v,
+    float* restrict const input_ctrlw_w,
 	const float* restrict const hiddenw_wgth,
 	const float* restrict const hiddenw_bias,
 	const float hiddenw_alpha,
@@ -803,6 +789,8 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
     diff_w<TF>(fields.mt.at("w")->fld.data(), fields.mp.at("w")->fld.data(), fields.visc,
                gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,
                gd.dx, gd.dy, gd.dzi.data(), gd.dzhi.data());
+
+
 
 }
 
