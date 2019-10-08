@@ -30,7 +30,8 @@ void diff_U(
 	float* restrict const ut,
 	float* restrict const vt,
 	float* restrict const wt,
-	const Grid& grid,
+	const Grid& gd,
 	Network& MLP
 );
+
 #endif

@@ -6,7 +6,7 @@
 
 Grid::Grid()
 {
-	//Hard-code values for grid
+	//Hard-code values for grid rather than reading them from a netCDF-file (as done in Grid class below)
 	m_ktot = 64;
 	m_khtot = 65;
 	m_jtot = 48;
@@ -27,7 +27,6 @@ Grid::Grid()
 	m_jcells = m_jstart + m_jend;
 	m_icells = m_istart + m_iend;
 	m_ijcells = m_icells * m_jcells;
-	m_ijtot = m_itot * m_jtot;
 	m_dx = m_xsize / m_itot;
 	m_dy = m_ysize / m_jtot;
 }

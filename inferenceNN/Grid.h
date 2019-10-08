@@ -7,16 +7,12 @@
 class Grid
 {
 	public:
-		std::vector<float> m_zc;
-		std::vector<float> m_yc;
-		std::vector<float> m_xc;
-		int m_ktot;
-		int m_khtot;
-		int m_jtot;
-		int m_itot;
-		std::vector<float> m_zhc;
-		std::vector<float> m_yhc;
-		std::vector<float> m_xhc;
+		std::vector<float> m_zgc;
+		std::vector<float> m_ygc;
+		std::vector<float> m_xgc;
+		std::vector<float> m_zhgc;
+		std::vector<float> m_yhgc;
+		std::vector<float> m_xhgc;
 		float m_zsize;
 		float m_ysize;
 		float m_xsize;
@@ -31,12 +27,15 @@ class Grid
 		int m_khcells;
 		int m_jcells;
 		int m_icells;
+		int m_khtot;
+		int m_ktot;
+		int m_jtot;
+		int m_itot;
 		int m_ijcells;
-		int m_ijtot;
 		float m_dx;
 		float m_dy;
-		//Grid(); // constructor testing
-		Grid(std::string grid_filenc); // constructor actual inference
+		Grid(); // constructor testing
+		//Grid(std::string grid_filenc); // constructor actual inference
 
 		~Grid(); // destructor
 

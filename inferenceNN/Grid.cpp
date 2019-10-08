@@ -27,16 +27,16 @@ Grid::Grid(std::string grid_filenc)
 
 	//Define IDs for netCDF-file and variables for reading:
 	m_ncid_grid = 0;
-	size_t ktot = 0;
-	size_t khtot = 0;
-	size_t jtot = 0;
-	size_t itot = 0;
-	int varid_zc = 0;
-	int varid_zhc = 0;
-	int varid_yc = 0;
-	int varid_yhc = 0;
-	int varid_xc = 0;
-	int varid_xhc = 0;
+	size_t kcells = 0;
+	size_t khcells = 0;
+	size_t jcells = 0;
+	size_t icells = 0;
+	int varid_zgc = 0;
+	int varid_zhgc = 0;
+	int varid_ygc = 0;
+	int varid_yhgc = 0;
+	int varid_xgc = 0;
+	int varid_xhgc = 0;
 	int varid_kstart = 0;
 	int varid_kend = 0;
 	int varid_khend = 0;
@@ -44,10 +44,10 @@ Grid::Grid(std::string grid_filenc)
 	int varid_jend = 0;
 	int varid_istart = 0;
 	int varid_iend = 0;
-	int dimid_ktot = 0;
-	int dimid_khtot = 0;
-	int dimid_jtot = 0;
-	int dimid_itot = 0;
+	int dimid_kcells = 0;
+	int dimid_khcells = 0;
+	int dimid_jcells = 0;
+	int dimid_icells = 0;
 
 	// Open nc-file  for reading
 	if ((retval = nc_open(grid_filenc.c_str(), NC_NOWRITE, &m_ncid_grid)))
@@ -56,27 +56,27 @@ Grid::Grid(std::string grid_filenc)
 	}
 
 	// Get the varids of the variables based on their names
-	if ((retval = nc_inq_varid(m_ncid_grid, "zc", &varid_zc)))
+	if ((retval = nc_inq_varid(m_ncid_grid, "zgc", &varid_zgc)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_varid(m_ncid_grid, "zhc", &varid_zhc)))
+	if ((retval = nc_inq_varid(m_ncid_grid, "zhgc", &varid_zhgc)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_varid(m_ncid_grid, "yc", &varid_yc)))
+	if ((retval = nc_inq_varid(m_ncid_grid, "ygc", &varid_ygc)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_varid(m_ncid_grid, "yhc", &varid_yhc)))
+	if ((retval = nc_inq_varid(m_ncid_grid, "yhgc", &varid_yhgc)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_varid(m_ncid_grid, "xc", &varid_xc)))
+	if ((retval = nc_inq_varid(m_ncid_grid, "xgc", &varid_xgc)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_varid(m_ncid_grid, "xhc", &varid_xhc)))
+	if ((retval = nc_inq_varid(m_ncid_grid, "xhgc", &varid_xhgc)))
 	{
 		nc_error_print(retval);
 	}
@@ -140,84 +140,84 @@ Grid::Grid(std::string grid_filenc)
 	}
 
 	//Extract dimension lengths from the nc-file
-	if ((retval = nc_inq_dimid(m_ncid_grid, "zc", &dimid_ktot)))
+	if ((retval = nc_inq_dimid(m_ncid_grid, "zgc", &dimid_kcells)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_ktot, &ktot)))
+	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_kcells, &kcells)))
 	{
 		nc_error_print(retval);
 	}
-	m_ktot = static_cast<int>(ktot); //Cast from size_t to int
-	if ((retval = nc_inq_dimid(m_ncid_grid, "zhc", &dimid_khtot)))
+	m_kcells = static_cast<int>(kcells); //Cast from size_t to int
+	if ((retval = nc_inq_dimid(m_ncid_grid, "zhgc", &dimid_khcells)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_khtot, &khtot)))
+	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_khcells, &khcells)))
 	{
 		nc_error_print(retval);
 	}
-	m_khtot = static_cast<int>(khtot); //Cast from size_t to int
-	if ((retval = nc_inq_dimid(m_ncid_grid, "yc", &dimid_jtot)))
+	m_khcells = static_cast<int>(khcells); //Cast from size_t to int
+	if ((retval = nc_inq_dimid(m_ncid_grid, "ygc", &dimid_jcells)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_jtot, &jtot)))
+	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_jcells, &jcells)))
 	{
 		nc_error_print(retval);
 	}
-	m_jtot = static_cast<int>(jtot); //Cast from size_t to int
-	if ((retval = nc_inq_dimid(m_ncid_grid, "xc", &dimid_itot)))
+	m_jcells = static_cast<int>(jcells); //Cast from size_t to int
+	if ((retval = nc_inq_dimid(m_ncid_grid, "xgc", &dimid_icells)))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_itot, &itot)))
+	if ((retval = nc_inq_dimlen(m_ncid_grid, dimid_icells, &icells)))
 	{
 		nc_error_print(retval);
 	}
-	m_itot = static_cast<int>(itot); //Cast from size_t to int
+	m_icells = static_cast<int>(icells); //Cast from size_t to int
 
 	//Initialize std::vectors as here lengths are known runtime
-	m_zc.resize(m_ktot, 0);  //NOTE: initialize to 0.
-	m_zhc.resize(m_khtot, 0);
-	m_yc.resize(m_jtot, 0);
-	m_yhc.resize(m_jtot, 0);
-	m_xc.resize(m_itot, 0);
-	m_xhc.resize(m_itot, 0);
+	m_zgc.resize(m_kcells, 0);  //NOTE: initialize to 0.
+	m_zhgc.resize(m_khcells, 0);
+	m_ygc.resize(m_jcells, 0);
+	m_yhgc.resize(m_jcells, 0);
+	m_xgc.resize(m_icells, 0);
+	m_xhgc.resize(m_icells, 0);
 
 	// Read the grid information from the nc-file
-	if ((retval = nc_get_var_float(m_ncid_grid, varid_zc, &m_zc[0])))
+	if ((retval = nc_get_var_float(m_ncid_grid, varid_zgc, &m_zgc[0])))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_get_var_float(m_ncid_grid, varid_zhc, &m_zhc[0])))
+	if ((retval = nc_get_var_float(m_ncid_grid, varid_zhgc, &m_zhgc[0])))
 	{
 		nc_error_print(retval);
 	}
-	if ((retval = nc_get_var_float(m_ncid_grid, varid_yc, &m_yc[0])))
+	if ((retval = nc_get_var_float(m_ncid_grid, varid_ygc, &m_ygc[0])))
 	{
 		nc_error_print(retval);
 	}
 	//
 	size_t start_yh[2] = {};
 	size_t count_yh[2] = {};
-	count_yh[0] = jtot;
+	count_yh[0] = jcells;
 	count_yh[1] = 1;
-	if ((retval = nc_get_vara_float(m_ncid_grid, varid_yhc, start_yh, count_yh, &m_yhc[0]))) // NOTE: implicitly the ghost cell in the xh - direction is removed.
+	if ((retval = nc_get_vara_float(m_ncid_grid, varid_yhgc, start_yh, count_yh, &m_yhgc[0]))) // NOTE: implicitly the ghost cell in the xh - direction is removed.
 	{
 		nc_error_print(retval);
 	}
 	//
-	if ((retval = nc_get_var_float(m_ncid_grid, varid_xc, &m_xc[0])))
+	if ((retval = nc_get_var_float(m_ncid_grid, varid_xgc, &m_xgc[0])))
 	{
 		nc_error_print(retval);
 	}
 	//
 	size_t start_xh[2] = {};
 	size_t count_xh[2] = {};
-	count_xh[0] = itot;
+	count_xh[0] = icells;
 	count_xh[1] = 1;
-	if ((retval = nc_get_vara_float(m_ncid_grid, varid_xhc, start_xh, count_xh, &m_xhc[0]))) //NOTE: implicitly the ghost cell in the xh-direction is removed.
+	if ((retval = nc_get_vara_float(m_ncid_grid, varid_xhgc, start_xh, count_xh, &m_xhgc[0]))) //NOTE: implicitly the ghost cell in the xh-direction is removed.
 	{
 		nc_error_print(retval);
 	}
@@ -228,33 +228,32 @@ Grid::Grid(std::string grid_filenc)
 	size_t count_size[2] = {};
 	count_size[0] = 1;
 	count_size[1] = 1;
-	start_size[0] = m_khtot - 1;
-	if ((retval = nc_get_vara_float(m_ncid_grid, varid_zhc, start_size, count_size, &m_zsize))) // NOTE: implicitly the ghost cell in the xh - direction is removed.
+	start_size[0] = m_khcells - 1 - m_kstart;
+	if ((retval = nc_get_vara_float(m_ncid_grid, varid_zhgc, start_size, count_size, &m_zsize)))
 	{
 		nc_error_print(retval);
 	}
 
-	start_size[0] = m_jtot; // NOTE: index not -1 because yhc stored in nc-file is one value larger
-	if ((retval = nc_get_vara_float(m_ncid_grid, varid_yhc, start_size, count_size, &m_ysize))) // NOTE: implicitly the ghost cell in the xh - direction is removed.
+	start_size[0] = m_jcells - m_jstart; // NOTE: index not -1 because yhc stored in nc-file is one value larger
+	if ((retval = nc_get_vara_float(m_ncid_grid, varid_yhgc, start_size, count_size, &m_ysize))) // NOTE: implicitly the ghost cell in the yh - direction is removed.
 	{
 		nc_error_print(retval);
 	}
 
-	start_size[0] = m_itot; // NOTE: index not -1 because xhc stored in nc-file is one value larger
-	if ((retval = nc_get_vara_float(m_ncid_grid, varid_xhc, start_size, count_size, &m_xsize))) // NOTE: implicitly the ghost cell in the xh - direction is removed.
+	start_size[0] = m_icells - m_istart; // NOTE: index not -1 because xhc stored in nc-file is one value larger
+	if ((retval = nc_get_vara_float(m_ncid_grid, varid_xhgc, start_size, count_size, &m_xsize))) // NOTE: implicitly the ghost cell in the xh - direction is removed.
 	{
 		nc_error_print(retval);
 	}
 	
 	
 	// Define last grid variables based on the other ones
-	m_kcells = m_kstart + m_kend;
-	m_khcells = m_kstart + m_khend;
-	m_jcells = m_jstart + m_jend;
-	m_icells = m_istart + m_iend;
 	m_ijcells = m_icells * m_jcells;
-	m_ijtot = m_itot * m_jtot;
-	m_dx = m_xsize / m_itot;
+	m_khtot = m_khcells - 2 * m_kstart;
+	m_ktot = m_kcells   - 2 * m_kstart;
+	m_jtot = m_jcells - 2 * m_jstart;
+	m_itot = m_icells - 2 * m_istart;
+ 	m_dx = m_xsize / m_itot;
 	m_dy = m_ysize / m_jtot;
 }
 
