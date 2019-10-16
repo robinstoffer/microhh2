@@ -38,22 +38,35 @@ class Diff_NN : public Diff<TF>
         Diff_NN(Master&, Grid<TF>&, Fields<TF>&, Boundary<TF>&, Input&);
         ~Diff_NN();
 
-        Diffusion_type get_switch() const;
         unsigned long get_time_limit(unsigned long, double);
         double get_dn(double);
 
+        Diffusion_type get_switch() const;
         void create(Stats<TF>&);
         void init();
         void exec(Stats<TF>&);
-        void exec_viscosity(Thermo<TF>&);
+        void exec_viscosity(Thermo<TF>&){}
         void diff_flux(Field3d<TF>&, const Field3d<TF>&);
-        void exec_stats(Stats<TF>&);
+        void exec_stats(Stats<TF>&){};
 
         #ifdef USECUDA
         void prepare_device(Boundary<TF>&);
         void clear_device();
         #endif
 
+    void calc_diff_flux_u(
+        TF* restrict const uflux,
+        const TF* restrict const u,
+        const TF* restrict const v,
+        const TF* restrict const w
+        );
+    
+    void calc_diff_flux_v(
+        TF* restrict const vflux,
+        const TF* restrict const u,
+        const TF* restrict const v,
+        const TF* restrict const w
+        );
 	
 	void select_box(
 		const TF* restrict const field_var,
@@ -191,7 +204,7 @@ class Diff_NN : public Diff<TF>
 
         using Diff<TF>::tPr;
 
-        const Diffusion_type swdiff = Diffusion_type::Diff_smag2;
+        const Diffusion_type swdiff = Diffusion_type::Diff_NN;
 
         void create_stats(Stats<TF>&);
 
