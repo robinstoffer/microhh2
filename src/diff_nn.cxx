@@ -218,16 +218,16 @@ void Diff_NN<TF>::calc_diff_flux_u(
 					uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 				}
 
-				/////
-                if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
-				{
-					//xw_upstream
-					uflux[k*gd.ijcells + j * gd.icells + i]         =  result[12] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
+				///////
+                //if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
+				//{
+				//	//xw_upstream
+				//	uflux[k*gd.ijcells + j * gd.icells + i]         =  result[12] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
 
-					//xw_downstream
-					uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
-                }
-                //NOTE: no separate treatment for walls needed since w should be 0 at the top and bottom wall (and thus there are no horizontal gradients and horizontal fluxes)
+				//	//xw_downstream
+				//	uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
+                //}
+                ////NOTE: no separate treatment for walls needed since w should be 0 at the top and bottom wall (and thus there are no horizontal gradients and horizontal fluxes)
  
 				// Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
 				// the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
@@ -244,7 +244,7 @@ void Diff_NN<TF>::calc_diff_flux_u(
 						i_2grid = i + 1;
 					}
 
-                    //Calculate resovled fluxes
+                    //Calculate resolved fluxes
                     //zu_upstream
                     if (k == gd.kstart)
                     {
