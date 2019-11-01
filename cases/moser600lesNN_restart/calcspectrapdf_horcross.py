@@ -7,8 +7,8 @@ import netCDF4
 import matplotlib as mpl
 mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
-sys.path.append("/home/robinst/microhh/python")
-from microhh_tools_robinst import *
+sys.path.append("/home/robin/microhh2/python")
+from microhh_tools import *
 
 #nx = 768
 #ny = 384
@@ -22,12 +22,12 @@ nz = 64
 #iterstep = 500
 #nt   = 7
 
-iter = 1200
+iter = 0000
 
 # read the grid data
 n = nx*ny*nz
 
-fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
+fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -45,7 +45,7 @@ fin.close()
 # read the 3d data and process it
 print("Processing iter = {:07d}".format(iter))
 
-fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(iter),"rb")
+fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/u.{:07d}".format(iter),"rb")
 raw = fin.read(n*8)
 tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 del(raw)
@@ -55,7 +55,7 @@ fin.close()
 
 uavg = numpy.nanmean(numpy.nanmean(u,2),1)
 
-fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(iter),"rb")
+fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/v.{:07d}".format(iter),"rb")
 raw = fin.read(n*8)
 tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 del(raw)
@@ -86,7 +86,7 @@ nwave_modes_y = int(ny * 0.5)
 spectra_x = numpy.zeros((3,nz,nwave_modes_x))
 spectra_y = numpy.zeros((3,nz,nwave_modes_y))
 index_spectra = 0
-input_dir = '/projects/1/flowsim/simulation1/'
+input_dir = '/home/robin/microhh2/cases/moser600lesNN_restart/'
 for crossname in variables:
 
 	if(crossname == 'u'): loc = [1,0,0]
@@ -98,12 +98,12 @@ for crossname in variables:
 	locy = 'y' if loc[1] == 0 else 'yh'
 	locz = 'z' if loc[2] == 0 else 'zh'
 	
-	indexes_local = get_cross_indices(crossname, 'xy', filepath=input_dir)
+	indexes_local = get_cross_indices(crossname, 'xy')
 	stop = False
 	for k in range(np.size(indexes_local)):
 		index = indexes_local[k]
 		zplus = yplus if locz=='z' else yplush
-		f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter)
+		f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, iter)
 		try:
 			fin = open(input_dir + f_in, "rb")
 		except:
@@ -112,7 +112,7 @@ for crossname in variables:
 			stop = True
 			break
 	
-		print("Processing %8s, time=%7i, index=%4i"%(crossname, prociter, index))
+		print("Processing %8s, time=%7i, index=%4i"%(crossname, iter, index))
 
 		#fin = open("{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter), "rb")
 		raw = fin.read(nx*ny*8)
@@ -144,34 +144,36 @@ k_streamwise = np.arange(1,nwave_modes_x+1)
 k_spanwise = np.arange(1,nwave_modes_y+1)
 
 #Plot balances
-figure()
-loglog(k_streamwise[:], (spectra_x[0,:] / ustar**2.), 'k-',linewidth=2.0)
-loglog(k_streamwise[:], (spectra_x[1,:] / ustar**2.), 'r-',linewidth=2.0)
-loglog(k_streamwise[:], (spectra_x[2,:] / ustar**2.), 'b-',linewidth=2.0)
-
-xlabel(r'$\kappa \ [-]$',fontsize = 20)
-ylabel(r'$E \ [-]$',fontsize = 20)
-legend(loc=0, frameon=False,fontsize=16)
-xticks(fontsize = 16, rotation = 90)
-yticks(fontsize = 16, rotation = 0)
-grid()
-axis([1, 250, 0.000001, 3])
-tight_layout()
-savefig("spectra_xz.png")
-close()
-#
-figure()
-loglog(k_spanwise[:], (spectra_y[0,:] / ustar**2.), 'k-',linewidth=2.0)
-loglog(k_spanwise[:], (spectra_y[1,:] / ustar**2.), 'r-',linewidth=2.0)
-loglog(k_spanwise[:], (spectra_y[2,:] / ustar**2.), 'b-',linewidth=2.0)
-
-xlabel(r'$\kappa \ [-]$',fontsize = 20)
-ylabel(r'$E \ [-]$',fontsize = 20)
-legend(loc=0, frameon=False,fontsize=16)
-xticks(fontsize = 16, rotation = 90)
-yticks(fontsize = 16, rotation = 0)
-grid()
-axis([1, 250, 0.000001, 3])
-tight_layout()
-savefig("spectra_yz.png")
-close()
+indexes_local = get_cross_indices('u', 'xy')
+for k in range(np.size(indexes_local)):
+    figure()
+    loglog(k_streamwise[:], (spectra_x[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
+    loglog(k_streamwise[:], (spectra_x[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
+    #loglog(k_streamwise[:], (spectra_x[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
+    
+    xlabel(r'$\kappa \ [-]$',fontsize = 20)
+    ylabel(r'$E \ [-]$',fontsize = 20)
+    legend(loc=0, frameon=False,fontsize=16)
+    xticks(fontsize = 16, rotation = 90)
+    yticks(fontsize = 16, rotation = 0)
+    grid()
+    axis([1, 250, 0.000001, 3])
+    tight_layout()
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_z_" + str(indexes_local[k]) + ".png")
+    close()
+    #
+    figure()
+    loglog(k_spanwise[:], (spectra_y[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
+    loglog(k_spanwise[:], (spectra_y[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
+    #loglog(k_spanwise[:], (spectra_y[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
+    
+    xlabel(r'$\kappa \ [-]$',fontsize = 20)
+    ylabel(r'$E \ [-]$',fontsize = 20)
+    legend(loc=0, frameon=False,fontsize=16)
+    xticks(fontsize = 16, rotation = 90)
+    yticks(fontsize = 16, rotation = 0)
+    grid()
+    axis([1, 250, 0.000001, 3])
+    tight_layout()
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectray_z_" + str(indexes_local[k]) + ".png")
+    close()
