@@ -83,9 +83,11 @@ endy   = int(z.size / 2)
 variables=["u","v","w"]
 nwave_modes_x = int(nx * 0.5)
 nwave_modes_y = int(ny * 0.5)
-spectra_x  = numpy.zeros((3,nz,nwave_modes_x))
-spectra_y  = numpy.zeros((3,nz,nwave_modes_y))
-pdf_fields = numpy.zeros((3,nz,ny,nx))
+indexes_local = get_cross_indices('u', 'xy') #Assume that for every variable the same amount of indices has been stored, if not the script possibly crashes!
+num_idx = np.size(indexes_local)
+spectra_x  = numpy.zeros((3,num_idx,nwave_modes_x))
+spectra_y  = numpy.zeros((3,num_idx,nwave_modes_y))
+pdf_fields = numpy.zeros((3,num_idx,ny,nx))
 index_spectra = 0
 input_dir = '/home/robin/microhh2/cases/moser600lesNN_restart/'
 for crossname in variables:
@@ -101,7 +103,7 @@ for crossname in variables:
     
     indexes_local = get_cross_indices(crossname, 'xy')
     stop = False
-    for k in range(np.size(indexes_local)):
+    for k in range(num_idx):
         index = indexes_local[k]
         zplus = yplus if locz=='z' else yplush
         f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, iter)
