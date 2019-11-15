@@ -3,7 +3,7 @@
 ##Go to directory
 cd /home/robin/microhh2/inferenceNN
 ##Set Intel MPI environment variables
-bash /home/robin/intel/impi/2019.5.281/intel64/bin/mpivars.sh
+##bash /home/robin/intel/impi/2019.5.281/intel64/bin/mpivars.sh
 
 ##Compile program
 ##test inference
