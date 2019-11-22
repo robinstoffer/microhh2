@@ -6,7 +6,6 @@ import glob
 import numpy as np
 from multiprocessing import Pool
 
-
 def convert_to_nc(variables):
     # Loop over the different variables and crosssections
     for variable in variables:
