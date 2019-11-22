@@ -41,8 +41,8 @@
 
 extern "C"
 {
-	//#include <cblas.h>
-	#include <mkl.h>
+    //#include <cblas.h>
+    #include <mkl.h>
 }
 
 namespace
@@ -103,307 +103,307 @@ namespace
 template<typename TF>
 void Diff_NN<TF>::calc_diff_flux_u(
     TF* restrict const uflux,
-	const TF* restrict const u,
-	const TF* restrict const v,
-	const TF* restrict const w
+    const TF* restrict const u,
+    const TF* restrict const v,
+    const TF* restrict const w
     )
 {
-	auto& gd  = grid.get_grid_data();
+    auto& gd  = grid.get_grid_data();
 
-	// Initialize std::vectors for storing results MLP
-	std::vector<float> result(N_output, 0.0f);
-	std::vector<float> result_zw(N_output_zw, 0.0f);
-	
-	//Calculate inverse height differences
-	const TF dxi = 1.f / gd.dx;
-	const TF dyi = 1.f / gd.dy;
+    // Initialize std::vectors for storing results MLP
+    std::vector<float> result(N_output, 0.0f);
+    std::vector<float> result_zw(N_output_zw, 0.0f);
+    
+    //Calculate inverse height differences
+    const TF dxi = 1.f / gd.dx;
+    const TF dyi = 1.f / gd.dy;
 
-	//Loop over field
-	//NOTE1: offset factors included to ensure alternate sampling
-	for (int k = gd.kstart; k < gd.kend; ++k)
-	{
-		int k_offset = k % 2;
-		for (int j = gd.jstart; j < gd.jend; ++j)
-		{
-			int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
-			for (int i = gd.istart+offset; i < gd.iend; i+=2)
-			{
-				//Extract grid box flow fields
-				select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
-				select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
-				select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
-				select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
-				select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
-				select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
-				select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				
+    //Loop over field
+    //NOTE1: offset factors included to ensure alternate sampling
+    for (int k = gd.kstart; k < gd.kend; ++k)
+    {
+        int k_offset = k % 2;
+        for (int j = gd.jstart; j < gd.jend; ++j)
+        {
+            int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
+            for (int i = gd.istart+offset; i < gd.iend; i+=2)
+            {
+                //Extract grid box flow fields
+                select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
+                select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
+                select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
+                select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
+                select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
+                select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
+                select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                
 
-				//Execute mlp once for selected grid box
-				Inference(
-					m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-					m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-					m_outputu_wgth.data(), m_outputu_bias.data(),
-					m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-					m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-					m_outputv_wgth.data(), m_outputv_bias.data(),
-					m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
-					m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-					m_outputw_wgth.data(), m_outputw_bias.data(),
-					m_mean_input.data(), m_stdev_input.data(),
-					m_mean_label.data(), m_stdev_label.data(),
-					m_utau_ref, m_output_denorm_utau2,
-					m_output.data(), result.data(), false
-					);
+                //Execute mlp once for selected grid box
+                Inference(
+                    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                    m_outputu_wgth.data(), m_outputu_bias.data(),
+                    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                    m_outputv_wgth.data(), m_outputv_bias.data(),
+                    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
+                    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                    m_outputw_wgth.data(), m_outputw_bias.data(),
+                    m_mean_input.data(), m_stdev_input.data(),
+                    m_mean_label.data(), m_stdev_label.data(),
+                    m_utau_ref, m_output_denorm_utau2,
+                    m_output.data(), result.data(), false
+                    );
 
-				//Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
-				int i_upbound = 0;
-				int i_downbound = 0;
-				int j_upbound = 0;
-				int j_downbound = 0;
-				// upstream boundary
-				if (i == (gd.istart))
-				{
-					i_upbound = gd.iend - 1;
-				}
-				else
-				{
-					i_upbound = i - 1;
-				}
-				if (j == (gd.jstart))
-				{
-					j_upbound = gd.jend - 1;
-				}
-				else
-				{
-					j_upbound = j - 1;
-				}
-				// downstream boundary
-				if (i == (gd.iend - 1))
-				{
-					i_downbound = gd.istart;
-				}
-				else
-				{
-					i_downbound = i + 1;
-				}
-				if (j == (gd.jend - 1))
-				{
-					j_downbound = gd.jstart;
-				}
-				else
-				{
-					j_downbound = j + 1;
-				}
+                //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
+                int i_upbound = 0;
+                int i_downbound = 0;
+                int j_upbound = 0;
+                int j_downbound = 0;
+                // upstream boundary
+                if (i == (gd.istart))
+                {
+                    i_upbound = gd.iend - 1;
+                }
+                else
+                {
+                    i_upbound = i - 1;
+                }
+                if (j == (gd.jstart))
+                {
+                    j_upbound = gd.jend - 1;
+                }
+                else
+                {
+                    j_upbound = j - 1;
+                }
+                // downstream boundary
+                if (i == (gd.iend - 1))
+                {
+                    i_downbound = gd.istart;
+                }
+                else
+                {
+                    i_downbound = i + 1;
+                }
+                if (j == (gd.jend - 1))
+                {
+                    j_downbound = gd.jstart;
+                }
+                else
+                {
+                    j_downbound = j + 1;
+                }
 
-				//Calculate tendencies using predictions from MLP
-				//zu_upstream
+                //Calculate tendencies using predictions from MLP
+                //zu_upstream
                 if (k == gd.kstart)
                 {
                     //uflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 }
                 else
-				{
-					uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] ;//- (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
-				}
+                {
+                    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] ;//- (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                }
 
-				//zu_downstream
+                //zu_downstream
                 if (k == (gd.kend - 1))
                 {
                     //uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
                 }
                 else
-				{
-					uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
-				}
+                {
+                    uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                }
 
-				///////
+                ///////
                 //if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
-				//{
-				//	//xw_upstream
-				//	uflux[k*gd.ijcells + j * gd.icells + i]         =  result[12] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
+                //{
+                //  //xw_upstream
+                //  uflux[k*gd.ijcells + j * gd.icells + i]         =  result[12] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
 
-				//	//xw_downstream
-				//	uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
+                //  //xw_downstream
+                //  uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
                 //}
                 ////NOTE: no separate treatment for walls needed since w should be 0 at the top and bottom wall (and thus there are no horizontal gradients and horizontal fluxes)
  
-				// Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
-				// the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
-				if ((k == (gd.kend - 1)) || (k == (gd.kstart)))
-				{
-					//Determine the second grid cell based on the offset.
-					int i_2grid = 0;
-					if (offset == 1)
-					{
-						i_2grid = i - 1;
-					}
-					else
-					{
-						i_2grid = i + 1;
-					}
-
-                    //Calculate resolved fluxes
-                    //zu_upstream
-                    if (k == gd.kstart)
+                // Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
+                // the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
+                if ((k == (gd.kend - 1)) || (k == (gd.kstart)))
+                {
+                    //Determine the second grid cell based on the offset.
+                    int i_2grid = 0;
+                    if (offset == 1)
                     {
-                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                        i_2grid = i - 1;
                     }
-                    //zu_downstream
-                    else if (k == (gd.kend - 1))
-                    {                        
-                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                    else
+                    {
+                        i_2grid = i + 1;
                     }
-			    }
+                
+                    ////Calculate resolved fluxes
+                    ////zu_upstream
+                    //if (k == gd.kstart)
+                    //{
+                    //    uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                    //}
+                    ////zu_downstream
+                    //else if (k == (gd.kend - 1))
+                    //{                        
+                    //    uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                    //}
+                }
             }
-		}
-	}
+        }
+    }
 }
 
 template<typename TF>
 void Diff_NN<TF>::calc_diff_flux_v(
     TF* restrict const vflux,
-	const TF* restrict const u,
-	const TF* restrict const v,
-	const TF* restrict const w
+    const TF* restrict const u,
+    const TF* restrict const v,
+    const TF* restrict const w
     )
 {
-	auto& gd  = grid.get_grid_data();
+    auto& gd  = grid.get_grid_data();
 
-	// Initialize std::vectors for storing results MLP
-	std::vector<float> result(N_output, 0.0f);
-	std::vector<float> result_zw(N_output_zw, 0.0f);
-	
-	//Calculate inverse height differences
-	const TF dxi = 1.f / gd.dx;
-	const TF dyi = 1.f / gd.dy;
+    // Initialize std::vectors for storing results MLP
+    std::vector<float> result(N_output, 0.0f);
+    std::vector<float> result_zw(N_output_zw, 0.0f);
+    
+    //Calculate inverse height differences
+    const TF dxi = 1.f / gd.dx;
+    const TF dyi = 1.f / gd.dy;
 
-	//Loop over field
-	//NOTE1: offset factors included to ensure alternate sampling
-	for (int k = gd.kstart; k < gd.kend; ++k)
-	{
-		int k_offset = k % 2;
-		for (int j = gd.jstart; j < gd.jend; ++j)
-		{
-			int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
-			for (int i = gd.istart+offset; i < gd.iend; i+=2)
-			{
-				//Extract grid box flow fields
-				select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
-				select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
-				select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
-				select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
-				select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
-				select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
-				select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				
+    //Loop over field
+    //NOTE1: offset factors included to ensure alternate sampling
+    for (int k = gd.kstart; k < gd.kend; ++k)
+    {
+        int k_offset = k % 2;
+        for (int j = gd.jstart; j < gd.jend; ++j)
+        {
+            int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
+            for (int i = gd.istart+offset; i < gd.iend; i+=2)
+            {
+                //Extract grid box flow fields
+                select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
+                select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
+                select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
+                select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
+                select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
+                select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
+                select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                
 
-				//Execute mlp once for selected grid box
-				Inference(
-					m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-					m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-					m_outputu_wgth.data(), m_outputu_bias.data(),
-					m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-					m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-					m_outputv_wgth.data(), m_outputv_bias.data(),
-					m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
-					m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-					m_outputw_wgth.data(), m_outputw_bias.data(),
-					m_mean_input.data(), m_stdev_input.data(),
-					m_mean_label.data(), m_stdev_label.data(),
-					m_utau_ref, m_output_denorm_utau2,
-					m_output.data(), result.data(), false
-					);
+                //Execute mlp once for selected grid box
+                Inference(
+                    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                    m_outputu_wgth.data(), m_outputu_bias.data(),
+                    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                    m_outputv_wgth.data(), m_outputv_bias.data(),
+                    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
+                    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                    m_outputw_wgth.data(), m_outputw_bias.data(),
+                    m_mean_input.data(), m_stdev_input.data(),
+                    m_mean_label.data(), m_stdev_label.data(),
+                    m_utau_ref, m_output_denorm_utau2,
+                    m_output.data(), result.data(), false
+                    );
 
-				//Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
-				int i_upbound = 0;
-				int i_downbound = 0;
-				int j_upbound = 0;
-				int j_downbound = 0;
-				// upstream boundary
-				if (i == (gd.istart))
-				{
-					i_upbound = gd.iend - 1;
-				}
-				else
-				{
-					i_upbound = i - 1;
-				}
-				if (j == (gd.jstart))
-				{
-					j_upbound = gd.jend - 1;
-				}
-				else
-				{
-					j_upbound = j - 1;
-				}
-				// downstream boundary
-				if (i == (gd.iend - 1))
-				{
-					i_downbound = gd.istart;
-				}
-				else
-				{
-					i_downbound = i + 1;
-				}
-				if (j == (gd.jend - 1))
-				{
-					j_downbound = gd.jstart;
-				}
-				else
-				{
-					j_downbound = j + 1;
-				}
+                //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
+                int i_upbound = 0;
+                int i_downbound = 0;
+                int j_upbound = 0;
+                int j_downbound = 0;
+                // upstream boundary
+                if (i == (gd.istart))
+                {
+                    i_upbound = gd.iend - 1;
+                }
+                else
+                {
+                    i_upbound = i - 1;
+                }
+                if (j == (gd.jstart))
+                {
+                    j_upbound = gd.jend - 1;
+                }
+                else
+                {
+                    j_upbound = j - 1;
+                }
+                // downstream boundary
+                if (i == (gd.iend - 1))
+                {
+                    i_downbound = gd.istart;
+                }
+                else
+                {
+                    i_downbound = i + 1;
+                }
+                if (j == (gd.jend - 1))
+                {
+                    j_downbound = gd.jstart;
+                }
+                else
+                {
+                    j_downbound = j + 1;
+                }
 
-				//Calculate tendencies using predictions from MLP
-				//zv_upstream
+                //Calculate tendencies using predictions from MLP
+                //zv_upstream
                 if (k == gd.kstart)
                 {
                     vflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 }
                 else
-				{
-					vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
-				}
+                {
+                    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                }
 
-				//zv_downstream
+                //zv_downstream
                 if (k == (gd.kend - 1))
                 {
                     vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
                 }
                 else
-				{
-					vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
-				}
+                {
+                    vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                }
 
-				/////
+                /////
                 //if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
-		//		{
-		//			//yw_upstream
-		//			vflux[k*gd.ijcells + j * gd.icells + i]         =  result[14] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dyi);
+        //      {
+        //          //yw_upstream
+        //          vflux[k*gd.ijcells + j * gd.icells + i]         =  result[14] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dyi);
 
-		//			//yw_downstream
-		//			vflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[15] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dyi);
+        //          //yw_downstream
+        //          vflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[15] - (fields.visc * (w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dyi);
                 //}
                 ////NOTE: no separate treatment for walls needed since w should be 0 at the top and bottom wall (and thus there are no horizontal gradients and horizontal fluxes)
  
-				// Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
-				// the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
-				if ((k == (gd.kend - 1)) || (k == (gd.kstart)))
-				{
-					//Determine the second grid cell based on the offset.
-					int i_2grid = 0;
-					if (offset == 1)
-					{
-						i_2grid = i - 1;
-					}
-					else
-					{
-						i_2grid = i + 1;
-					}
+                // Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
+                // the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
+                if ((k == (gd.kend - 1)) || (k == (gd.kstart)))
+                {
+                    //Determine the second grid cell based on the offset.
+                    int i_2grid = 0;
+                    if (offset == 1)
+                    {
+                        i_2grid = i - 1;
+                    }
+                    else
+                    {
+                        i_2grid = i + 1;
+                    }
 
                     //Calculate resovled fluxes
                     //zv_upstream
@@ -416,483 +416,483 @@ void Diff_NN<TF>::calc_diff_flux_v(
                     {                        
                         vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
                     }
-			    }
+                }
             }
-		}
-	}
+        }
+    }
 }
 
 template<typename TF>
 void Diff_NN<TF>::select_box(
-	const TF* restrict const field_var,
-	float* restrict const box_var,
-	const int k_center,
-	const int j_center,
-	const int i_center,
-	const int boxsize,
-	const int skip_firstz,
-	const int skip_lastz,
-	const int skip_firsty,
-	const int skip_lasty,
-	const int skip_firstx,
-	const int skip_lastx
-	)
+    const TF* restrict const field_var,
+    float* restrict const box_var,
+    const int k_center,
+    const int j_center,
+    const int i_center,
+    const int boxsize,
+    const int skip_firstz,
+    const int skip_lastz,
+    const int skip_firsty,
+    const int skip_lasty,
+    const int skip_firstx,
+    const int skip_lastx
+    )
 // NOTE: the skip_* integers specify whether the index indicated in the name should be skipped in the selection of box (0=don't skip, 1=skip it).
 {
-	auto& gd = grid.get_grid_data();
+    auto& gd = grid.get_grid_data();
 
-	// Calculate number of grid cells that the grid box extends from the center for looping
-	int b = boxsize / 2; // NOTE: on purpose fractional part dropped
-	//Loop over all three indices to extract grid box
-	int ji_box  = (boxsize - skip_firsty - skip_lasty) * (boxsize - skip_firstx - skip_lastx);
-	int k_box = 0;
-	for (int k_field = k_center - b + skip_firstz; k_field < (k_center + b + 1 - skip_lastz); ++k_field)
-	{
-		int j_box = 0;
-		for (int j_field = j_center - b + skip_firsty; j_field < (j_center + b + 1 - skip_lasty); ++j_field)
-		{
-			int i_box = 0;
-			for (int i_field = i_center - b + skip_firstx; i_field < (i_center + b + 1 - skip_lastx); ++i_field)
-			{
-				//Extract grid box flow field
-				box_var[k_box * ji_box + j_box * (boxsize - skip_firstx - skip_lastx) + i_box] = static_cast<float>(field_var[k_field * gd.ijcells + j_field * gd.icells + i_field]);
-				i_box += 1;
-			}
-			j_box += 1;
-		}
-		k_box += 1;
-	}
+    // Calculate number of grid cells that the grid box extends from the center for looping
+    int b = boxsize / 2; // NOTE: on purpose fractional part dropped
+    //Loop over all three indices to extract grid box
+    int ji_box  = (boxsize - skip_firsty - skip_lasty) * (boxsize - skip_firstx - skip_lastx);
+    int k_box = 0;
+    for (int k_field = k_center - b + skip_firstz; k_field < (k_center + b + 1 - skip_lastz); ++k_field)
+    {
+        int j_box = 0;
+        for (int j_field = j_center - b + skip_firsty; j_field < (j_center + b + 1 - skip_lasty); ++j_field)
+        {
+            int i_box = 0;
+            for (int i_field = i_center - b + skip_firstx; i_field < (i_center + b + 1 - skip_lastx); ++i_field)
+            {
+                //Extract grid box flow field
+                box_var[k_box * ji_box + j_box * (boxsize - skip_firstx - skip_lastx) + i_box] = static_cast<float>(field_var[k_field * gd.ijcells + j_field * gd.icells + i_field]);
+                i_box += 1;
+            }
+            j_box += 1;
+        }
+        k_box += 1;
+    }
 }
 
 // Function that loops over the whole flow field, and calculates for each grid cell the tendencies
 template<typename TF>
 void Diff_NN<TF>::diff_U(
-	const TF* restrict const u,
-	const TF* restrict const v,
-	const TF* restrict const w,
-	TF* restrict const ut,
-	TF* restrict const vt,
-	TF* restrict const wt
-	)
+    const TF* restrict const u,
+    const TF* restrict const v,
+    const TF* restrict const w,
+    TF* restrict const ut,
+    TF* restrict const vt,
+    TF* restrict const wt
+    )
 {
-	auto& gd  = grid.get_grid_data();
+    auto& gd  = grid.get_grid_data();
 
-	// Initialize std::vectors for storing results mlp
-	std::vector<float> result(N_output, 0.0f);
-	std::vector<float> result_zw(N_output_zw, 0.0f);
-	
-	//Calculate inverse height differences
-	const TF dxi = 1.f / gd.dx;
-	const TF dyi = 1.f / gd.dy;
+    // Initialize std::vectors for storing results mlp
+    std::vector<float> result(N_output, 0.0f);
+    std::vector<float> result_zw(N_output_zw, 0.0f);
+    
+    //Calculate inverse height differences
+    const TF dxi = 1.f / gd.dx;
+    const TF dyi = 1.f / gd.dy;
 
-	//Loop over field
-	//NOTE1: offset factors included to ensure alternate sampling
-	for (int k = gd.kstart; k < gd.kend; ++k)
-	{
-		int k_offset = k % 2;
-		for (int j = gd.jstart; j < gd.jend; ++j)
-		{
-			int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
-			for (int i = gd.istart+offset; i < gd.iend; i+=2)
-			{
-				//Extract grid box flow fields
-				select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
-				select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
-				select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
-				select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
-				select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
-				select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
-				select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-				
+    //Loop over field
+    //NOTE1: offset factors included to ensure alternate sampling
+    for (int k = gd.kstart; k < gd.kend; ++k)
+    {
+        int k_offset = k % 2;
+        for (int j = gd.jstart; j < gd.jend; ++j)
+        {
+            int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
+            for (int i = gd.istart+offset; i < gd.iend; i+=2)
+            {
+                //Extract grid box flow fields
+                select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
+                select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
+                select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
+                select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
+                select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
+                select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
+                select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                
 
-				//Execute mlp once for selected grid box
-				Inference(
-					m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-					m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-					m_outputu_wgth.data(), m_outputu_bias.data(),
-					m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-					m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-					m_outputv_wgth.data(), m_outputv_bias.data(),
-					m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
-					m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-					m_outputw_wgth.data(), m_outputw_bias.data(),
-					m_mean_input.data(), m_stdev_input.data(),
-					m_mean_label.data(), m_stdev_label.data(),
-					m_utau_ref, m_output_denorm_utau2,
-					m_output.data(), result.data(), false
-					);
+                //Execute mlp once for selected grid box
+                Inference(
+                    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                    m_outputu_wgth.data(), m_outputu_bias.data(),
+                    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                    m_outputv_wgth.data(), m_outputv_bias.data(),
+                    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
+                    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                    m_outputw_wgth.data(), m_outputw_bias.data(),
+                    m_mean_input.data(), m_stdev_input.data(),
+                    m_mean_label.data(), m_stdev_label.data(),
+                    m_utau_ref, m_output_denorm_utau2,
+                    m_output.data(), result.data(), false
+                    );
 
-				//Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
-				int i_upbound = 0;
-				int i_downbound = 0;
-				int j_upbound = 0;
-				int j_downbound = 0;
-				// upstream boundary
-				if (i == (gd.istart))
-				{
-					i_upbound = gd.iend - 1;
-				}
-				else
-				{
-					i_upbound = i - 1;
-				}
-				if (j == (gd.jstart))
-				{
-					j_upbound = gd.jend - 1;
-				}
-				else
-				{
-					j_upbound = j - 1;
-				}
-				// downstream boundary
-				if (i == (gd.iend - 1))
-				{
-					i_downbound = gd.istart;
-				}
-				else
-				{
-					i_downbound = i + 1;
-				}
-				if (j == (gd.jend - 1))
-				{
-					j_downbound = gd.jstart;
-				}
-				else
-				{
-					j_downbound = j + 1;
-				}
+                //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
+                int i_upbound = 0;
+                int i_downbound = 0;
+                int j_upbound = 0;
+                int j_downbound = 0;
+                // upstream boundary
+                if (i == (gd.istart))
+                {
+                    i_upbound = gd.iend - 1;
+                }
+                else
+                {
+                    i_upbound = i - 1;
+                }
+                if (j == (gd.jstart))
+                {
+                    j_upbound = gd.jend - 1;
+                }
+                else
+                {
+                    j_upbound = j - 1;
+                }
+                // downstream boundary
+                if (i == (gd.iend - 1))
+                {
+                    i_downbound = gd.istart;
+                }
+                else
+                {
+                    i_downbound = i + 1;
+                }
+                if (j == (gd.jend - 1))
+                {
+                    j_downbound = gd.jstart;
+                }
+                else
+                {
+                    j_downbound = j + 1;
+                }
 
-				//Calculate tendencies using predictions from MLP
-				//xu_upstream
-				ut[k*gd.ijcells + j * gd.icells + i]         +=  result[0] * dxi;
-				ut[k*gd.ijcells + j * gd.icells + i_upbound] += -result[0] * dxi;
+                //Calculate tendencies using predictions from MLP
+                //xu_upstream
+                ut[k*gd.ijcells + j * gd.icells + i]         +=  result[0] * dxi;
+                ut[k*gd.ijcells + j * gd.icells + i_upbound] += -result[0] * dxi;
 
-				//xu_downstream
-				ut[k*gd.ijcells + j * gd.icells+ i]           += -result[1] * dxi;
-				ut[k*gd.ijcells + j * gd.icells+ i_downbound] +=  result[1] * dxi;
+                //xu_downstream
+                ut[k*gd.ijcells + j * gd.icells+ i]           += -result[1] * dxi;
+                ut[k*gd.ijcells + j * gd.icells+ i_downbound] +=  result[1] * dxi;
 
-				//yu_upstream
-				ut[k*gd.ijcells + j * gd.icells + i]         +=  result[2] * dyi;
-				ut[k*gd.ijcells + j_upbound * gd.icells + i] += -result[2] * dyi;
+                //yu_upstream
+                ut[k*gd.ijcells + j * gd.icells + i]         +=  result[2] * dyi;
+                ut[k*gd.ijcells + j_upbound * gd.icells + i] += -result[2] * dyi;
 
-				//yu_downstream
-				ut[k*gd.ijcells + j * gd.icells + i]           += -result[3] * dyi;
-				ut[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[3] * dyi;
+                //yu_downstream
+                ut[k*gd.ijcells + j * gd.icells + i]           += -result[3] * dyi;
+                ut[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[3] * dyi;
 
-				//zu_upstream
-				if (k != gd.kstart)
-					// NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
-					// 2) ghost cell is not assigned.
-				{
-					ut[(k-1)*gd.ijcells + j * gd.icells + i] += -result[4] * gd.dzi[k-1];
-					ut[k*gd.ijcells + j * gd.icells + i]     +=  result[4] * gd.dzi[k];
-				}
+                //zu_upstream
+                if (k != gd.kstart)
+                    // NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
+                    // 2) ghost cell is not assigned.
+                {
+                    ut[(k-1)*gd.ijcells + j * gd.icells + i] += -result[4] * gd.dzi[k-1];
+                    ut[k*gd.ijcells + j * gd.icells + i]     +=  result[4] * gd.dzi[k];
+                }
 
-				//zu_downstream
-				if (k != (gd.kend - 1))
-					// NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
-					// 2) ghost cell is not assigned.
-				{
-					ut[k*gd.ijcells + j * gd.icells + i]     += -result[5] * gd.dzi[k];
-					ut[(k+1)*gd.ijcells + j * gd.icells + i] +=  result[5] * gd.dzi[k+1];
-				}
+                //zu_downstream
+                if (k != (gd.kend - 1))
+                    // NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
+                    // 2) ghost cell is not assigned.
+                {
+                    ut[k*gd.ijcells + j * gd.icells + i]     += -result[5] * gd.dzi[k];
+                    ut[(k+1)*gd.ijcells + j * gd.icells + i] +=  result[5] * gd.dzi[k+1];
+                }
 
-				//xv_upstream
-				vt[k*gd.ijcells + j * gd.icells + i]         +=  result[6] * dxi;
-				vt[k*gd.ijcells + j * gd.icells + i_upbound] += -result[6] * dxi;
+                //xv_upstream
+                vt[k*gd.ijcells + j * gd.icells + i]         +=  result[6] * dxi;
+                vt[k*gd.ijcells + j * gd.icells + i_upbound] += -result[6] * dxi;
 
-				//xv_downstream
-				vt[k*gd.ijcells + j * gd.icells + i]           += -result[7] * dxi;
-				vt[k*gd.ijcells + j * gd.icells + i_downbound] +=  result[7] * dxi;
+                //xv_downstream
+                vt[k*gd.ijcells + j * gd.icells + i]           += -result[7] * dxi;
+                vt[k*gd.ijcells + j * gd.icells + i_downbound] +=  result[7] * dxi;
 
-				//yv_upstream
-				vt[k*gd.ijcells + j * gd.icells + i]         +=  result[8] * dyi;
-				vt[k*gd.ijcells + j_upbound * gd.icells + i] += -result[8] * dyi;
+                //yv_upstream
+                vt[k*gd.ijcells + j * gd.icells + i]         +=  result[8] * dyi;
+                vt[k*gd.ijcells + j_upbound * gd.icells + i] += -result[8] * dyi;
 
-				//yv_downstream
-				vt[k*gd.ijcells + j * gd.icells + i]           += -result[9] * dyi;
-				vt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[9] * dyi;
+                //yv_downstream
+                vt[k*gd.ijcells + j * gd.icells + i]           += -result[9] * dyi;
+                vt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[9] * dyi;
 
-				//zv_upstream
-				if (k != gd.kstart)
-					// NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
-					// 2) ghost cell is not assigned.
-				{
-					vt[(k - 1)*gd.ijcells + j * gd.icells + i] += -result[10] * gd.dzi[k - 1];
-					vt[k*gd.ijcells + j * gd.icells + i]       +=  result[10] * gd.dzi[k];
-				}
+                //zv_upstream
+                if (k != gd.kstart)
+                    // NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
+                    // 2) ghost cell is not assigned.
+                {
+                    vt[(k - 1)*gd.ijcells + j * gd.icells + i] += -result[10] * gd.dzi[k - 1];
+                    vt[k*gd.ijcells + j * gd.icells + i]       +=  result[10] * gd.dzi[k];
+                }
 
-				//zv_downstream
-				if (k != (gd.kend - 1))
-					// NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
-					// 2) ghost cell is not assigned.
-				{
-					vt[k*gd.ijcells + j * gd.icells + i]       += -result[11] * gd.dzi[k];
-					vt[(k + 1)*gd.ijcells + j * gd.icells + i] +=  result[11] * gd.dzi[k + 1];
-				}
+                //zv_downstream
+                if (k != (gd.kend - 1))
+                    // NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
+                    // 2) ghost cell is not assigned.
+                {
+                    vt[k*gd.ijcells + j * gd.icells + i]       += -result[11] * gd.dzi[k];
+                    vt[(k + 1)*gd.ijcells + j * gd.icells + i] +=  result[11] * gd.dzi[k + 1];
+                }
 
-				if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
-				{
-					//xw_upstream
-					wt[k*gd.ijcells + j * gd.icells + i]         +=  result[12] * dxi;
-					wt[k*gd.ijcells + j * gd.icells + i_upbound] += -result[12] * dxi;
+                if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
+                {
+                    //xw_upstream
+                    wt[k*gd.ijcells + j * gd.icells + i]         +=  result[12] * dxi;
+                    wt[k*gd.ijcells + j * gd.icells + i_upbound] += -result[12] * dxi;
 
-					//xw_downstream
-					wt[k*gd.ijcells + j * gd.icells + i]           += -result[13] * dxi;
-					wt[k*gd.ijcells + j * gd.icells + i_downbound] +=  result[13] * dxi;
+                    //xw_downstream
+                    wt[k*gd.ijcells + j * gd.icells + i]           += -result[13] * dxi;
+                    wt[k*gd.ijcells + j * gd.icells + i_downbound] +=  result[13] * dxi;
 
-					//yw_upstream
-					wt[k*gd.ijcells + j * gd.icells + i]         +=  result[14] * dyi;
-					wt[k*gd.ijcells + j_upbound * gd.icells + i] += -result[14] * dyi;
+                    //yw_upstream
+                    wt[k*gd.ijcells + j * gd.icells + i]         +=  result[14] * dyi;
+                    wt[k*gd.ijcells + j_upbound * gd.icells + i] += -result[14] * dyi;
 
-					//yw_downstream
-					wt[k*gd.ijcells + j * gd.icells + i]           += -result[15] * dyi;
-					wt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[15] * dyi;
+                    //yw_downstream
+                    wt[k*gd.ijcells + j * gd.icells + i]           += -result[15] * dyi;
+                    wt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[15] * dyi;
 
-					//zu_upstream
-					if (k != (gd.kstart+1))
-						//NOTE: Dont'adjust wt for bottom layer, should stay 0
-					{
-						wt[(k - 1)*gd.ijcells + j * gd.icells + i] += -result[16] * gd.dzhi[k - 1];
-					}
-					wt[k*gd.ijcells + j * gd.icells + i]           +=  result[16] * gd.dzhi[k];
+                    //zu_upstream
+                    if (k != (gd.kstart+1))
+                        //NOTE: Dont'adjust wt for bottom layer, should stay 0
+                    {
+                        wt[(k - 1)*gd.ijcells + j * gd.icells + i] += -result[16] * gd.dzhi[k - 1];
+                    }
+                    wt[k*gd.ijcells + j * gd.icells + i]           +=  result[16] * gd.dzhi[k];
 
-					//zu_downstream
-					wt[k*gd.ijcells + j * gd.icells + i]           +=  -result[17] * gd.dzhi[k];
-					if (k != (gd.kend - 1))
-					// NOTE:although this does not change wt at the bottom layer, 
-					// it is still not included for k=0 to keep consistency between the top and bottom of the domain.
-					{
-						wt[(k + 1)*gd.ijcells + j * gd.icells + i] += result[17] * gd.dzhi[k + 1];
-					}
-				}
+                    //zu_downstream
+                    wt[k*gd.ijcells + j * gd.icells + i]           +=  -result[17] * gd.dzhi[k];
+                    if (k != (gd.kend - 1))
+                    // NOTE:although this does not change wt at the bottom layer, 
+                    // it is still not included for k=0 to keep consistency between the top and bottom of the domain.
+                    {
+                        wt[(k + 1)*gd.ijcells + j * gd.icells + i] += result[17] * gd.dzhi[k + 1];
+                    }
+                }
 
-				// Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
-				// the mlp for a second grid cell to calculate 'missing' zw-values.
-				if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)))
-				{
-					//Determine the second grid cell based on the offset.
-					int i_2grid = 0;
-					if (offset == 1)
-					{
-						i_2grid = i - 1;
-					}
-					else
-					{
-						i_2grid = i + 1;
-					}
+                // Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
+                // the mlp for a second grid cell to calculate 'missing' zw-values.
+                if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)))
+                {
+                    //Determine the second grid cell based on the offset.
+                    int i_2grid = 0;
+                    if (offset == 1)
+                    {
+                        i_2grid = i - 1;
+                    }
+                    else
+                    {
+                        i_2grid = i + 1;
+                    }
 
-					//Select second grid box
-					select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-					select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
-					select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
-					select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
-					select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-					select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
-					select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
-					select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
-					select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //Select second grid box
+                    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
+                    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
+                    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
+                    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
+                    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
+                    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
+                    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
 
-					//Execute mlp for selected second grid cell
-					Inference(
-						m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-						m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-						m_outputu_wgth.data(), m_outputu_bias.data(),
-						m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-						m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-						m_outputv_wgth.data(), m_outputv_bias.data(),
-						m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
-						m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-						m_outputw_wgth.data(), m_outputw_bias.data(),
-						m_mean_input.data(), m_stdev_input.data(),
-						m_mean_label.data(), m_stdev_label.data(),
-						m_utau_ref, m_output_denorm_utau2,
-						m_output_zw.data(), result_zw.data(), true
-					);
+                    //Execute mlp for selected second grid cell
+                    Inference(
+                        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                        m_outputu_wgth.data(), m_outputu_bias.data(),
+                        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                        m_outputv_wgth.data(), m_outputv_bias.data(),
+                        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
+                        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                        m_outputw_wgth.data(), m_outputw_bias.data(),
+                        m_mean_input.data(), m_stdev_input.data(),
+                        m_mean_label.data(), m_stdev_label.data(),
+                        m_utau_ref, m_output_denorm_utau2,
+                        m_output_zw.data(), result_zw.data(), true
+                    );
 
-					//Store calculated tendencies
-					//zw_upstream
-					if (k == (gd.kstart + 1))
-					{
-						wt[k * gd.ijcells + j * gd.icells + i_2grid] +=  result_zw[0] * gd.dzhi[k];
-					}
-					//zw_downstream
-					else
-					{
-						wt[k * gd.ijcells + j * gd.icells + i_2grid] += -result_zw[1] * gd.dzhi[k];
-					}			
-				}
-			}
-		}
-	}
+                    //Store calculated tendencies
+                    //zw_upstream
+                    if (k == (gd.kstart + 1))
+                    {
+                        wt[k * gd.ijcells + j * gd.icells + i_2grid] +=  result_zw[0] * gd.dzhi[k];
+                    }
+                    //zw_downstream
+                    else
+                    {
+                        wt[k * gd.ijcells + j * gd.icells + i_2grid] += -result_zw[1] * gd.dzhi[k];
+                    }           
+                }
+            }
+        }
+    }
 }
 template<typename TF>
 void Diff_NN<TF>::hidden_layer1(
-	const float* restrict const weights,
-	const float* restrict const bias,
-	const float* restrict const input,
-	float* restrict const layer_out,
-	const float alpha
+    const float* restrict const weights,
+    const float* restrict const bias,
+    const float* restrict const input,
+    float* restrict const layer_out,
+    const float alpha
 )
 {
-	// Calculate hidden neurons outputs as matrix vector multiplication using BLAS
-	cblas_sgemv(CblasRowMajor, CblasNoTrans, N_hidden, N_input_tot_adjusted, 
-		1., weights, N_input_tot_adjusted, input, 1, 0, layer_out, 1);
-	
-	//Loop over hidden neurons to add bias and calculate activations using Leaky ReLu
-	for (int hiddenidx = 0; hiddenidx < N_hidden; ++hiddenidx)
-	{
-		layer_out[hiddenidx] += bias[hiddenidx];
-		layer_out[hiddenidx] = std::max(alpha * layer_out[hiddenidx], layer_out[hiddenidx]);
-	}
+    // Calculate hidden neurons outputs as matrix vector multiplication using BLAS
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, N_hidden, N_input_tot_adjusted, 
+        1., weights, N_input_tot_adjusted, input, 1, 0, layer_out, 1);
+    
+    //Loop over hidden neurons to add bias and calculate activations using Leaky ReLu
+    for (int hiddenidx = 0; hiddenidx < N_hidden; ++hiddenidx)
+    {
+        layer_out[hiddenidx] += bias[hiddenidx];
+        layer_out[hiddenidx] = std::max(alpha * layer_out[hiddenidx], layer_out[hiddenidx]);
+    }
 }  
 //output layer
 template<typename TF>
 void Diff_NN<TF>::output_layer(
-	const float* restrict const weights,
-	const float* restrict const bias,
-	const float* restrict const layer_in,
-	float* restrict const layer_out
+    const float* restrict const weights,
+    const float* restrict const bias,
+    const float* restrict const layer_in,
+    float* restrict const layer_out
 )
 {
-	// Calculate hidden neurons outputs as matrix vector multiplication using BLAS
-	cblas_sgemv(CblasRowMajor, CblasNoTrans, N_output_control, N_hidden,
-		1., weights, N_hidden, layer_in, 1, 0, layer_out, 1);
+    // Calculate hidden neurons outputs as matrix vector multiplication using BLAS
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, N_output_control, N_hidden,
+        1., weights, N_hidden, layer_in, 1, 0, layer_out, 1);
 
-	//Loop over hidden neurons to add bias
-	for (int outputidx = 0; outputidx < N_output_control; ++outputidx)
-	{
-		layer_out[outputidx] += bias[outputidx];
-	}
+    //Loop over hidden neurons to add bias
+    for (int outputidx = 0; outputidx < N_output_control; ++outputidx)
+    {
+        layer_out[outputidx] += bias[outputidx];
+    }
 }
 
 template<typename TF>
 void Diff_NN<TF>::Inference(
     float* restrict const input_ctrlu_u,
-	float* restrict const input_ctrlu_v,
-	float* restrict const input_ctrlu_w,
-	const float* restrict const hiddenu_wgth,
-	const float* restrict const hiddenu_bias,
-	const float hiddenu_alpha,
-	const float* restrict const outputu_wgth,
-	const float* restrict const outputu_bias,
-	float* restrict const input_ctrlv_u,
-	float* restrict const input_ctrlv_v,
-	float* restrict const input_ctrlv_w,
-	const float* restrict const hiddenv_wgth,
-	const float* restrict const hiddenv_bias,
-	const float hiddenv_alpha,
-	const float* restrict const outputv_wgth,
-	const float* restrict const outputv_bias,
+    float* restrict const input_ctrlu_v,
+    float* restrict const input_ctrlu_w,
+    const float* restrict const hiddenu_wgth,
+    const float* restrict const hiddenu_bias,
+    const float hiddenu_alpha,
+    const float* restrict const outputu_wgth,
+    const float* restrict const outputu_bias,
+    float* restrict const input_ctrlv_u,
+    float* restrict const input_ctrlv_v,
+    float* restrict const input_ctrlv_w,
+    const float* restrict const hiddenv_wgth,
+    const float* restrict const hiddenv_bias,
+    const float hiddenv_alpha,
+    const float* restrict const outputv_wgth,
+    const float* restrict const outputv_bias,
     float* restrict const input_ctrlw_u,
     float* restrict const input_ctrlw_v,
     float* restrict const input_ctrlw_w,
-	const float* restrict const hiddenw_wgth,
-	const float* restrict const hiddenw_bias,
-	const float hiddenw_alpha,
-	const float* restrict const outputw_wgth,
-	const float* restrict const outputw_bias,
-	const float* restrict const mean_input,
-	const float* restrict const stdev_input,
-	const float* restrict const mean_label,
-	const float* restrict const stdev_label,
-	const float utau_ref,
-	const float output_denorm_utau2,
-	float* restrict const output,
-	float* restrict const output_denorm,
-	const bool zw_flag)
+    const float* restrict const hiddenw_wgth,
+    const float* restrict const hiddenw_bias,
+    const float hiddenw_alpha,
+    const float* restrict const outputw_wgth,
+    const float* restrict const outputw_bias,
+    const float* restrict const mean_input,
+    const float* restrict const stdev_input,
+    const float* restrict const mean_label,
+    const float* restrict const stdev_label,
+    const float utau_ref,
+    const float output_denorm_utau2,
+    float* restrict const output,
+    float* restrict const output_denorm,
+    const bool zw_flag)
 
 {   
-	// Initialize fixed arrays for input layers
-	std::array<float, N_input_tot_adjusted> input_ctrlu;
-	std::array<float, N_input_tot_adjusted> input_ctrlv;
-	std::array<float, N_input_tot_adjusted> input_ctrlw;
+    // Initialize fixed arrays for input layers
+    std::array<float, N_input_tot_adjusted> input_ctrlu;
+    std::array<float, N_input_tot_adjusted> input_ctrlv;
+    std::array<float, N_input_tot_adjusted> input_ctrlw;
 
-    	// Normalize with mean, st. dev, and utau_ref.
-	constexpr int N_input_adjusted2 = 2 * N_input_adjusted;
-	constexpr int N_input_comb2     = N_input_adjusted + N_input;
-	for (int inpidx = 0; inpidx < N_input;++inpidx)
-	{
-		input_ctrlu[inpidx]                     = (((input_ctrlu_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
-		input_ctrlv[N_input_adjusted + inpidx]  = (((input_ctrlv_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
-		input_ctrlw[N_input_adjusted2 + inpidx] = (((input_ctrlw_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
-	}
-	for (int inpidx = 0; inpidx < N_input_adjusted; ++inpidx)
-	{
-		input_ctrlu[N_input + inpidx]           = (((input_ctrlu_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
-		input_ctrlu[N_input_comb2 + inpidx]     = (((input_ctrlu_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
-		input_ctrlv[inpidx]                     = (((input_ctrlv_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
-		input_ctrlv[N_input_comb2 + inpidx]     = (((input_ctrlv_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
-		input_ctrlw[inpidx]                     = (((input_ctrlw_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
-		input_ctrlw[N_input_adjusted + inpidx]  = (((input_ctrlw_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
-	}
+        // Normalize with mean, st. dev, and utau_ref.
+    constexpr int N_input_adjusted2 = 2 * N_input_adjusted;
+    constexpr int N_input_comb2     = N_input_adjusted + N_input;
+    for (int inpidx = 0; inpidx < N_input;++inpidx)
+    {
+        input_ctrlu[inpidx]                     = (((input_ctrlu_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
+        input_ctrlv[N_input_adjusted + inpidx]  = (((input_ctrlv_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
+        input_ctrlw[N_input_adjusted2 + inpidx] = (((input_ctrlw_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
+    }
+    for (int inpidx = 0; inpidx < N_input_adjusted; ++inpidx)
+    {
+        input_ctrlu[N_input + inpidx]           = (((input_ctrlu_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
+        input_ctrlu[N_input_comb2 + inpidx]     = (((input_ctrlu_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
+        input_ctrlv[inpidx]                     = (((input_ctrlv_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
+        input_ctrlv[N_input_comb2 + inpidx]     = (((input_ctrlv_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
+        input_ctrlw[inpidx]                     = (((input_ctrlw_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
+        input_ctrlw[N_input_adjusted + inpidx]  = (((input_ctrlw_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
+    }
 
-	//control volume u
+    //control volume u
     
-	//hidden layer
-	std::array<float, N_hidden> hiddenu;
-	hidden_layer1(hiddenu_wgth, hiddenu_bias,
-		input_ctrlu.data(), hiddenu.data(), hiddenu_alpha);
+    //hidden layer
+    std::array<float, N_hidden> hiddenu;
+    hidden_layer1(hiddenu_wgth, hiddenu_bias,
+        input_ctrlu.data(), hiddenu.data(), hiddenu_alpha);
 
-	//output layer
-	std::array<float, N_output_control> outputu;
-	output_layer(outputu_wgth, outputu_bias, hiddenu.data(), outputu.data());
+    //output layer
+    std::array<float, N_output_control> outputu;
+    output_layer(outputu_wgth, outputu_bias, hiddenu.data(), outputu.data());
 
-	//control volume v
+    //control volume v
 
-	//hidden layer
-	std::array<float, N_hidden> hiddenv;
-	hidden_layer1(hiddenv_wgth, hiddenv_bias,
-		input_ctrlv.data(), hiddenv.data(), hiddenv_alpha);
+    //hidden layer
+    std::array<float, N_hidden> hiddenv;
+    hidden_layer1(hiddenv_wgth, hiddenv_bias,
+        input_ctrlv.data(), hiddenv.data(), hiddenv_alpha);
 
-	//output layer
-	std::array<float, N_output_control> outputv;
-	output_layer(outputv_wgth, outputv_bias, hiddenv.data(), outputv.data());
+    //output layer
+    std::array<float, N_output_control> outputv;
+    output_layer(outputv_wgth, outputv_bias, hiddenv.data(), outputv.data());
 
-	//control volume w
+    //control volume w
 
-	//hidden layer
-	std::array<float, N_hidden> hiddenw;
-	hidden_layer1(hiddenw_wgth, hiddenw_bias,
-		input_ctrlw.data(), hiddenw.data(), hiddenw_alpha);
+    //hidden layer
+    std::array<float, N_hidden> hiddenw;
+    hidden_layer1(hiddenw_wgth, hiddenw_bias,
+        input_ctrlw.data(), hiddenw.data(), hiddenw_alpha);
 
-	//output layer
-	std::array<float, N_output_control> outputw;
-	output_layer(outputw_wgth, outputw_bias, hiddenw.data(), outputw.data());
+    //output layer
+    std::array<float, N_output_control> outputw;
+    output_layer(outputw_wgth, outputw_bias, hiddenw.data(), outputw.data());
 
-	//Concatenate output layers & denormalize
-	if (zw_flag)
-	{
-		output[0] = outputw[4]; // zw_upstream
-		output[1] = outputw[5]; // zw_downstream
+    //Concatenate output layers & denormalize
+    if (zw_flag)
+    {
+        output[0] = outputw[4]; // zw_upstream
+        output[1] = outputw[5]; // zw_downstream
 
-		//Denormalize
-		output_denorm[0] = ((output[0] * stdev_label[16]) + mean_label[16]) * output_denorm_utau2;
-		output_denorm[1] = ((output[1] * stdev_label[17]) + mean_label[17]) * output_denorm_utau2;
-	}
-	else
-	{
-		for (int outputidx = 0; outputidx < 6; ++outputidx)
-		{
-			output[outputidx    ] = outputu[outputidx];
-		}
-		for (int outputidx = 0; outputidx < 6; ++outputidx)
-		{
-			output[outputidx + 6] = outputv[outputidx];
-		}
-		for (int outputidx = 0; outputidx < 6; ++outputidx)
-		{
-			output[outputidx + 12] = outputw[outputidx];
-		}
-		
-		//Denormalize
-		for (int outputidx = 0; outputidx < N_output; ++outputidx)
-		{
-			output_denorm[outputidx] = ((output[outputidx] * stdev_label[outputidx]) + mean_label[outputidx]) * output_denorm_utau2;
-		}
-	}
+        //Denormalize
+        output_denorm[0] = ((output[0] * stdev_label[16]) + mean_label[16]) * output_denorm_utau2;
+        output_denorm[1] = ((output[1] * stdev_label[17]) + mean_label[17]) * output_denorm_utau2;
+    }
+    else
+    {
+        for (int outputidx = 0; outputidx < 6; ++outputidx)
+        {
+            output[outputidx    ] = outputu[outputidx];
+        }
+        for (int outputidx = 0; outputidx < 6; ++outputidx)
+        {
+            output[outputidx + 6] = outputv[outputidx];
+        }
+        for (int outputidx = 0; outputidx < 6; ++outputidx)
+        {
+            output[outputidx + 12] = outputw[outputidx];
+        }
+        
+        //Denormalize
+        for (int outputidx = 0; outputidx < N_output; ++outputidx)
+        {
+            output_denorm[outputidx] = ((output[outputidx] * stdev_label[outputidx]) + mean_label[outputidx]) * output_denorm_utau2;
+        }
+    }
 }
 template<typename TF>
 void Diff_NN<TF>::file_reader(
@@ -901,18 +901,18 @@ void Diff_NN<TF>::file_reader(
         const int N)
 {
     std::ifstream file (filename); // open file in read mode, filename instead of filename.c_str()
-	//Test whether file has been read
-	try
-	{
-		if (!file.is_open())
-		{
-			throw "Couldn't read file specified as: " + filename;
-		}
-	}
-	catch(std::string exception)
-	{
-		std::cerr << "Error: " << exception << "\n";
-	}
+    //Test whether file has been read
+    try
+    {
+        if (!file.is_open())
+        {
+            throw "Couldn't read file specified as: " + filename;
+        }
+    }
+    catch(std::string exception)
+    {
+        std::cerr << "Error: " << exception << "\n";
+    }
     for ( int i=0; i<N;++i)
         file>> weights[i];
     file.close();
@@ -928,6 +928,13 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     const int jgc = 2;
     const int kgc = 2;
     grid.set_minimum_ghost_cells(igc, jgc, kgc);
+
+    fields.mp.at("u")->fld.data(),
+    fields.mp.at("v")->fld.data(),
+    fields.mp.at("w")->fld.data(),
+
+
+////////////////
 
     dnmax = inputin.get_item<TF>("diff", "dnmax", "", 0.4  );
 
@@ -1016,25 +1023,25 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     // Take transpose of weights and store those in the class
     for (int hiddenidx = 0; hiddenidx < N_hidden; ++hiddenidx)
     {
-    	for (int inpidx = 0; inpidx < N_input_tot_adjusted; ++inpidx)
-    	{
-    		int idx_tr = inpidx + hiddenidx * N_input_tot_adjusted;
-    		int idx_notr = inpidx * N_hidden + hiddenidx;
-    		m_hiddenu_wgth[idx_tr] = hiddenu_wgth_notr[idx_notr];
-    		m_hiddenv_wgth[idx_tr] = hiddenv_wgth_notr[idx_notr];
-    		m_hiddenw_wgth[idx_tr] = hiddenw_wgth_notr[idx_notr];
-    	}
+        for (int inpidx = 0; inpidx < N_input_tot_adjusted; ++inpidx)
+        {
+            int idx_tr = inpidx + hiddenidx * N_input_tot_adjusted;
+            int idx_notr = inpidx * N_hidden + hiddenidx;
+            m_hiddenu_wgth[idx_tr] = hiddenu_wgth_notr[idx_notr];
+            m_hiddenv_wgth[idx_tr] = hiddenv_wgth_notr[idx_notr];
+            m_hiddenw_wgth[idx_tr] = hiddenw_wgth_notr[idx_notr];
+        }
     }
     for (int outputidx = 0; outputidx < N_output_control; ++outputidx)
     {
-    	for (int hiddenidx = 0; hiddenidx < N_hidden; ++hiddenidx)
-    	{
-    		int idx_tr = hiddenidx + outputidx * N_hidden;
-    		int idx_notr = hiddenidx * N_output_control + outputidx;
-    		m_outputu_wgth[idx_tr] = outputu_wgth_notr[idx_notr];
-    		m_outputv_wgth[idx_tr] = outputv_wgth_notr[idx_notr];
-    		m_outputw_wgth[idx_tr] = outputw_wgth_notr[idx_notr];
-    	}
+        for (int hiddenidx = 0; hiddenidx < N_hidden; ++hiddenidx)
+        {
+            int idx_tr = hiddenidx + outputidx * N_hidden;
+            int idx_notr = hiddenidx * N_output_control + outputidx;
+            m_outputu_wgth[idx_tr] = outputu_wgth_notr[idx_notr];
+            m_outputv_wgth[idx_tr] = outputv_wgth_notr[idx_notr];
+            m_outputw_wgth[idx_tr] = outputw_wgth_notr[idx_notr];
+        }
     }
     
     // Define dynamic arrays hidden/ouptut layers and initialize them with zeros
@@ -1115,13 +1122,13 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
     auto& gd  = grid.get_grid_data();
     
     diff_U(
-	fields.mp.at("u")->fld.data(),
-	fields.mp.at("v")->fld.data(),
-	fields.mp.at("w")->fld.data(),
-	fields.mt.at("u")->fld.data(),
-	fields.mt.at("v")->fld.data(),
-	fields.mt.at("w")->fld.data()
-	);
+    fields.mp.at("u")->fld.data(),
+    fields.mp.at("v")->fld.data(),
+    fields.mp.at("w")->fld.data(),
+    fields.mt.at("u")->fld.data(),
+    fields.mt.at("v")->fld.data(),
+    fields.mt.at("w")->fld.data()
+    );
 
 
     diff_c<TF>(fields.mt.at("u")->fld.data(), fields.mp.at("u")->fld.data(), fields.visc,
