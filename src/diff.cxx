@@ -73,11 +73,13 @@ std::shared_ptr<Diff<TF>> Diff<TF>::factory(
         return std::make_shared<Diff_smag2<TF>>(masterin, gridin, fieldsin, boundaryin, inputin);
     else if (swdiff == "NN")
     {
-        if ((not (swbot == "noslip")) || (not (swtop == "noslip")));
+        std::cout << ( not (swbot == "noslip" && swtop == "noslip"));
+        if ( not (swbot == "noslip" && swtop == "noslip"))
         {
+            std::cout << (not(swbot == "noslip" && swtop == "noslip"));
             throw std::runtime_error("NN subgrid parameterization can only be used in combination with Dirichlet boundary conditions (i.e. noslip).");
         }
-        if (not (swspatialorder == "2"));
+        if (not (swspatialorder == "2"))
         {
             throw std::runtime_error("NN subgrid parameterization can only be used with second-order spatial interpolation.");
         }
