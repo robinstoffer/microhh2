@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cmath>
 #include <algorithm>
+#include <string>
 #include "master.h"
 #include "input.h"
 #include "grid.h"
@@ -120,6 +121,10 @@ void Boundary<TF>::process_bcs(Input& input)
 {
     std::string swbot = input.get_item<std::string>("boundary", "mbcbot", "");
     std::string swtop = input.get_item<std::string>("boundary", "mbctop", "");
+
+    //RS: read turbulence parameterization used
+    std::string swboundary = input.get_item<std::string>("boundary", "swboundary", "", "default");
+
 
     ubot = input.get_item<TF>("boundary", "ubot", "", 0.);
     utop = input.get_item<TF>("boundary", "utop", "", 0.);
@@ -616,6 +621,20 @@ void Boundary<TF>::exec(Thermo<TF>& thermo)
         calc_ghost_cells_top_2nd<TF>(fields.mp.at("v")->fld.data(), gd.dzh.data(), mbctop,
                 fields.mp.at("v")->fld_top.data(), fields.mp.at("v")->grad_top.data(),
                 gd.kend, gd.icells, gd.jcells, gd.ijcells, gd.kstart);
+
+        // Add ghostcells in z-direction when NN parameterization is switched on
+
+        if (swdiff == "NN")
+        {
+            calc_ghost_cells_botw_2nd<TF>(fields.mp.at("w")->fld.data(), gd.dzh.data(), mbcbot,
+                    fields.mp.at("w")->fld_bot.data(), fields.mp.at("w")->grad_bot.data(),
+                    gd.kstart, gd.icells, gd.jcells, gd.ijcells);
+            calc_ghost_cells_topw_2nd<TF>(fields.mp.at("w")->fld.data(), gd.dzh.data(), mbctop,
+                    fields.mp.at("w")->fld_top.data(), fields.mp.at("w")->grad_top.data(),
+                    gd.kend, gd.icells, gd.jcells, gd.ijcells, gd.kstart);
+            
+        }
+
 
         for (auto& it : fields.sp)
         {

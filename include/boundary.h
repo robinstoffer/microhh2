@@ -108,6 +108,9 @@ class Boundary
 
         std::string swboundary;
 
+        //RS:add string for swdiff
+        std::string swdiff;
+
         Boundary_type mbcbot;
         Boundary_type mbctop;
 

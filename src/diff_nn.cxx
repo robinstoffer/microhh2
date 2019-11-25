@@ -201,21 +201,21 @@ void Diff_NN<TF>::calc_diff_flux_u(
                 //zu_upstream
                 if (k == gd.kstart)
                 {
-                    //uflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                    uflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 }
                 else
                 {
-                    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] ;//- (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 }
 
                 //zu_downstream
                 if (k == (gd.kend - 1))
                 {
-                    //uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                    uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
                 }
                 else
                 {
-                    uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                    uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
                 }
 
                 ///////
@@ -244,17 +244,17 @@ void Diff_NN<TF>::calc_diff_flux_u(
                         i_2grid = i + 1;
                     }
                 
-                    ////Calculate resolved fluxes
-                    ////zu_upstream
-                    //if (k == gd.kstart)
-                    //{
-                    //    uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
-                    //}
-                    ////zu_downstream
-                    //else if (k == (gd.kend - 1))
-                    //{                        
-                    //    uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
-                    //}
+                    //Calculate resolved fluxes
+                    //zu_upstream
+                    if (k == gd.kstart)
+                    {
+                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  - (fields.visc * (u[k*gd.ijcells + j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                    }
+                    //zu_downstream
+                    else if (k == (gd.kend - 1))
+                    {                        
+                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                    }
                 }
             }
         }
@@ -362,21 +362,21 @@ void Diff_NN<TF>::calc_diff_flux_v(
                 //zv_upstream
                 if (k == gd.kstart)
                 {
-                    vflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                    //vflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 }
                 else
                 {
-                    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] ;//- (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 }
 
                 //zv_downstream
                 if (k == (gd.kend - 1))
                 {
-                    vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                    //vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
                 }
                 else
                 {
-                    vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                    vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
                 }
 
                 /////
@@ -390,33 +390,33 @@ void Diff_NN<TF>::calc_diff_flux_v(
                 //}
                 ////NOTE: no separate treatment for walls needed since w should be 0 at the top and bottom wall (and thus there are no horizontal gradients and horizontal fluxes)
  
-                // Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
-                // the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
-                if ((k == (gd.kend - 1)) || (k == (gd.kstart)))
-                {
-                    //Determine the second grid cell based on the offset.
-                    int i_2grid = 0;
-                    if (offset == 1)
-                    {
-                        i_2grid = i - 1;
-                    }
-                    else
-                    {
-                        i_2grid = i + 1;
-                    }
+                //// Calculate for each iteration in the bottom layer, and for each iteration in the top layer, 
+                //// the resolved transport for a second grid cell to calculate 'missing' values due to alternation.
+                //if ((k == (gd.kend - 1)) || (k == (gd.kstart)))
+                //{
+                //    //Determine the second grid cell based on the offset.
+                //    int i_2grid = 0;
+                //    if (offset == 1)
+                //    {
+                //        i_2grid = i - 1;
+                //    }
+                //    else
+                //    {
+                //        i_2grid = i + 1;
+                //    }
 
-                    //Calculate resovled fluxes
-                    //zv_upstream
-                    if (k == gd.kstart)
-                    {
-                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
-                    }
-                    //zv_downstream
-                    else if (k == (gd.kend - 1))
-                    {                        
-                        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
-                    }
-                }
+                //    //Calculate resovled fluxes
+                //    //zv_upstream
+                //    if (k == gd.kstart)
+                //    {
+                //        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                //    }
+                //    //zv_downstream
+                //    else if (k == (gd.kend - 1))
+                //    {                        
+                //        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                //    }
+                //}
             }
         }
     }
