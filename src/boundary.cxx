@@ -347,14 +347,20 @@ namespace
 
         if (boundary_type == Boundary_type::Dirichlet_type)
         {
-            for (int j=0; j<jcells; ++j)
+            for (int k=0; k<kstart; ++k)
+            {
+                for (int j=0; j<jcells; ++j)
                 #pragma ivdep
-                for (int i=0; i<icells; ++i)
                 {
-                    const int ij  = i + j*jj;
-                    const int ijk = i + j*jj + kstart*kk;
-                    a[ijk-kk] = TF(2.)*abot[ij] - a[ijk];
+                    for (int i=0; i<icells; ++i)
+                    {
+                        const int ij  = i + j*jj;
+                        const int ijk_abovewall = i + j*jj + (2*kstart-1-k)*kk;
+                        const int ijk_belowwall = i + j*jj + k*kk;
+                        a[ijk_belowwall] = TF(2.)*abot[ij] - a[ijk_abovewall];
+                    }
                 }
+            }
         }
         else if (boundary_type == Boundary_type::Neumann_type || boundary_type == Boundary_type::Flux_type)
         {
@@ -372,7 +378,7 @@ namespace
     template<typename TF>
     void calc_ghost_cells_top_2nd(TF* const restrict a, const TF* const restrict dzh, Boundary_type boundary_type,
                                   TF* const restrict atop, TF* const restrict agradtop,
-                                  const int kend, const int icells, const int jcells, const int ijcells)
+                                  const int kend, const int icells, const int jcells, const int ijcells, const int kstart)
     {
         const int jj = icells;
         const int kk = ijcells;
@@ -399,6 +405,24 @@ namespace
                     const int ijk = i + j*jj + (kend-1)*kk;
                     a[ijk+kk] = TF(2.)*atop[ij] - a[ijk];
                 }
+
+            if (boundary_type == Boundary_type::Dirichlet_type)
+            {
+                for (int k=0; k<kstart; ++k)
+                {
+                    for (int j=0; j<jcells; ++j)
+                    #pragma ivdep
+                    {
+                        for (int i=0; i<icells; ++i)
+                        {
+                            const int ij  = i + j*jj;
+                            const int ijk_abovewall = i + j*jj + (kend+k)*kk;
+                            const int ijk_belowwall = i + j*jj + (kend-1-k)*kk;
+                            a[ijk_abovewall] = TF(2.)*atop[ij] - a[ijk_belowwall];
+                        }
+                    }
+                }
+            }
         }
         else if (boundary_type == Boundary_type::Neumann_type || boundary_type == Boundary_type::Flux_type)
         {
@@ -584,14 +608,14 @@ void Boundary<TF>::exec(Thermo<TF>& thermo)
                 gd.kstart, gd.icells, gd.jcells, gd.ijcells);
         calc_ghost_cells_top_2nd<TF>(fields.mp.at("u")->fld.data(), gd.dzh.data(), mbctop,
                 fields.mp.at("u")->fld_top.data(), fields.mp.at("u")->grad_top.data(),
-                gd.kend, gd.icells, gd.jcells, gd.ijcells);
+                gd.kend, gd.icells, gd.jcells, gd.ijcells, gd.kstart);
 
         calc_ghost_cells_bot_2nd<TF>(fields.mp.at("v")->fld.data(), gd.dzh.data(), mbcbot,
                 fields.mp.at("v")->fld_bot.data(), fields.mp.at("v")->grad_bot.data(),
                 gd.kstart, gd.icells, gd.jcells, gd.ijcells);
         calc_ghost_cells_top_2nd<TF>(fields.mp.at("v")->fld.data(), gd.dzh.data(), mbctop,
                 fields.mp.at("v")->fld_top.data(), fields.mp.at("v")->grad_top.data(),
-                gd.kend, gd.icells, gd.jcells, gd.ijcells);
+                gd.kend, gd.icells, gd.jcells, gd.ijcells, gd.kstart);
 
         for (auto& it : fields.sp)
         {
@@ -600,7 +624,7 @@ void Boundary<TF>::exec(Thermo<TF>& thermo)
                     gd.kstart, gd.icells, gd.jcells, gd.ijcells);
             calc_ghost_cells_top_2nd<TF>(it.second->fld.data(), gd.dzh.data(),
                     sbc.at(it.first).bctop, it.second->fld_top.data(), it.second->grad_top.data(),
-                    gd.kend, gd.icells, gd.jcells, gd.ijcells);
+                    gd.kend, gd.icells, gd.jcells, gd.ijcells, gd.kstart);
         }
     }
     else if (grid.get_spatial_order() == Grid_order::Fourth)
