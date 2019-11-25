@@ -60,6 +60,8 @@ std::shared_ptr<Diff<TF>> Diff<TF>::factory(
 
     std::string swdiff     = inputin.get_item<std::string>("diff",     "swdiff",     "", swspatialorder);
     std::string swboundary = inputin.get_item<std::string>("boundary", "swboundary", "", "default");
+    std::string swbot      = inputin.get_item<std::string>("boundary", "mbcbot",     "");
+    std::string swtop      = inputin.get_item<std::string>("boundary", "mbctop",     "");
 
     if (swdiff == "0")
         return std::make_shared<Diff_disabled<TF>>(masterin, gridin, fieldsin, boundaryin, inputin);
@@ -70,7 +72,17 @@ std::shared_ptr<Diff<TF>> Diff<TF>::factory(
     else if (swdiff == "smag2")
         return std::make_shared<Diff_smag2<TF>>(masterin, gridin, fieldsin, boundaryin, inputin);
     else if (swdiff == "NN")
+    {
+        if ((not (swbot == "noslip")) || (not (swtop == "noslip")));
+        {
+            throw std::runtime_error("NN subgrid parameterization can only be used in combination with Dirichlet boundary conditions (i.e. noslip).");
+        }
+        if (not (swspatialorder == "2"));
+        {
+            throw std::runtime_error("NN subgrid parameterization can only be used with second-order spatial interpolation.");
+        }
         return std::make_shared<Diff_NN<TF>>(masterin, gridin, fieldsin, boundaryin, inputin);
+    }
     else
     {
         std::string msg = swdiff + " is an illegal value for swdiff";
