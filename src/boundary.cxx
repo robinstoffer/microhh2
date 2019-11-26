@@ -96,6 +96,9 @@ Boundary<TF>::Boundary(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin,
     field3d_io(master, grid)
 {
     swboundary = "default";
+    //RS: read turbulence parameterization used
+    swdiff = inputin.get_item<std::string>("diff", "swdiff", "", "default");
+
 }
 
 template<typename TF>
@@ -121,10 +124,6 @@ void Boundary<TF>::process_bcs(Input& input)
 {
     std::string swbot = input.get_item<std::string>("boundary", "mbcbot", "");
     std::string swtop = input.get_item<std::string>("boundary", "mbctop", "");
-
-    //RS: read turbulence parameterization used
-    std::string swboundary = input.get_item<std::string>("boundary", "swboundary", "", "default");
-
 
     ubot = input.get_item<TF>("boundary", "ubot", "", 0.);
     utop = input.get_item<TF>("boundary", "utop", "", 0.);
@@ -379,6 +378,34 @@ namespace
                 }
         }
     }
+    
+    template<typename TF>
+    void calc_ghost_cells_botw_2nd(TF* const restrict a, const TF* const restrict dzh, Boundary_type boundary_type,
+                                  TF* const restrict abot, TF* const restrict agradbot,
+                                  const int kstart, const int icells, const int jcells, const int ijcells)
+    {
+        const int jj = icells;
+        const int kk = ijcells;
+
+        if (boundary_type == Boundary_type::Dirichlet_type)
+        {
+            for (int j=0; j<jcells; ++j)
+            #pragma ivdep
+            {
+                for (int i=0; i<icells; ++i)
+                {
+                    const int ij  = i + j*jj;
+                    const int ijk_abovewall = i + j*jj + (kstart+1)*kk;
+                    const int ijk_belowwall = i + j*jj + (kstart-1)*kk;
+                    a[ijk_belowwall] = TF(2.)*abot[ij] - a[ijk_abovewall];
+                }
+            } 
+        }
+        else if (boundary_type == Boundary_type::Neumann_type || boundary_type == Boundary_type::Flux_type)
+        {
+            throw std::runtime_error("NN parameterization can not be used in combination with Neumann or flux-type BCs, only with a Dirichlet BC. The function throwing this error should only be called when the NN parameterization is on.");
+        }
+    }
 
     template<typename TF>
     void calc_ghost_cells_top_2nd(TF* const restrict a, const TF* const restrict dzh, Boundary_type boundary_type,
@@ -393,6 +420,7 @@ namespace
             if (boundary_type == Boundary_type::Off_type)
             {
                 for (int j=0; j<jcells; ++j)
+                {
                     #pragma ivdep
                     for (int i=0; i<icells; ++i)
                     {
@@ -400,31 +428,20 @@ namespace
                         const int ijk = i + j*jj + (kend-1)*kk;
                         atop[ij] = TF(3./2.)*a[ijk] - TF(1./2.)*a[ijk-kk];
                     }
+                }
             }
 
-            for (int j=0; j<jcells; ++j)
-                #pragma ivdep
-                for (int i=0; i<icells; ++i)
-                {
-                    const int ij  = i + j*jj;
-                    const int ijk = i + j*jj + (kend-1)*kk;
-                    a[ijk+kk] = TF(2.)*atop[ij] - a[ijk];
-                }
-
-            if (boundary_type == Boundary_type::Dirichlet_type)
+            for (int k=0; k<kstart; ++k)
             {
-                for (int k=0; k<kstart; ++k)
+                for (int j=0; j<jcells; ++j)
+                #pragma ivdep
                 {
-                    for (int j=0; j<jcells; ++j)
-                    #pragma ivdep
+                    for (int i=0; i<icells; ++i)
                     {
-                        for (int i=0; i<icells; ++i)
-                        {
-                            const int ij  = i + j*jj;
-                            const int ijk_abovewall = i + j*jj + (kend+k)*kk;
-                            const int ijk_belowwall = i + j*jj + (kend-1-k)*kk;
-                            a[ijk_abovewall] = TF(2.)*atop[ij] - a[ijk_belowwall];
-                        }
+                        const int ij  = i + j*jj;
+                        const int ijk_abovewall = i + j*jj + (kend+k)*kk;
+                        const int ijk_belowwall = i + j*jj + (kend-1-k)*kk;
+                        a[ijk_abovewall] = TF(2.)*atop[ij] - a[ijk_belowwall];
                     }
                 }
             }
@@ -442,6 +459,47 @@ namespace
         }
     }
 
+    template<typename TF>
+    void calc_ghost_cells_topw_2nd(TF* const restrict a, const TF* const restrict dzh, Boundary_type boundary_type,
+                                  TF* const restrict atop, TF* const restrict agradtop,
+                                  const int kend, const int icells, const int jcells, const int ijcells, const int kstart)
+    {
+        const int jj = icells;
+        const int kk = ijcells;
+
+        if (boundary_type == Boundary_type::Dirichlet_type || boundary_type == Boundary_type::Off_type)
+        {
+            if (boundary_type == Boundary_type::Off_type)
+            {
+                for (int j=0; j<jcells; ++j)
+                {
+                    #pragma ivdep
+                    for (int i=0; i<icells; ++i)
+                    {
+                        const int ij  = i + j*jj;
+                        const int ijk = i + j*jj + (kend-1)*kk;
+                        atop[ij] = TF(3./2.)*a[ijk] - TF(1./2.)*a[ijk-kk];
+                    }
+                }
+            }
+
+            for (int j=0; j<jcells; ++j)
+            #pragma ivdep
+            {
+                for (int i=0; i<icells; ++i)
+                {
+                    const int ij  = i + j*jj;
+                    const int ijk_abovewall = i + j*jj + (kend+1)*kk;
+                    const int ijk_belowwall = i + j*jj + (kend-1)*kk;
+                    a[ijk_abovewall] = TF(2.)*atop[ij] - a[ijk_belowwall];
+                }
+            }
+        }
+        else if (boundary_type == Boundary_type::Neumann_type || boundary_type == Boundary_type::Flux_type)
+        {
+            throw std::runtime_error("NN parameterization can not be used in combination with Neumann or flux-type BCs, only with a Dirichlet BC. The function throwing this error should only be called when the NN parameterization is on.");
+        }
+    }
     template<typename TF>
     void calc_ghost_cells_bot_4th(TF* const restrict a, const TF* const restrict z, Boundary_type boundary_type,
                                   TF* const restrict abot, TF* restrict agradbot,
