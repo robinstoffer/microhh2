@@ -383,102 +383,95 @@ void Diff_NN<TF>::calc_diff_flux_v(
                 //  //xw_downstream
                 //  vflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13];
                 //}
-                //yw
-                if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
-                {
-                  //yw_upstream
-                  vflux[k*gd.ijcells + j * gd.icells + i]         =  result[14];
+                ////yw
+                //if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
+                //{
+                //  //yw_upstream
+                //  vflux[k*gd.ijcells + j * gd.icells + i]         =  result[14];
 
-                  //yw_downstream
-                  vflux[k*gd.ijcells + j_downbound * gd.icells + i] =  result[15];
-                }
-                //zw
-                if (k != gd.kstart)
-                {
-                    //zw_upstream
-                    vflux[k*gd.ijcells + j * gd.icells + i]           +=  result[16] * gd.dzhi[k];
+                //  //yw_downstream
+                //  vflux[k*gd.ijcells + j_downbound * gd.icells + i] =  result[15];
+                //}
+                ////zw
+                //if (k > gd.kstart)
+                //{
+                //    //zw_upstream
+                //    vflux[k*gd.ijcells + j * gd.icells + i]           =  result[16];
 
-                    //zw_downstream
-                    if (k != (gd.kend - 1))
-                    // NOTE:although this does not change wt at the bottom layer, 
-                    // it is still not included for k=0 to keep consistency between the top and bottom of the domain.
-                    {
-                        vflux[(k + 1)*gd.ijcells + j * gd.icells + i] += result[17] * gd.dzhi[k + 1];
-                    }
-                }
-                // Calculate for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, the resolved transport for a second grid cell to calculate 'missing' values zw due to alternation.
-                if (k == (gd.kstart+1)) //|| ((k == (gd.kend - 1))
-                {
-                    //Determine the second grid cell based on the offset.
-                    int i_2grid = 0;
-                    if (offset == 1)
-                    {
-                        i_2grid = i - 1;
-                    }
-                    else
-                    {
-                        i_2grid = i + 1;
-                    }
+                //    //zw_downstream
+                //    if (k != (gd.kend - 1))
+                //    {
+                //        vflux[(k+1)*gd.ijcells + j * gd.icells + i] = result[17];
+                //    }
+                //}
+                //// Calculate for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, the resolved transport for a second grid cell to calculate 'missing' values zw due to alternation.
+                //if (k == (gd.kstart+1)) //|| ((k == (gd.kend - 1))
+                //{
+                //    //Determine the second grid cell based on the offset.
+                //    int i_2grid = 0;
+                //    if (offset == 1)
+                //    {
+                //        i_2grid = i - 1;
+                //    }
+                //    else
+                //    {
+                //        i_2grid = i + 1;
+                //    }
 
-                    //Select second grid box
-                    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
-                    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
-                    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
-                    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
-                    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
-                    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
-                    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                //    //Select second grid box
+                //    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                //    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
+                //    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
+                //    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
+                //    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                //    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
+                //    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
+                //    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
+                //    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
 
-                    //Execute mlp for selected second grid cell
-                    Inference(
-                        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                        m_outputu_wgth.data(), m_outputu_bias.data(),
-                        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                        m_outputv_wgth.data(), m_outputv_bias.data(),
-                        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
-                        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                        m_outputw_wgth.data(), m_outputw_bias.data(),
-                        m_mean_input.data(), m_stdev_input.data(),
-                        m_mean_label.data(), m_stdev_label.data(),
-                        m_utau_ref, m_output_denorm_utau2,
-                        m_output_zw.data(), result_zw.data(), true
-                    );
-                    //Store fluxes
-                    //zw_upstream
-                    if (k == (gd.kstart+1))
-                    {
-                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_zw[0] ;//- (fields.visc * (v[k*gd.ijcells + j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
-                    }
-                    ////zw_downstream
-                    //else if (k == (gd.kend - 1))
-                    //{                        
-                    //    vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_zw[0] ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
-                    //}
-                }
+                //    //Execute mlp for selected second grid cell
+                //    Inference(
+                //        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                //        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                //        m_outputu_wgth.data(), m_outputu_bias.data(),
+                //        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                //        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                //        m_outputv_wgth.data(), m_outputv_bias.data(),
+                //        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
+                //        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                //        m_outputw_wgth.data(), m_outputw_bias.data(),
+                //        m_mean_input.data(), m_stdev_input.data(),
+                //        m_mean_label.data(), m_stdev_label.data(),
+                //        m_utau_ref, m_output_denorm_utau2,
+                //        m_output_zw.data(), result_zw.data(), true
+                //    );
+                //    //Store fluxes
+                //    //zw_upstream
+                //    if (k == (gd.kstart+1))
+                //    {
+                //        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_zw[0] ;
+                //    }
+                //}
                 /////////////////////////////////
                 //zv_upstream
-                //if (k == gd.kstart)
-                //{
-                    //vflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
-                //}
-                //else
-                //{
-                //      vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] ;//- (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
-                //}
+                if (k == gd.kstart)
+                {
+                    vflux[k*gd.ijcells + j * gd.icells + i]     =  - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                }
+                else
+                {
+                    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] - (fields.visc * (v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                }
 
-                ////zv_downstream
-                //if (k == (gd.kend - 1))
-                //{
-                //    //vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
-                //}
-                //else
-                //{
-                //      vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
-                //}
+                //zv_downstream
+                if (k == (gd.kend - 1))
+                {
+                    vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                }
+                else
+                {
+                    vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                }
 
                 /////
                 //if (k != gd.kstart) //Don't calculate horizontal fluxes for bottom layer, should be 0
