@@ -200,8 +200,8 @@ namespace
                 {
                     const int ijkb = i + j*jj + kb*kk;
                     const int ijkt = i + j*jj + kt*kk;
-                    evisc[ijkb-kk] = evisc[ijkb];
-                    evisc[ijkt+kk] = evisc[ijkt];
+                    evisc[ijkb-kk] = -evisc[ijkb];
+                    evisc[ijkt+kk] = -evisc[ijkt];
                 }
         }
         else

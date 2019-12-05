@@ -199,7 +199,7 @@ void Diff_NN<TF>::calc_diff_flux_u(
 
                 //Calculate damping factor for calculated transports
                 //float fac=1;//Don't impose a damping factor
-                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,1.0),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
+                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
                 
                 //Calculate tendencies using predictions from MLP
                 //zu_upstream
@@ -364,7 +364,7 @@ void Diff_NN<TF>::calc_diff_flux_v(
 
                 //Calculate damping factor for calculated transports
                 //float fac=1;//Don't impose a damping factor
-                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,1.0),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
+                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
                 
                 //Calculate tendencies using predictions from MLP
                 
@@ -668,7 +668,7 @@ void Diff_NN<TF>::diff_U(
 
                 //Calculate damping factor for calculated transports
                 //float fac=1;//Don't impose a damping factor
-                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,1.0),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
+                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
                 //xu_upstream
