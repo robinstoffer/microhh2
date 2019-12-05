@@ -198,8 +198,8 @@ void Diff_NN<TF>::calc_diff_flux_u(
                 }
 
                 //Calculate damping factor for calculated transports
-                //float fac=1;//Don't impose a damping factor
-                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
+                float fac=1;//Don't impose a damping factor
+                //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
                 
                 //Calculate tendencies using predictions from MLP
                 //zu_upstream
@@ -363,8 +363,8 @@ void Diff_NN<TF>::calc_diff_flux_v(
                 }
 
                 //Calculate damping factor for calculated transports
-                //float fac=1;//Don't impose a damping factor
-                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
+                float fac=1;//Don't impose a damping factor
+                //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
                 
                 //Calculate tendencies using predictions from MLP
                 
@@ -566,6 +566,31 @@ void Diff_NN<TF>::select_box(
     }
 }
 
+//Function that creates Gaussian 2D kernel for smoothing of horizontal tendency fields
+template<typename TF>
+void Diff_NN<TF>::gkernelcreation(
+   TF* restrict const gkernel
+   )
+{
+    //Initialise standard deviation
+    TF sigma = 1.0;
+    TF r,s   = 2.0 * sigma * sigma;
+
+    //Sum for normalisation
+    TF sum = 0.0;
+
+    //Generating 5*5 kernel
+    for (int j = -2; j < 3; ++j)
+    {
+        for (int i = -2; i <3; ++i)
+        {
+            r = pow((i*i+j*j),0.5);
+            gkernel[(j+2)*5 + (i+2)] = (exp(-r*r)/s)/(M_PI*s);
+            sum += gkernel[(j+2)*5 + (i+2)];
+        }
+    }
+}
+
 // Function that loops over the whole flow field, and calculates for each grid cell the tendencies
 template<typename TF>
 void Diff_NN<TF>::diff_U(
@@ -586,6 +611,10 @@ void Diff_NN<TF>::diff_U(
     //Calculate inverse height differences
     const TF dxi = 1.f / gd.dx;
     const TF dyi = 1.f / gd.dy;
+
+    //Calculate Gaussian 2D filter
+    std::array<TF,25> gkernel;
+    gkernelcreation(gkernel.data());
 
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
@@ -667,8 +696,8 @@ void Diff_NN<TF>::diff_U(
                 }
 
                 //Calculate damping factor for calculated transports
-                //float fac=1;//Don't impose a damping factor
-                float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
+                float fac=1;//Don't impose a damping factor
+                //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
                 //xu_upstream
@@ -830,6 +859,87 @@ void Diff_NN<TF>::diff_U(
                         wt[k * gd.ijcells + j * gd.icells + i_2grid] += -result_zw[1] * gd.dzhi[k] * fac;
                     }           
                 }
+            }
+        }
+    }
+    
+    //Loop over tendencies to apply Gaussian filter for smoothing
+
+    //Define temporary variables for intermediate storage
+    std::vector<TF> ut_temp_field(gd.ncells, 0.0f);
+    std::vector<TF> vt_temp_field(gd.ncells, 0.0f);
+    std::vector<TF> wt_temp_field(gd.ncells, 0.0f);
+    TF ut_temp = 0.0;
+    TF vt_temp = 0.0;
+    TF wt_temp = 0.0;
+    int j_filter_idx = 0;
+    int i_filter_idx = 0;
+    int j_gkernel_idx = 0;
+    int i_gkernel_idx = 0;
+    for (int k = gd.kstart; k < gd.kend; ++k)
+    {
+        j_gkernel_idx = 0; //Initialize to 0
+        i_gkernel_idx = 0; //Initialize to 0
+        for (int j = gd.jstart; j < gd.jend; ++j)
+        {
+            for (int i = gd.istart; i < gd.iend; ++i)
+            {
+                //Loop and sum over local horizontal 5*5 kernel to get the tendency
+                //NOTE: make use of periodic BCs in horizontal directions
+                ut_temp = 0.0; //Initialize to 0
+                vt_temp = 0.0;
+                wt_temp = 0.0;
+
+                for (int j_filter = j - 2; j_filter < j + 3; ++j_filter)
+                {
+                    j_filter_idx = j_filter;
+                    if (j_filter < gd.jstart)
+                    {
+                        j_filter_idx = gd.jend - (gd.jstart - j_filter);
+                    }
+                    else if (j_filter >= gd.jend)
+                    {
+                        j_filter_idx = gd.jstart + (j_filter - gd.jend);
+                    }
+                    for (int i_filter = i - 2; i_filter < i + 3; ++i_filter)
+                    {
+                        i_filter_idx = i_filter;
+                        if (i_filter < gd.istart)
+                        {
+                            i_filter_idx = gd.iend - (gd.istart - i_filter);
+                        }
+                        else if (i_filter >= gd.iend)
+                        {
+                            i_filter_idx = gd.istart + (i_filter - gd.iend);
+                        }
+
+                        ut_temp += ut[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[j_gkernel_idx * 5 + i_gkernel_idx];
+                        vt_temp += vt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[j_gkernel_idx * 5 + i_gkernel_idx];
+                        wt_temp += wt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[j_gkernel_idx * 5 + i_gkernel_idx];
+                    }
+                }
+                
+                //Assign calculated smoothed tendencies to temporary fields
+                ut_temp_field[k*gd.ijcells + j * gd.icells + i] = ut_temp;
+                vt_temp_field[k*gd.ijcells + j * gd.icells + i] = vt_temp;
+                wt_temp_field[k*gd.ijcells + j * gd.icells + i] = wt_temp;
+                
+                i_gkernel_idx += 1; //Add 1 to gkernel index
+            }
+            j_gkernel_idx += 1; //Add 1 to gkernel index
+        }
+    }
+
+    //Assign temporary fields to the actual tendency fields
+    for (int k = gd.kstart; k < gd.kend; ++k)
+    {
+        for (int j = gd.jstart; j < gd.jend; ++j)
+        {
+            for (int i = gd.istart; i < gd.iend; ++i)
+            {
+                ut[k*gd.ijcells + j * gd.icells + i] = ut_temp_field[k*gd.ijcells + j * gd.icells + i];
+                vt[k*gd.ijcells + j * gd.icells + i] = vt_temp_field[k*gd.ijcells + j * gd.icells + i];
+                wt[k*gd.ijcells + j * gd.icells + i] = wt_temp_field[k*gd.ijcells + j * gd.icells + i];
             }
         }
     }

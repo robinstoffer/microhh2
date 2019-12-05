@@ -66,7 +66,7 @@ class Diff_NN : public Diff<TF>
         const TF* restrict const u,
         const TF* restrict const v,
         const TF* restrict const w
-        );
+    );
 	
 	void select_box(
 		const TF* restrict const field_var,
@@ -82,6 +82,10 @@ class Diff_NN : public Diff<TF>
 		const int skip_firstz,
 		const int skip_lastz
 	);
+
+    void gkernelcreation(
+        TF* restrict const gkernel
+    );
 	
 	void diff_U(
 		const TF* restrict const u,
