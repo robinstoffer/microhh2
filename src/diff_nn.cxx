@@ -579,14 +579,23 @@ void Diff_NN<TF>::gkernelcreation(
     //Sum for normalisation
     TF sum = 0.0;
 
-    //Generating 5*5 kernel
+    //Generating 5*5 kernel (assuming an equidistant horizontal grid!)
     for (int j = -2; j < 3; ++j)
     {
         for (int i = -2; i <3; ++i)
         {
             r = pow((i*i+j*j),0.5);
-            gkernel[(j+2)*5 + (i+2)] = (exp(-r*r)/s)/(M_PI*s);
+            gkernel[(j+2)*5 + (i+2)] = exp(-r*r/s)/(M_PI*s);
             sum += gkernel[(j+2)*5 + (i+2)];
+        }
+    }
+
+    //Normalizing the 5*5 kernel
+    for (int j = 0; j < 5; ++j)
+    {
+        for (int i = 0; i < 5; ++i)
+        {
+            gkernel[j*5 + i] /= sum;
         }
     }
 }
@@ -874,12 +883,11 @@ void Diff_NN<TF>::diff_U(
     TF wt_temp = 0.0;
     int j_filter_idx = 0;
     int i_filter_idx = 0;
-    int j_gkernel_idx = 0;
-    int i_gkernel_idx = 0;
+    int j_filter = 0; //Initialize to 0
+    int i_filter = 0; //Initialize to 0
+
     for (int k = gd.kstart; k < gd.kend; ++k)
     {
-        j_gkernel_idx = 0; //Initialize to 0
-        i_gkernel_idx = 0; //Initialize to 0
         for (int j = gd.jstart; j < gd.jend; ++j)
         {
             for (int i = gd.istart; i < gd.iend; ++i)
@@ -889,10 +897,11 @@ void Diff_NN<TF>::diff_U(
                 ut_temp = 0.0; //Initialize to 0
                 vt_temp = 0.0;
                 wt_temp = 0.0;
+        
 
-                for (int j_filter = j - 2; j_filter < j + 3; ++j_filter)
+                for (int j_gkernel_idx = -2; j_gkernel_idx < 3; ++j_gkernel_idx)
                 {
-                    j_filter_idx = j_filter;
+                    j_filter = j + j_gkernel_idx;
                     if (j_filter < gd.jstart)
                     {
                         j_filter_idx = gd.jend - (gd.jstart - j_filter);
@@ -901,9 +910,13 @@ void Diff_NN<TF>::diff_U(
                     {
                         j_filter_idx = gd.jstart + (j_filter - gd.jend);
                     }
-                    for (int i_filter = i - 2; i_filter < i + 3; ++i_filter)
+                    else
                     {
-                        i_filter_idx = i_filter;
+                        j_filter_idx = j_filter;
+                    }
+                    for (int i_gkernel_idx = -2; i_gkernel_idx < 3; ++i_gkernel_idx)
+                    {
+                        i_filter = i + i_gkernel_idx;
                         if (i_filter < gd.istart)
                         {
                             i_filter_idx = gd.iend - (gd.istart - i_filter);
@@ -912,10 +925,14 @@ void Diff_NN<TF>::diff_U(
                         {
                             i_filter_idx = gd.istart + (i_filter - gd.iend);
                         }
+                        else
+                        {
+                            i_filter_idx = i_filter;
+                        }
 
-                        ut_temp += ut[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[j_gkernel_idx * 5 + i_gkernel_idx];
-                        vt_temp += vt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[j_gkernel_idx * 5 + i_gkernel_idx];
-                        wt_temp += wt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[j_gkernel_idx * 5 + i_gkernel_idx];
+                        ut_temp += ut[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[(j_gkernel_idx+2) * 5 + (i_gkernel_idx+2)];
+                        vt_temp += vt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[(j_gkernel_idx+2) * 5 + (i_gkernel_idx+2)];
+                        wt_temp += wt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[(j_gkernel_idx+2) * 5 + (i_gkernel_idx+2)];        
                     }
                 }
                 
@@ -923,10 +940,7 @@ void Diff_NN<TF>::diff_U(
                 ut_temp_field[k*gd.ijcells + j * gd.icells + i] = ut_temp;
                 vt_temp_field[k*gd.ijcells + j * gd.icells + i] = vt_temp;
                 wt_temp_field[k*gd.ijcells + j * gd.icells + i] = wt_temp;
-                
-                i_gkernel_idx += 1; //Add 1 to gkernel index
             }
-            j_gkernel_idx += 1; //Add 1 to gkernel index
         }
     }
 
