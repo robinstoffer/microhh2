@@ -24,7 +24,7 @@ jend       = int(a['jend'][:])
 kend       = int(a['kend'][:])
 
 #Select flow fields for selected time step, remove all the ghost cells, denormalize, and multiply with constant factor to test extrapolation capability NN
-const_factor = 1.0
+const_factor = 1.2
 uc_singlefield = np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc:iend]) * utau_ref * const_factor
 vc_singlefield = np.array(a['vc'][t,kgc_center:kend,jgc:jend,igc:iend]) * utau_ref * const_factor
 wc_singlefield = np.array(a['wc'][t,kgc_center:kend,jgc:jend,igc:iend]) * utau_ref * const_factor
