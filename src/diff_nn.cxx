@@ -43,6 +43,7 @@ extern "C"
 {
     //#include <cblas.h>
     #include <mkl.h>
+    #include <netcdf.h>
 }
 
 namespace
@@ -647,6 +648,40 @@ void Diff_NN<TF>::diff_U(
                 select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
                 
 
+                //Implement limiter on inputs
+                for (int i = 0; i < N_input_adjusted; i+=1)
+                {
+                    //Limit highest values
+                    m_input_ctrlu_v[i] = std::min(m_input_ctrlu_v[i], m_vcmean[k-gd.kstart] + m_vcstd[k-gd.kstart]);
+                    m_input_ctrlu_w[i] = std::min(m_input_ctrlu_w[i], m_wcmean[k-gd.kstart] + m_wcstd[k-gd.kstart]);
+                    m_input_ctrlv_u[i] = std::min(m_input_ctrlv_u[i], m_ucmean[k-gd.kstart] + m_ucstd[k-gd.kstart]);
+                    m_input_ctrlv_w[i] = std::min(m_input_ctrlv_w[i], m_wcmean[k-gd.kstart] + m_wcstd[k-gd.kstart]);
+                    m_input_ctrlw_u[i] = std::min(m_input_ctrlw_u[i], m_ucmean[k-gd.kstart] + m_ucstd[k-gd.kstart]);
+                    m_input_ctrlw_v[i] = std::min(m_input_ctrlw_v[i], m_vcmean[k-gd.kstart] + m_vcstd[k-gd.kstart]);
+
+                    //Limit lowest values
+                    m_input_ctrlu_v[i] = std::max(m_input_ctrlu_v[i], m_vcmean[k-gd.kstart] - m_vcstd[k-gd.kstart]);
+                    m_input_ctrlu_w[i] = std::max(m_input_ctrlu_w[i], m_wcmean[k-gd.kstart] - m_wcstd[k-gd.kstart]);
+                    m_input_ctrlv_u[i] = std::max(m_input_ctrlv_u[i], m_ucmean[k-gd.kstart] - m_ucstd[k-gd.kstart]);
+                    m_input_ctrlv_w[i] = std::max(m_input_ctrlv_w[i], m_wcmean[k-gd.kstart] - m_wcstd[k-gd.kstart]);
+                    m_input_ctrlw_u[i] = std::max(m_input_ctrlw_u[i], m_ucmean[k-gd.kstart] - m_ucstd[k-gd.kstart]);
+                    m_input_ctrlw_v[i] = std::max(m_input_ctrlw_v[i], m_vcmean[k-gd.kstart] - m_vcstd[k-gd.kstart]);
+
+                }
+                for (int i = 0; i < N_input; i+=1)
+                {
+                    //Limit highest values
+                    m_input_ctrlu_u[i] = std::min(m_input_ctrlu_u[i], m_ucmean[k-gd.kstart] + m_ucstd[k-gd.kstart]);
+                    m_input_ctrlv_v[i] = std::min(m_input_ctrlv_v[i], m_vcmean[k-gd.kstart] + m_vcstd[k-gd.kstart]);
+                    m_input_ctrlw_w[i] = std::min(m_input_ctrlw_w[i], m_wcmean[k-gd.kstart] + m_wcstd[k-gd.kstart]);
+                    
+                    //Limit lowest values
+                    m_input_ctrlu_u[i] = std::max(m_input_ctrlu_u[i], m_ucmean[k-gd.kstart] - m_ucstd[k-gd.kstart]);
+                    m_input_ctrlv_v[i] = std::max(m_input_ctrlv_v[i], m_vcmean[k-gd.kstart] - m_vcstd[k-gd.kstart]);
+                    m_input_ctrlw_w[i] = std::max(m_input_ctrlw_w[i], m_wcmean[k-gd.kstart] - m_wcstd[k-gd.kstart]);
+                }
+
+                
                 //Execute MLP once for selected grid box
                 Inference(
                     m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
@@ -1287,6 +1322,281 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     m_output.resize(N_output,0.0f);
     m_output_zw.resize(N_output_zw,0.0f);
 
+    //Read means+stdevs of training data for limiters in fluxes calculation
+    std::string meansstd_filepath = "../../inferenceNN/Variables_MLP13/tavg_vert_prof.nc";
+
+    //Read grid data needed to process means+stdevs
+    auto& gd  = grid.get_grid_data();
+
+    //Define IDs for netCDF-file needed for reading
+    int retval = 0; //Status code for netCDF-function, needed for error handling
+    int ncid_reading = 0;
+    int varid_ucmean = 0;
+    int varid_vcmean = 0;
+    int varid_wcmean = 0;
+    int varid_xumean = 0;
+    int varid_yumean = 0;
+    int varid_zumean = 0;
+    int varid_xvmean = 0;
+    int varid_yvmean = 0;
+    int varid_zvmean = 0;
+    int varid_xwmean = 0;
+    int varid_ywmean = 0;
+    int varid_zwmean = 0;
+    int varid_ucstd  = 0;
+    int varid_vcstd  = 0;
+    int varid_wcstd  = 0;
+    int varid_xustd  = 0;
+    int varid_yustd  = 0;
+    int varid_zustd  = 0;
+    int varid_xvstd  = 0;
+    int varid_yvstd  = 0;
+    int varid_zvstd  = 0;
+    int varid_xwstd  = 0;
+    int varid_ywstd  = 0;
+    int varid_zwstd  = 0;
+    size_t count_z[1]  = {}; //initialize fixed arrays to 0
+    size_t count_zh[1] = {};
+    size_t start_z[1]  = {};
+
+    //Resize dynamically allocated arrays means and stdevs
+    m_ucmean.resize(gd.ktot);
+    m_vcmean.resize(gd.ktot);
+    m_wcmean.resize(gd.ktot+1);
+    m_ucstd.resize(gd.ktot);
+    m_vcstd.resize(gd.ktot);
+    m_wcstd.resize(gd.ktot+1);
+    m_xumean.resize(gd.ktot);
+    m_yumean.resize(gd.ktot);
+    m_zumean.resize(gd.ktot+1);
+    m_xvmean.resize(gd.ktot);
+    m_yvmean.resize(gd.ktot);
+    m_zvmean.resize(gd.ktot+1);
+    m_xwmean.resize(gd.ktot+1);
+    m_ywmean.resize(gd.ktot+1);
+    m_zwmean.resize(gd.ktot);
+    m_xustd.resize(gd.ktot);
+    m_yustd.resize(gd.ktot);
+    m_zustd.resize(gd.ktot+1);
+    m_xvstd.resize(gd.ktot);
+    m_yvstd.resize(gd.ktot);
+    m_zvstd.resize(gd.ktot+1);
+    m_xwstd.resize(gd.ktot+1);
+    m_ywstd.resize(gd.ktot+1);
+    m_zwstd.resize(gd.ktot);
+    
+    // Open nc-file  for reading
+    if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
+    {
+        nc_error_print(retval);
+    }
+
+    // Get the varids of the variables based on their names
+    if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
+    {
+        nc_error_print(retval);
+    }
+
+    // Define settings such that the entire vertical profile is read from the nc-file
+    count_z[0]  = gd.ktot;
+    count_zh[0] = gd.ktot + 1;
+    start_z[0] = 0;
+
+    //Extract vertical profiles from nc-file
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_z, &m_ucmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_z, &m_vcmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zh, &m_wcmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_z, &m_ucstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_z, &m_vcstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zh, &m_wcstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
+    {
+        nc_error_print(retval);
+    }
+
+    //Close opened nc-file
+    if((retval = nc_close(ncid_reading)))
+    {
+        nc_error_print(retval);
+    }
 }
 
 template<typename TF>
