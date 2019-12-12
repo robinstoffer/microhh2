@@ -648,39 +648,73 @@ void Diff_NN<TF>::diff_U(
                 select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
                 
 
-                //Implement limiter on inputs
-                for (int i = 0; i < N_input_adjusted; i+=1)
+                //Implement limiter on inputs, 4 separate loops needed because of differences in dims
+                int b = boxsize / 2; // NOTE: on purpose fractional part dropped
+                int i_start = 0;
+                for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
                 {
-                    //Limit highest values
-                    m_input_ctrlu_v[i] = std::min(m_input_ctrlu_v[i], m_vcmean[k-gd.kstart] + m_vcstd[k-gd.kstart]);
-                    m_input_ctrlu_w[i] = std::min(m_input_ctrlu_w[i], m_wcmean[k-gd.kstart] + m_wcstd[k-gd.kstart]);
-                    m_input_ctrlv_u[i] = std::min(m_input_ctrlv_u[i], m_ucmean[k-gd.kstart] + m_ucstd[k-gd.kstart]);
-                    m_input_ctrlv_w[i] = std::min(m_input_ctrlv_w[i], m_wcmean[k-gd.kstart] + m_wcstd[k-gd.kstart]);
-                    m_input_ctrlw_u[i] = std::min(m_input_ctrlw_u[i], m_ucmean[k-gd.kstart] + m_ucstd[k-gd.kstart]);
-                    m_input_ctrlw_v[i] = std::min(m_input_ctrlw_v[i], m_vcmean[k-gd.kstart] + m_vcstd[k-gd.kstart]);
+                    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize-1)); i_input+=1)
+                    {
+                        //Limit highest values
+                        m_input_ctrlu_v[i_input] = std::min(m_input_ctrlu_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
+                        m_input_ctrlv_u[i_input] = std::min(m_input_ctrlv_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
 
-                    //Limit lowest values
-                    m_input_ctrlu_v[i] = std::max(m_input_ctrlu_v[i], m_vcmean[k-gd.kstart] - m_vcstd[k-gd.kstart]);
-                    m_input_ctrlu_w[i] = std::max(m_input_ctrlu_w[i], m_wcmean[k-gd.kstart] - m_wcstd[k-gd.kstart]);
-                    m_input_ctrlv_u[i] = std::max(m_input_ctrlv_u[i], m_ucmean[k-gd.kstart] - m_ucstd[k-gd.kstart]);
-                    m_input_ctrlv_w[i] = std::max(m_input_ctrlv_w[i], m_wcmean[k-gd.kstart] - m_wcstd[k-gd.kstart]);
-                    m_input_ctrlw_u[i] = std::max(m_input_ctrlw_u[i], m_ucmean[k-gd.kstart] - m_ucstd[k-gd.kstart]);
-                    m_input_ctrlw_v[i] = std::max(m_input_ctrlw_v[i], m_vcmean[k-gd.kstart] - m_vcstd[k-gd.kstart]);
-
+                        //Limit lowest values
+                        m_input_ctrlu_v[i_input] = std::max(m_input_ctrlu_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
+                        m_input_ctrlv_u[i_input] = std::max(m_input_ctrlv_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
+                    }
+                    i_start += ((boxsize-1)*(boxsize-1));
                 }
-                for (int i = 0; i < N_input; i+=1)
+
+                i_start = 0;
+                for (int k_input = (k - b + 1); k_input < (k + b + 1); k_input+=1)
                 {
-                    //Limit highest values
-                    m_input_ctrlu_u[i] = std::min(m_input_ctrlu_u[i], m_ucmean[k-gd.kstart] + m_ucstd[k-gd.kstart]);
-                    m_input_ctrlv_v[i] = std::min(m_input_ctrlv_v[i], m_vcmean[k-gd.kstart] + m_vcstd[k-gd.kstart]);
-                    m_input_ctrlw_w[i] = std::min(m_input_ctrlw_w[i], m_wcmean[k-gd.kstart] + m_wcstd[k-gd.kstart]);
+                    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize-1)); i_input+=1)
+                    {
+                        //Limit highest values
+                        m_input_ctrlu_w[i_input] = std::min(m_input_ctrlu_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
+                        m_input_ctrlv_w[i_input] = std::min(m_input_ctrlv_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
+
+                        //Limit lowest values
+                        m_input_ctrlu_w[i_input] = std::max(m_input_ctrlu_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
+                        m_input_ctrlv_w[i_input] = std::max(m_input_ctrlv_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
+                    }
+                    i_start += ((boxsize-1)*(boxsize));
+                }
+
+                i_start = 0;
+                for (int k_input = (k - b); k_input < (k + b); k_input+=1)
+                {
+                    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize)); i_input+=1)
+                    {
+                        //Limit highest values
+                        m_input_ctrlw_u[i_input] = std::min(m_input_ctrlw_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
+                        m_input_ctrlw_v[i_input] = std::min(m_input_ctrlw_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
                     
-                    //Limit lowest values
-                    m_input_ctrlu_u[i] = std::max(m_input_ctrlu_u[i], m_ucmean[k-gd.kstart] - m_ucstd[k-gd.kstart]);
-                    m_input_ctrlv_v[i] = std::max(m_input_ctrlv_v[i], m_vcmean[k-gd.kstart] - m_vcstd[k-gd.kstart]);
-                    m_input_ctrlw_w[i] = std::max(m_input_ctrlw_w[i], m_wcmean[k-gd.kstart] - m_wcstd[k-gd.kstart]);
+                        //Limit lowest values
+                        m_input_ctrlw_u[i_input] = std::max(m_input_ctrlw_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
+                        m_input_ctrlw_v[i_input] = std::max(m_input_ctrlw_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
+                    }
+                    i_start += ((boxsize-1)*(boxsize));
                 }
 
+                i_start = 0;
+                for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
+                {
+                    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize)); i_input+=1)
+                    {
+                        //Limit highest values
+                        m_input_ctrlu_u[i_input] = std::min(m_input_ctrlu_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
+                        m_input_ctrlv_v[i_input] = std::min(m_input_ctrlv_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
+                        m_input_ctrlw_w[i_input] = std::min(m_input_ctrlw_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
+                        
+                        //Limit lowest values
+                        m_input_ctrlu_u[i_input] = std::max(m_input_ctrlu_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
+                        m_input_ctrlv_v[i_input] = std::max(m_input_ctrlv_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
+                        m_input_ctrlw_w[i_input] = std::max(m_input_ctrlw_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
+                    }
+                    i_start += ((boxsize)*(boxsize));
+                }
                 
                 //Execute MLP once for selected grid box
                 Inference(
@@ -1355,17 +1389,20 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     int varid_xwstd  = 0;
     int varid_ywstd  = 0;
     int varid_zwstd  = 0;
-    size_t count_z[1]  = {}; //initialize fixed arrays to 0
+    size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
+    size_t count_zhgc[1] = {};
+    size_t count_z[1]  = {};
     size_t count_zh[1] = {};
     size_t start_z[1]  = {};
 
     //Resize dynamically allocated arrays means and stdevs
-    m_ucmean.resize(gd.ktot);
-    m_vcmean.resize(gd.ktot);
-    m_wcmean.resize(gd.ktot+1);
-    m_ucstd.resize(gd.ktot);
-    m_vcstd.resize(gd.ktot);
-    m_wcstd.resize(gd.ktot+1);
+    int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
+    m_ucmean.resize(kcells);
+    m_vcmean.resize(kcells);
+    m_wcmean.resize(kcells+1);
+    m_ucstd.resize(kcells);
+    m_vcstd.resize(kcells);
+    m_wcstd.resize(kcells+1);
     m_xumean.resize(gd.ktot);
     m_yumean.resize(gd.ktot);
     m_zumean.resize(gd.ktot+1);
@@ -1490,32 +1527,34 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     }
 
     // Define settings such that the entire vertical profile is read from the nc-file
+    count_zgc[0]  = kcells;
+    count_zhgc[0] = kcells + 1;
     count_z[0]  = gd.ktot;
     count_zh[0] = gd.ktot + 1;
     start_z[0] = 0;
 
     //Extract vertical profiles from nc-file
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_z, &m_ucmean[0])))
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
     {
         nc_error_print(retval);
     }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_z, &m_vcmean[0])))
+    if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
     {
         nc_error_print(retval);
     }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zh, &m_wcmean[0])))
+    if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
     {
         nc_error_print(retval);
     }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_z, &m_ucstd[0])))
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
     {
         nc_error_print(retval);
     }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_z, &m_vcstd[0])))
+    if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
     {
         nc_error_print(retval);
     }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zh, &m_wcstd[0])))
+    if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
     {
         nc_error_print(retval);
     }
