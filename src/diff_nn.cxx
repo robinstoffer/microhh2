@@ -604,9 +604,9 @@ void Diff_NN<TF>::gkernelcreation(
 // Function that loops over the whole flow field, and calculates for each grid cell the tendencies
 template<typename TF>
 void Diff_NN<TF>::diff_U(
-    const TF* restrict const u,
-    const TF* restrict const v,
-    const TF* restrict const w,
+    TF* restrict const u,
+    TF* restrict const v,
+    TF* restrict const w,
     TF* restrict const ut,
     TF* restrict const vt,
     TF* restrict const wt
@@ -625,6 +625,25 @@ void Diff_NN<TF>::diff_U(
     //Calculate Gaussian 2D filter
     std::array<TF,25> gkernel;
     gkernelcreation(gkernel.data());
+
+    ////Loop over field to limit velocity fields
+    //for (int k = 0; k < gd.kcells; ++k)
+    //{
+    //    for (int j = 0; j < gd.jcells; ++j)
+    //    {
+    //        for (int i = 0; i < gd.icells; ++i)
+    //        {
+    //            //Limit high values
+    //            u[k*gd.ijcells + j * gd.icells + i] = std::min(u[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_ucmean[k] + 2*m_ucstd[k]));
+    //            v[k*gd.ijcells + j * gd.icells + i] = std::min(v[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_vcmean[k] + 2*m_vcstd[k]));
+    //            w[k*gd.ijcells + j * gd.icells + i] = std::min(w[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_wcmean[k] + 2*m_wcstd[k]));
+    //            //Limit low values
+    //            u[k*gd.ijcells + j * gd.icells + i] = std::max(u[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_ucmean[k] - 2*m_ucstd[k]));
+    //            v[k*gd.ijcells + j * gd.icells + i] = std::max(v[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_vcmean[k] - 2*m_vcstd[k]));
+    //            w[k*gd.ijcells + j * gd.icells + i] = std::max(w[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_wcmean[k] - 2*m_wcstd[k]));
+    //        }
+    //    }
+    //}
 
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
@@ -648,73 +667,73 @@ void Diff_NN<TF>::diff_U(
                 select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
                 
 
-                //Implement limiter on inputs, 4 separate loops needed because of differences in dims
-                int b = boxsize / 2; // NOTE: on purpose fractional part dropped
-                int i_start = 0;
-                for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
-                {
-                    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize-1)); i_input+=1)
-                    {
-                        //Limit highest values
-                        m_input_ctrlu_v[i_input] = std::min(m_input_ctrlu_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
-                        m_input_ctrlv_u[i_input] = std::min(m_input_ctrlv_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
+                ////Implement limiter on inputs, 4 separate loops needed because of differences in dims
+                //int b = boxsize / 2; // NOTE: on purpose fractional part dropped
+                //int i_start = 0;
+                //for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
+                //{
+                //    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize-1)); i_input+=1)
+                //    {
+                //        //Limit highest values
+                //        m_input_ctrlu_v[i_input] = std::min(m_input_ctrlu_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
+                //        m_input_ctrlv_u[i_input] = std::min(m_input_ctrlv_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
 
-                        //Limit lowest values
-                        m_input_ctrlu_v[i_input] = std::max(m_input_ctrlu_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
-                        m_input_ctrlv_u[i_input] = std::max(m_input_ctrlv_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
-                    }
-                    i_start += ((boxsize-1)*(boxsize-1));
-                }
+                //        //Limit lowest values
+                //        m_input_ctrlu_v[i_input] = std::max(m_input_ctrlu_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
+                //        m_input_ctrlv_u[i_input] = std::max(m_input_ctrlv_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
+                //    }
+                //    i_start += ((boxsize-1)*(boxsize-1));
+                //}
 
-                i_start = 0;
-                for (int k_input = (k - b + 1); k_input < (k + b + 1); k_input+=1)
-                {
-                    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize-1)); i_input+=1)
-                    {
-                        //Limit highest values
-                        m_input_ctrlu_w[i_input] = std::min(m_input_ctrlu_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
-                        m_input_ctrlv_w[i_input] = std::min(m_input_ctrlv_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
+                //i_start = 0;
+                //for (int k_input = (k - b + 1); k_input < (k + b + 1); k_input+=1)
+                //{
+                //    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize-1)); i_input+=1)
+                //    {
+                //        //Limit highest values
+                //        m_input_ctrlu_w[i_input] = std::min(m_input_ctrlu_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
+                //        m_input_ctrlv_w[i_input] = std::min(m_input_ctrlv_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
 
-                        //Limit lowest values
-                        m_input_ctrlu_w[i_input] = std::max(m_input_ctrlu_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
-                        m_input_ctrlv_w[i_input] = std::max(m_input_ctrlv_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
-                    }
-                    i_start += ((boxsize-1)*(boxsize));
-                }
+                //        //Limit lowest values
+                //        m_input_ctrlu_w[i_input] = std::max(m_input_ctrlu_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
+                //        m_input_ctrlv_w[i_input] = std::max(m_input_ctrlv_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
+                //    }
+                //    i_start += ((boxsize-1)*(boxsize));
+                //}
 
-                i_start = 0;
-                for (int k_input = (k - b); k_input < (k + b); k_input+=1)
-                {
-                    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize)); i_input+=1)
-                    {
-                        //Limit highest values
-                        m_input_ctrlw_u[i_input] = std::min(m_input_ctrlw_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
-                        m_input_ctrlw_v[i_input] = std::min(m_input_ctrlw_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
-                    
-                        //Limit lowest values
-                        m_input_ctrlw_u[i_input] = std::max(m_input_ctrlw_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
-                        m_input_ctrlw_v[i_input] = std::max(m_input_ctrlw_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
-                    }
-                    i_start += ((boxsize-1)*(boxsize));
-                }
+                //i_start = 0;
+                //for (int k_input = (k - b); k_input < (k + b); k_input+=1)
+                //{
+                //    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize)); i_input+=1)
+                //    {
+                //        //Limit highest values
+                //        m_input_ctrlw_u[i_input] = std::min(m_input_ctrlw_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
+                //        m_input_ctrlw_v[i_input] = std::min(m_input_ctrlw_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
+                //    
+                //        //Limit lowest values
+                //        m_input_ctrlw_u[i_input] = std::max(m_input_ctrlw_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
+                //        m_input_ctrlw_v[i_input] = std::max(m_input_ctrlw_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
+                //    }
+                //    i_start += ((boxsize-1)*(boxsize));
+                //}
 
-                i_start = 0;
-                for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
-                {
-                    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize)); i_input+=1)
-                    {
-                        //Limit highest values
-                        m_input_ctrlu_u[i_input] = std::min(m_input_ctrlu_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
-                        m_input_ctrlv_v[i_input] = std::min(m_input_ctrlv_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
-                        m_input_ctrlw_w[i_input] = std::min(m_input_ctrlw_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
-                        
-                        //Limit lowest values
-                        m_input_ctrlu_u[i_input] = std::max(m_input_ctrlu_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
-                        m_input_ctrlv_v[i_input] = std::max(m_input_ctrlv_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
-                        m_input_ctrlw_w[i_input] = std::max(m_input_ctrlw_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
-                    }
-                    i_start += ((boxsize)*(boxsize));
-                }
+                //i_start = 0;
+                //for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
+                //{
+                //    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize)); i_input+=1)
+                //    {
+                //        //Limit highest values
+                //        m_input_ctrlu_u[i_input] = std::min(m_input_ctrlu_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
+                //        m_input_ctrlv_v[i_input] = std::min(m_input_ctrlv_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
+                //        m_input_ctrlw_w[i_input] = std::min(m_input_ctrlw_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
+                //        
+                //        //Limit lowest values
+                //        m_input_ctrlu_u[i_input] = std::max(m_input_ctrlu_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
+                //        m_input_ctrlv_v[i_input] = std::max(m_input_ctrlv_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
+                //        m_input_ctrlw_w[i_input] = std::max(m_input_ctrlw_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
+                //    }
+                //    i_start += ((boxsize)*(boxsize));
+                //}
                 
                 //Execute MLP once for selected grid box
                 Inference(
@@ -732,6 +751,55 @@ void Diff_NN<TF>::diff_U(
                     m_utau_ref, m_output_denorm_utau2,
                     m_output.data(), result.data(), false
                     );
+
+                //Implement limiter on outputs
+                
+                //Limit highest values
+                result[0]  = std::min(result[0],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
+                result[1]  = std::min(result[1],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
+                result[2]  = std::min(result[2],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
+                result[3]  = std::min(result[3],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
+                result[4]  = std::min(result[4],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
+                result[5]  = std::min(result[5],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
+                result[6]  = std::min(result[6],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
+                result[7]  = std::min(result[7],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
+                result[8]  = std::min(result[8],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
+                result[9]  = std::min(result[9],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
+                result[10] = std::min(result[10], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
+                result[11] = std::min(result[11], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
+                if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
+                {
+                    result[12] = std::min(result[12], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
+                    result[13] = std::min(result[13], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
+                    result[14] = std::min(result[14], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
+                    result[15] = std::min(result[15], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
+                    result[16] = std::min(result[16], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
+                    result[17] = std::min(result[17], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                }
+
+                //Limit lowest values
+                result[0]  = std::max(result[0],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
+                result[1]  = std::max(result[1],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
+                result[2]  = std::max(result[2],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
+                result[3]  = std::max(result[3],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
+                result[4]  = std::max(result[4],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
+                result[5]  = std::max(result[5],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
+                result[6]  = std::max(result[6],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
+                result[7]  = std::max(result[7],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
+                result[8]  = std::max(result[8],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
+                result[9]  = std::max(result[9],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
+                result[10] = std::max(result[10], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
+                result[11] = std::max(result[11], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
+                if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
+                {
+                    result[12] = std::max(result[12], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
+                    result[13] = std::max(result[13], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
+                    result[14] = std::max(result[14], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
+                    result[15] = std::max(result[15], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
+                    result[16] = std::max(result[16], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
+                    result[17] = std::max(result[17], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                }
+
 
                 //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
                 int i_upbound = 0;
@@ -924,6 +992,14 @@ void Diff_NN<TF>::diff_U(
                         m_utau_ref, m_output_denorm_utau2,
                         m_output_zw.data(), result_zw.data(), true
                     );
+
+                    //Limit highest values
+                    result_zw[0] = std::min(result_zw[0], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
+                    result_zw[1] = std::min(result_zw[1], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+
+                    //Limit lowest values
+                    result_zw[0] = std::max(result_zw[0], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
+                    result_zw[1] = std::max(result_zw[1], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
 
                     //Store calculated tendencies
                     //zw_upstream

@@ -92,9 +92,9 @@ class Diff_NN : public Diff<TF>
     );
 	
 	void diff_U(
-		const TF* restrict const u,
-		const TF* restrict const v,
-		const TF* restrict const w,
+		TF* restrict const u,
+		TF* restrict const v,
+		TF* restrict const w,
 		TF* restrict const ut,
 		TF* restrict const vt,
 		TF* restrict const wt
