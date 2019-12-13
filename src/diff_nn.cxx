@@ -752,53 +752,53 @@ void Diff_NN<TF>::diff_U(
                     m_output.data(), result.data(), false
                     );
 
-                //Implement limiter on outputs
-                
-                //Limit highest values
-                result[0]  = std::min(result[0],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
-                result[1]  = std::min(result[1],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
-                result[2]  = std::min(result[2],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
-                result[3]  = std::min(result[3],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
-                result[4]  = std::min(result[4],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
-                result[5]  = std::min(result[5],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
-                result[6]  = std::min(result[6],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
-                result[7]  = std::min(result[7],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
-                result[8]  = std::min(result[8],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
-                result[9]  = std::min(result[9],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
-                result[10] = std::min(result[10], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
-                result[11] = std::min(result[11], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
-                if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
-                {
-                    result[12] = std::min(result[12], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
-                    result[13] = std::min(result[13], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
-                    result[14] = std::min(result[14], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
-                    result[15] = std::min(result[15], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
-                    result[16] = std::min(result[16], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
-                    result[17] = std::min(result[17], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
-                }
+                ////Implement limiter on outputs
+                //
+                ////Limit highest values
+                //result[0]  = std::min(result[0],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
+                //result[1]  = std::min(result[1],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
+                //result[2]  = std::min(result[2],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
+                //result[3]  = std::min(result[3],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
+                //result[4]  = std::min(result[4],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
+                //result[5]  = std::min(result[5],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
+                //result[6]  = std::min(result[6],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
+                //result[7]  = std::min(result[7],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
+                //result[8]  = std::min(result[8],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
+                //result[9]  = std::min(result[9],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
+                //result[10] = std::min(result[10], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
+                //result[11] = std::min(result[11], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
+                //if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
+                //{
+                //    result[12] = std::min(result[12], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
+                //    result[13] = std::min(result[13], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
+                //    result[14] = std::min(result[14], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
+                //    result[15] = std::min(result[15], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
+                //    result[16] = std::min(result[16], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
+                //    result[17] = std::min(result[17], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                //}
 
-                //Limit lowest values
-                result[0]  = std::max(result[0],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
-                result[1]  = std::max(result[1],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
-                result[2]  = std::max(result[2],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
-                result[3]  = std::max(result[3],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
-                result[4]  = std::max(result[4],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
-                result[5]  = std::max(result[5],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
-                result[6]  = std::max(result[6],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
-                result[7]  = std::max(result[7],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
-                result[8]  = std::max(result[8],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
-                result[9]  = std::max(result[9],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
-                result[10] = std::max(result[10], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
-                result[11] = std::max(result[11], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
-                if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
-                {
-                    result[12] = std::max(result[12], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
-                    result[13] = std::max(result[13], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
-                    result[14] = std::max(result[14], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
-                    result[15] = std::max(result[15], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
-                    result[16] = std::max(result[16], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
-                    result[17] = std::max(result[17], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
-                }
+                ////Limit lowest values
+                //result[0]  = std::max(result[0],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
+                //result[1]  = std::max(result[1],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
+                //result[2]  = std::max(result[2],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
+                //result[3]  = std::max(result[3],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
+                //result[4]  = std::max(result[4],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
+                //result[5]  = std::max(result[5],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
+                //result[6]  = std::max(result[6],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
+                //result[7]  = std::max(result[7],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
+                //result[8]  = std::max(result[8],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
+                //result[9]  = std::max(result[9],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
+                //result[10] = std::max(result[10], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
+                //result[11] = std::max(result[11], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
+                //if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
+                //{
+                //    result[12] = std::max(result[12], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
+                //    result[13] = std::max(result[13], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
+                //    result[14] = std::max(result[14], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
+                //    result[15] = std::max(result[15], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
+                //    result[16] = std::max(result[16], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
+                //    result[17] = std::max(result[17], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                //}
 
 
                 //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
@@ -846,13 +846,13 @@ void Diff_NN<TF>::diff_U(
                 //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
-                //xu_upstream
-                ut[k*gd.ijcells + j * gd.icells + i]         +=  result[0] * dxi * fac;
-                ut[k*gd.ijcells + j * gd.icells + i_upbound] += -result[0] * dxi * fac;
+                ////xu_upstream
+                //ut[k*gd.ijcells + j * gd.icells + i]         +=  result[0] * dxi * fac;
+                //ut[k*gd.ijcells + j * gd.icells + i_upbound] += -result[0] * dxi * fac;
 
-                //xu_downstream
-                ut[k*gd.ijcells + j * gd.icells+ i]           += -result[1] * dxi * fac;
-                ut[k*gd.ijcells + j * gd.icells+ i_downbound] +=  result[1] * dxi * fac;
+                ////xu_downstream
+                //ut[k*gd.ijcells + j * gd.icells+ i]           += -result[1] * dxi * fac;
+                //ut[k*gd.ijcells + j * gd.icells+ i_downbound] +=  result[1] * dxi * fac;
 
                 //yu_upstream
                 ut[k*gd.ijcells + j * gd.icells + i]         +=  result[2] * dyi * fac;
@@ -888,13 +888,13 @@ void Diff_NN<TF>::diff_U(
                 vt[k*gd.ijcells + j * gd.icells + i]           += -result[7] * dxi * fac;
                 vt[k*gd.ijcells + j * gd.icells + i_downbound] +=  result[7] * dxi * fac;
 
-                //yv_upstream
-                vt[k*gd.ijcells + j * gd.icells + i]         +=  result[8] * dyi * fac;
-                vt[k*gd.ijcells + j_upbound * gd.icells + i] += -result[8] * dyi * fac;
+                ////yv_upstream
+                //vt[k*gd.ijcells + j * gd.icells + i]         +=  result[8] * dyi * fac;
+                //vt[k*gd.ijcells + j_upbound * gd.icells + i] += -result[8] * dyi * fac;
 
-                //yv_downstream
-                vt[k*gd.ijcells + j * gd.icells + i]           += -result[9] * dyi * fac;
-                vt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[9] * dyi * fac;
+                ////yv_downstream
+                //vt[k*gd.ijcells + j * gd.icells + i]           += -result[9] * dyi * fac;
+                //vt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[9] * dyi * fac;
 
                 //zv_upstream
                 if (k != gd.kstart)
@@ -932,87 +932,87 @@ void Diff_NN<TF>::diff_U(
                     wt[k*gd.ijcells + j * gd.icells + i]           += -result[15] * dyi * fac;
                     wt[k*gd.ijcells + j_downbound * gd.icells + i] +=  result[15] * dyi * fac;
 
-                    //zw_upstream
-                    if (k != (gd.kstart+1))
-                    //NOTE: Dont'adjust wt for bottom layer, should stay 0
-                    {
-                        wt[(k - 1)*gd.ijcells + j * gd.icells + i] += -result[16] * gd.dzhi[k - 1] * fac;
-                    }
-                    wt[k*gd.ijcells + j * gd.icells + i]           +=  result[16] * gd.dzhi[k] * fac;
+                    ////zw_upstream
+                    //if (k != (gd.kstart+1))
+                    ////NOTE: Dont'adjust wt for bottom layer, should stay 0
+                    //{
+                    //    wt[(k - 1)*gd.ijcells + j * gd.icells + i] += -result[16] * gd.dzhi[k - 1] * fac;
+                    //}
+                    //wt[k*gd.ijcells + j * gd.icells + i]           +=  result[16] * gd.dzhi[k] * fac;
 
-                    //zw_downstream
-                    wt[k*gd.ijcells + j * gd.icells + i]           += -result[17] * gd.dzhi[k] * fac;
-                    if (k != (gd.kend - 1))
-                    // NOTE:although this does not change wt at the bottom layer, 
-                    // it is still not included for k=0 to keep consistency between the top and bottom of the domain.
-                    {
-                        wt[(k + 1)*gd.ijcells + j * gd.icells + i] += result[17] * gd.dzhi[k + 1] * fac;
-                    }
+                    ////zw_downstream
+                    //wt[k*gd.ijcells + j * gd.icells + i]           += -result[17] * gd.dzhi[k] * fac;
+                    //if (k != (gd.kend - 1))
+                    //// NOTE:although this does not change wt at the bottom layer, 
+                    //// it is still not included for k=0 to keep consistency between the top and bottom of the domain.
+                    //{
+                    //    wt[(k + 1)*gd.ijcells + j * gd.icells + i] += result[17] * gd.dzhi[k + 1] * fac;
+                    //}
                 }
 
-                // Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
-                // the MLP for a second grid cell to calculate 'missing' zw-values.
-                if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)))
-                {
-                    //Determine the second grid cell based on the offset.
-                    int i_2grid = 0;
-                    if (offset == 1)
-                    {
-                        i_2grid = i - 1;
-                    }
-                    else
-                    {
-                        i_2grid = i + 1;
-                    }
+                //// Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
+                //// the MLP for a second grid cell to calculate 'missing' zw-values.
+                //if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)))
+                //{
+                //    //Determine the second grid cell based on the offset.
+                //    int i_2grid = 0;
+                //    if (offset == 1)
+                //    {
+                //        i_2grid = i - 1;
+                //    }
+                //    else
+                //    {
+                //        i_2grid = i + 1;
+                //    }
 
-                    //Select second grid box
-                    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
-                    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
-                    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
-                    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
-                    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
-                    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
-                    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                //    //Select second grid box
+                //    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                //    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
+                //    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
+                //    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
+                //    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                //    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
+                //    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
+                //    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
+                //    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
 
-                    //Execute mlp for selected second grid cell
-                    Inference(
-                        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                        m_outputu_wgth.data(), m_outputu_bias.data(),
-                        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                        m_outputv_wgth.data(), m_outputv_bias.data(),
-                        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
-                        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                        m_outputw_wgth.data(), m_outputw_bias.data(),
-                        m_mean_input.data(), m_stdev_input.data(),
-                        m_mean_label.data(), m_stdev_label.data(),
-                        m_utau_ref, m_output_denorm_utau2,
-                        m_output_zw.data(), result_zw.data(), true
-                    );
+                //    //Execute mlp for selected second grid cell
+                //    Inference(
+                //        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                //        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                //        m_outputu_wgth.data(), m_outputu_bias.data(),
+                //        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                //        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                //        m_outputv_wgth.data(), m_outputv_bias.data(),
+                //        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
+                //        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                //        m_outputw_wgth.data(), m_outputw_bias.data(),
+                //        m_mean_input.data(), m_stdev_input.data(),
+                //        m_mean_label.data(), m_stdev_label.data(),
+                //        m_utau_ref, m_output_denorm_utau2,
+                //        m_output_zw.data(), result_zw.data(), true
+                //    );
 
-                    //Limit highest values
-                    result_zw[0] = std::min(result_zw[0], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
-                    result_zw[1] = std::min(result_zw[1], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                //    //Limit highest values
+                //    result_zw[0] = std::min(result_zw[0], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
+                //    result_zw[1] = std::min(result_zw[1], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
 
-                    //Limit lowest values
-                    result_zw[0] = std::max(result_zw[0], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
-                    result_zw[1] = std::max(result_zw[1], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                //    //Limit lowest values
+                //    result_zw[0] = std::max(result_zw[0], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
+                //    result_zw[1] = std::max(result_zw[1], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
 
-                    //Store calculated tendencies
-                    //zw_upstream
-                    if (k == (gd.kstart + 1))
-                    {
-                        wt[k * gd.ijcells + j * gd.icells + i_2grid] +=  result_zw[0] * gd.dzhi[k] * fac;
-                    }
-                    //zw_downstream
-                    else
-                    {
-                        wt[k * gd.ijcells + j * gd.icells + i_2grid] += -result_zw[1] * gd.dzhi[k] * fac;
-                    }           
-                }
+                //    //Store calculated tendencies
+                //    //zw_upstream
+                //    if (k == (gd.kstart + 1))
+                //    {
+                //        wt[k * gd.ijcells + j * gd.icells + i_2grid] +=  result_zw[0] * gd.dzhi[k] * fac;
+                //    }
+                //    //zw_downstream
+                //    else
+                //    {
+                //        wt[k * gd.ijcells + j * gd.icells + i_2grid] += -result_zw[1] * gd.dzhi[k] * fac;
+                //    }           
+                //}
             }
         }
     }
@@ -1432,286 +1432,286 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     m_output.resize(N_output,0.0f);
     m_output_zw.resize(N_output_zw,0.0f);
 
-    //Read means+stdevs of training data for limiters in fluxes calculation
-    std::string meansstd_filepath = "../../inferenceNN/Variables_MLP13/tavg_vert_prof.nc";
+    ////Read means+stdevs of training data for limiters in fluxes calculation
+    //std::string meansstd_filepath = "../../inferenceNN/Variables_MLP13/tavg_vert_prof.nc";
 
-    //Read grid data needed to process means+stdevs
-    auto& gd  = grid.get_grid_data();
+    ////Read grid data needed to process means+stdevs
+    //auto& gd  = grid.get_grid_data();
 
-    //Define IDs for netCDF-file needed for reading
-    int retval = 0; //Status code for netCDF-function, needed for error handling
-    int ncid_reading = 0;
-    int varid_ucmean = 0;
-    int varid_vcmean = 0;
-    int varid_wcmean = 0;
-    int varid_xumean = 0;
-    int varid_yumean = 0;
-    int varid_zumean = 0;
-    int varid_xvmean = 0;
-    int varid_yvmean = 0;
-    int varid_zvmean = 0;
-    int varid_xwmean = 0;
-    int varid_ywmean = 0;
-    int varid_zwmean = 0;
-    int varid_ucstd  = 0;
-    int varid_vcstd  = 0;
-    int varid_wcstd  = 0;
-    int varid_xustd  = 0;
-    int varid_yustd  = 0;
-    int varid_zustd  = 0;
-    int varid_xvstd  = 0;
-    int varid_yvstd  = 0;
-    int varid_zvstd  = 0;
-    int varid_xwstd  = 0;
-    int varid_ywstd  = 0;
-    int varid_zwstd  = 0;
-    size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
-    size_t count_zhgc[1] = {};
-    size_t count_z[1]  = {};
-    size_t count_zh[1] = {};
-    size_t start_z[1]  = {};
+    ////Define IDs for netCDF-file needed for reading
+    //int retval = 0; //Status code for netCDF-function, needed for error handling
+    //int ncid_reading = 0;
+    //int varid_ucmean = 0;
+    //int varid_vcmean = 0;
+    //int varid_wcmean = 0;
+    //int varid_xumean = 0;
+    //int varid_yumean = 0;
+    //int varid_zumean = 0;
+    //int varid_xvmean = 0;
+    //int varid_yvmean = 0;
+    //int varid_zvmean = 0;
+    //int varid_xwmean = 0;
+    //int varid_ywmean = 0;
+    //int varid_zwmean = 0;
+    //int varid_ucstd  = 0;
+    //int varid_vcstd  = 0;
+    //int varid_wcstd  = 0;
+    //int varid_xustd  = 0;
+    //int varid_yustd  = 0;
+    //int varid_zustd  = 0;
+    //int varid_xvstd  = 0;
+    //int varid_yvstd  = 0;
+    //int varid_zvstd  = 0;
+    //int varid_xwstd  = 0;
+    //int varid_ywstd  = 0;
+    //int varid_zwstd  = 0;
+    //size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
+    //size_t count_zhgc[1] = {};
+    //size_t count_z[1]  = {};
+    //size_t count_zh[1] = {};
+    //size_t start_z[1]  = {};
 
-    //Resize dynamically allocated arrays means and stdevs
-    int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
-    m_ucmean.resize(kcells);
-    m_vcmean.resize(kcells);
-    m_wcmean.resize(kcells+1);
-    m_ucstd.resize(kcells);
-    m_vcstd.resize(kcells);
-    m_wcstd.resize(kcells+1);
-    m_xumean.resize(gd.ktot);
-    m_yumean.resize(gd.ktot);
-    m_zumean.resize(gd.ktot+1);
-    m_xvmean.resize(gd.ktot);
-    m_yvmean.resize(gd.ktot);
-    m_zvmean.resize(gd.ktot+1);
-    m_xwmean.resize(gd.ktot+1);
-    m_ywmean.resize(gd.ktot+1);
-    m_zwmean.resize(gd.ktot);
-    m_xustd.resize(gd.ktot);
-    m_yustd.resize(gd.ktot);
-    m_zustd.resize(gd.ktot+1);
-    m_xvstd.resize(gd.ktot);
-    m_yvstd.resize(gd.ktot);
-    m_zvstd.resize(gd.ktot+1);
-    m_xwstd.resize(gd.ktot+1);
-    m_ywstd.resize(gd.ktot+1);
-    m_zwstd.resize(gd.ktot);
-    
-    // Open nc-file  for reading
-    if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
-    {
-        nc_error_print(retval);
-    }
+    ////Resize dynamically allocated arrays means and stdevs
+    //int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
+    //m_ucmean.resize(kcells);
+    //m_vcmean.resize(kcells);
+    //m_wcmean.resize(kcells+1);
+    //m_ucstd.resize(kcells);
+    //m_vcstd.resize(kcells);
+    //m_wcstd.resize(kcells+1);
+    //m_xumean.resize(gd.ktot);
+    //m_yumean.resize(gd.ktot);
+    //m_zumean.resize(gd.ktot+1);
+    //m_xvmean.resize(gd.ktot);
+    //m_yvmean.resize(gd.ktot);
+    //m_zvmean.resize(gd.ktot+1);
+    //m_xwmean.resize(gd.ktot+1);
+    //m_ywmean.resize(gd.ktot+1);
+    //m_zwmean.resize(gd.ktot);
+    //m_xustd.resize(gd.ktot);
+    //m_yustd.resize(gd.ktot);
+    //m_zustd.resize(gd.ktot+1);
+    //m_xvstd.resize(gd.ktot);
+    //m_yvstd.resize(gd.ktot);
+    //m_zvstd.resize(gd.ktot+1);
+    //m_xwstd.resize(gd.ktot+1);
+    //m_ywstd.resize(gd.ktot+1);
+    //m_zwstd.resize(gd.ktot);
+    //
+    //// Open nc-file  for reading
+    //if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
+    //{
+    //    nc_error_print(retval);
+    //}
 
-    // Get the varids of the variables based on their names
-    if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
-    {
-        nc_error_print(retval);
-    }
+    //// Get the varids of the variables based on their names
+    //if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
 
-    // Define settings such that the entire vertical profile is read from the nc-file
-    count_zgc[0]  = kcells;
-    count_zhgc[0] = kcells + 1;
-    count_z[0]  = gd.ktot;
-    count_zh[0] = gd.ktot + 1;
-    start_z[0] = 0;
+    //// Define settings such that the entire vertical profile is read from the nc-file
+    //count_zgc[0]  = kcells;
+    //count_zhgc[0] = kcells + 1;
+    //count_z[0]  = gd.ktot;
+    //count_zh[0] = gd.ktot + 1;
+    //start_z[0] = 0;
 
-    //Extract vertical profiles from nc-file
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
-    {
-        nc_error_print(retval);
-    }
+    ////Extract vertical profiles from nc-file
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
 
-    //Close opened nc-file
-    if((retval = nc_close(ncid_reading)))
-    {
-        nc_error_print(retval);
-    }
+    ////Close opened nc-file
+    //if((retval = nc_close(ncid_reading)))
+    //{
+    //    nc_error_print(retval);
+    //}
 }
 
 template<typename TF>
