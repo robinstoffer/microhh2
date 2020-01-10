@@ -7,7 +7,7 @@ import netCDF4 as nc
 t = 27 #28th timestep, as this one is also evaluated during the offline inference of the NN
 
 #Specify where training file is stored
-training_filepath = "/media/sf_Shared_folder/training_data.nc"
+training_filepath = "/media/sf_Shared_folder/training_data_coarsehor.nc"
 
 #Fetch training data
 a = nc.Dataset(training_filepath, 'r')
