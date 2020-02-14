@@ -1316,7 +1316,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
 //      throw std::runtime_error("Diff_NN only runs with second order grids");
 
     //Hard-code file directory where variables MLP are stored
-    std::string var_filepath = "../../inferenceNN/Variables_MLP14/";
+    std::string var_filepath = "../../inferenceNN/Variables_MLP13/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");
