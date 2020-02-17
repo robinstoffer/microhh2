@@ -18,7 +18,8 @@ indexes_local_dnsuv = [12,27,38,46,96,128,159,209,217,228,243]
 
 
 #Fetch training data
-training_filepath = "/media/sf_Shared_folder/training_data_coarse3d.nc"
+#training_filepath = "/media/sf_Shared_folder/training_data_coarse3d.nc"
+training_filepath = "/media/sf_Shared_folder/training_data.nc"
 a = nc.Dataset(training_filepath, 'r')
 
 #Fetch DNS data, focus only on uu-component
@@ -66,19 +67,24 @@ nx = xh.shape[0] #xh from dns file has same length as x
 
 #Read variables from netCDF-files for time step t=27 (corresponding to t=2820s and t=0 in dns field, which also used as starting point a posteriori test)
 #NOTE: undo normalisation with friction velocity!
-t_box=27 #
+#t_box=27 #
+t_box=0 #FOR TESTING PURPOSES ONLY!!!
 t_les=0
 t_dns=0 #Calculate u,v,w.nc such that t=0 corresponds to time of training time step above!
+
+#Read resolved, non-interpolated u from nc-file, denormalize values
 uc_singlefield = np.array(a['uc'][t_box,kgc_center:kend,jgc:jend,igc:iend]) * ustar
 #vc_singlefield = np.array(a['vc'][t_box,kgc_center:kend,jgc:jend,igc:iend]) * ustar
 #wc_singlefield = np.array(a['wc'][t_box,kgc_center:kend,jgc:jend,igc:iend]) * ustar
+
+#Read variables from DNS field used for initialisation
 u_singlefield  = np.array(dnsu['u'][t_dns,:,:,:])
 #v_singlefield  = np.array(dnsv['v'][t_dns,:,:,:])
 #w_singlefield  = np.array(dnsw['w'][t_dns,:,:,:])
 
 #Read variables from a posteriori LES
-#iter= 0 + 60*t_les
-iter= 4
+iter= 0 + 60*t_les
+#iter= 4
 fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/u.{:07d}".format(iter),"rb")
 raw = fin.read(nc*8)
 tmp = np.array(struct.unpack('<{}d'.format(nc), raw))
@@ -87,13 +93,15 @@ ul_singlefield   = tmp.reshape((nzc, nyc, nxc))
 del(tmp)
 fin.close()
 
-#Read resolved transport uu from nc-file, denormalize values
-res_tau_xu_turb = np.array(a['res_tau_xu_turb'][t_les,:,:,:-1]) * ustar * ustar #Remove additional ghost cell in staggered direction to give each unique value the same weight
+#Read resolved, interpolated u from nc-file, denormalize values
+uresboxint_singlefield = np.array(a['res_u_boxint'][t_box,:,:,:]) * ustar
 
-#Take square of velocity variables
-uc2_singlefield = uc_singlefield ** 2.
-ul2_singlefield  = ul_singlefield ** 2.
-u2_singlefield   = u_singlefield  ** 2.
+#Read unresolved u from nc-file due to box filter only (no interpolation), denormalize values
+#NOTE: -1 included to ensure ghost cell in staggered dimension is excluded, such that the corresponding value is not counted twice.
+uunresboxnoint_singlefield = np.array(a['unres_u_box'][t_box,:,:,:-1]) * ustar
+
+#Read unresolved u from nc-file due to both box filter and interpolation, denormalize values
+uunresboxint_singlefield = np.array(a['unres_u_boxint'][t_box,:,:,:]) * ustar
 
 #Loop over heights to calculate spectra
 nwave_modes_x_box = int(nxc * 0.5)
@@ -105,28 +113,36 @@ nwave_modes_y_les = int(nyc * 0.5)
 nwave_modes_x_dns = int(nx * 0.5)
 nwave_modes_y_dns = int(ny * 0.5)
 num_idx = np.size(indexes_local_les) #Assume that all arrays with the indices have the same length, which should be the case.
-spectra_x_u_box  = numpy.zeros((num_idx,nwave_modes_x_box))
-spectra_y_u_box  = numpy.zeros((num_idx,nwave_modes_y_box))
-pdf_fields_u_box = numpy.zeros((num_idx,nyc,nxc))
-spectra_x_u_div  = numpy.zeros((num_idx,nwave_modes_x_div))
-spectra_y_u_div  = numpy.zeros((num_idx,nwave_modes_y_div))
-pdf_fields_u_div = numpy.zeros((num_idx,nyc,nxc))
-spectra_x_u_les  = numpy.zeros((num_idx,nwave_modes_x_les))
-spectra_y_u_les  = numpy.zeros((num_idx,nwave_modes_y_les))
-pdf_fields_u_les = numpy.zeros((num_idx,nyc,nxc))
-spectra_x_u_dns  = numpy.zeros((num_idx,nwave_modes_x_dns))
-spectra_y_u_dns  = numpy.zeros((num_idx,nwave_modes_y_dns))
-pdf_fields_u_dns = numpy.zeros((num_idx,ny,nx))
+spectra_x_u_box             = numpy.zeros((num_idx,nwave_modes_x_box))
+spectra_y_u_box             = numpy.zeros((num_idx,nwave_modes_y_box))
+pdf_fields_u_box            = numpy.zeros((num_idx,nyc,nxc))
+spectra_x_u_unresboxnoint  = numpy.zeros((num_idx,nwave_modes_x_box))
+spectra_y_u_unresboxnoint  = numpy.zeros((num_idx,nwave_modes_y_box))
+pdf_fields_u_unresboxnoint = numpy.zeros((num_idx,nyc,nxc))
+spectra_x_u_unresboxint    = numpy.zeros((num_idx,nwave_modes_x_box))
+spectra_y_u_unresboxint    = numpy.zeros((num_idx,nwave_modes_y_box))
+pdf_fields_u_unresboxint   = numpy.zeros((num_idx,nyc,nxc))
+spectra_x_u_div             = numpy.zeros((num_idx,nwave_modes_x_div))
+spectra_y_u_div             = numpy.zeros((num_idx,nwave_modes_y_div))
+pdf_fields_u_div            = numpy.zeros((num_idx,nyc,nxc))
+spectra_x_u_les             = numpy.zeros((num_idx,nwave_modes_x_les))
+spectra_y_u_les             = numpy.zeros((num_idx,nwave_modes_y_les))
+pdf_fields_u_les            = numpy.zeros((num_idx,nyc,nxc))
+spectra_x_u_dns             = numpy.zeros((num_idx,nwave_modes_x_dns))
+spectra_y_u_dns             = numpy.zeros((num_idx,nwave_modes_y_dns))
+pdf_fields_u_dns            = numpy.zeros((num_idx,ny,nx))
 for k in range(num_idx):
     print("Processing index " + str(k+1) + " of " + str(num_idx))
     index_box   = indexes_local_box[k]
     index_les   = indexes_local_les[k]
     index_dnsuv = indexes_local_dnsuv[k]
     #index_dnsw  = indexes_local_dnsw[k]
-    s_box_u = uc2_singlefield[index_box,:,:]
-    s_div_u = res_tau_xu_turb[index_les,:,:]
-    s_les_u = ul2_singlefield[index_les,:,:]
-    s_dns_u = u2_singlefield[index_dnsuv,:,:]
+    s_box_u = uc_singlefield[index_box,:,:]
+    s_div_u = uresboxint_singlefield[index_box,:,:]
+    s_les_u = ul_singlefield[index_les,:,:]
+    s_dns_u = u_singlefield[index_dnsuv,:,:]
+    s_unresboxint_u = uunresboxint_singlefield[index_box,:,:]
+    s_unresboxnoint_u = uunresboxnoint_singlefield[index_box,:,:]
     #box
     fftx_box_u = numpy.fft.rfft(s_box_u,axis=1)*(1/nxc)
     ffty_box_u = numpy.fft.rfft(s_box_u,axis=0)*(1/nyc)
@@ -199,6 +215,42 @@ for k in range(num_idx):
     spectra_x_u_dns[k,:]    = numpy.nanmean(Ex_dns_u,axis=0) #Average Fourier transform over the direction where it was not calculated
     spectra_y_u_dns[k,:]    = numpy.nanmean(Ey_dns_u,axis=1)
     pdf_fields_u_dns[k,:,:] = s_dns_u[:,:]
+    #unresboxnoint
+    fftx_unresboxnoint_u = numpy.fft.rfft(s_unresboxnoint_u,axis=1)*(1/nxc)
+    ffty_unresboxnoint_u = numpy.fft.rfft(s_unresboxnoint_u,axis=0)*(1/nyc)
+    Px_unresboxnoint_u = fftx_unresboxnoint_u[:,1:] * numpy.conjugate(fftx_unresboxnoint_u[:,1:])
+    Py_unresboxnoint_u = ffty_unresboxnoint_u[1:,:] * numpy.conjugate(ffty_unresboxnoint_u[1:,:])
+    if int(nxc % 2) == 0:
+        Ex_unresboxnoint_u = np.append(2*Px_unresboxnoint_u[:,:-1],np.reshape(Px_unresboxnoint_u[:,-1],(nyc,1)),axis=1)
+    else:
+        Ex_unresboxnoint_u = 2*Px_unresboxnoint_u[:,:]
+    
+    if int(nyc % 2) == 0:
+        Ey_unresboxnoint_u = np.append(2*Py_unresboxnoint_u[:-1,:],np.reshape(Py_unresboxnoint_u[-1,:],(1,nxc)),axis=0)
+    else:
+        Ey_unresboxnoint_u = 2*Py_unresboxnoint_u[:,:]
+        
+    spectra_x_u_unresboxnoint[k,:]    = numpy.nanmean(Ex_unresboxnoint_u,axis=0) #Average Fourier transform over the direction where it was not calculated
+    spectra_y_u_unresboxnoint[k,:]    = numpy.nanmean(Ey_unresboxnoint_u,axis=1)
+    pdf_fields_u_unresboxnoint[k,:,:] = s_unresboxnoint_u[:,:]
+    #unresboxint
+    fftx_unresboxint_u = numpy.fft.rfft(s_unresboxint_u,axis=1)*(1/nxc)
+    ffty_unresboxint_u = numpy.fft.rfft(s_unresboxint_u,axis=0)*(1/nyc)
+    Px_unresboxint_u = fftx_unresboxint_u[:,1:] * numpy.conjugate(fftx_unresboxint_u[:,1:])
+    Py_unresboxint_u = ffty_unresboxint_u[1:,:] * numpy.conjugate(ffty_unresboxint_u[1:,:])
+    if int(nxc % 2) == 0:
+        Ex_unresboxint_u = np.append(2*Px_unresboxint_u[:,:-1],np.reshape(Px_unresboxint_u[:,-1],(nyc,1)),axis=1)
+    else:
+        Ex_unresboxint_u = 2*Px_unresboxint_u[:,:]
+    
+    if int(nyc % 2) == 0:
+        Ey_unresboxint_u = np.append(2*Py_unresboxint_u[:-1,:],np.reshape(Py_unresboxint_u[-1,:],(1,nxc)),axis=0)
+    else:
+        Ey_unresboxint_u = 2*Py_unresboxint_u[:,:]
+        
+    spectra_x_u_unresboxint[k,:]    = numpy.nanmean(Ex_unresboxint_u,axis=0) #Average Fourier transform over the direction where it was not calculated
+    spectra_y_u_unresboxint[k,:]    = numpy.nanmean(Ey_unresboxint_u,axis=1)
+    pdf_fields_u_unresboxint[k,:,:] = s_unresboxint_u[:,:]
 
 k_streamwise_box = np.arange(1,nwave_modes_x_box+1)
 k_spanwise_box = np.arange(1,nwave_modes_y_box+1)
@@ -232,9 +284,24 @@ for k in range(num_idx):
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 250, 0.000000001, 0.3])
+    axis([1, 250, 0.00000001, 3.])
     tight_layout()
     savefig("/home/robin/microhh2/cases/moser600lesNN_restart/uu_spectrax_z_" + str(indexes_local_les[k]) + ".png")
+    close()
+    #
+    figure()
+    loglog(k_streamwise_box[:], (spectra_x_u_unresboxnoint[k,:] / ustar**2.), 'k-',linewidth=2.0, label='box')
+    loglog(k_streamwise_box[:], (spectra_x_u_unresboxint[k,:] / ustar**2.), 'g-',linewidth=2.0, label='div')
+    
+    xlabel(r'$\kappa \ [-]$',fontsize = 20)
+    ylabel(r'$E \ [-]$',fontsize = 20)
+    legend(loc=0, frameon=False,fontsize=16)
+    xticks(fontsize = 16, rotation = 90)
+    yticks(fontsize = 16, rotation = 0)
+    grid()
+    axis([1, 250, 0.00000001, 3.])
+    tight_layout()
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/uu_subfilter_spectrax_z_" + str(indexes_local_les[k]) + ".png")
     close()
     #
     figure()
@@ -249,7 +316,7 @@ for k in range(num_idx):
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 250, 0.000000001, 0.3])
+    axis([1, 250, 0.00000001, 3.])
     tight_layout()
     savefig("/home/robin/microhh2/cases/moser600lesNN_restart/uu_spectray_z_" + str(indexes_local_les[k]) + ".png")
     close()
