@@ -67,8 +67,8 @@ nx = xh.shape[0] #xh from dns file has same length as x
 
 #Read variables from netCDF-files for time step t=27 (corresponding to t=2820s and t=0 in dns field, which also used as starting point a posteriori test)
 #NOTE: undo normalisation with friction velocity!
-#t_box=27 #
-t_box=0 #FOR TESTING PURPOSES ONLY!!!
+t_box=27 #
+#t_box=0 #FOR TESTING PURPOSES ONLY!!!
 t_les=0
 t_dns=0 #Calculate u,v,w.nc such that t=0 corresponds to time of training time step above!
 
@@ -273,10 +273,10 @@ for k in range(num_idx):
     print("Plotting index " + str(k+1) + " of " + str(num_idx))
     #u
     figure()
-    loglog(k_streamwise_box[:], (spectra_x_u_box[k,:] / ustar**2.), 'k-',linewidth=2.0, label='box')
-    loglog(k_streamwise_div[:], (spectra_x_u_div[k,:] / ustar**2.), 'g-',linewidth=2.0, label='div')
-    loglog(k_streamwise_les[:], (spectra_x_u_les[k,:] / ustar**2.), 'r-',linewidth=2.0, label='les')
-    loglog(k_streamwise_dns[:], (spectra_x_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='dns')
+    loglog(k_streamwise_box[:], (spectra_x_u_box[k,:] / ustar**2.), 'k-',linewidth=2.0, label='BOX')
+    loglog(k_streamwise_div[:], (spectra_x_u_div[k,:] / ustar**2.), 'g-',linewidth=2.0, label='BOX+INTPL')
+    #loglog(k_streamwise_les[:], (spectra_x_u_les[k,:] / ustar**2.), 'r-',linewidth=2.0, label='LES')
+    loglog(k_streamwise_dns[:], (spectra_x_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='DNS')
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
@@ -290,8 +290,8 @@ for k in range(num_idx):
     close()
     #
     figure()
-    loglog(k_streamwise_box[:], (spectra_x_u_unresboxnoint[k,:] / ustar**2.), 'k-',linewidth=2.0, label='box')
-    loglog(k_streamwise_box[:], (spectra_x_u_unresboxint[k,:] / ustar**2.), 'g-',linewidth=2.0, label='div')
+    loglog(k_streamwise_box[:], (spectra_x_u_unresboxnoint[k,:] / ustar**2.), 'k-',linewidth=2.0, label='BOX')
+    loglog(k_streamwise_box[:], (spectra_x_u_unresboxint[k,:] / ustar**2.), 'g-',linewidth=2.0, label='BOX+INTPL')
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
@@ -305,10 +305,10 @@ for k in range(num_idx):
     close()
     #
     figure()
-    loglog(k_spanwise_box[:], (spectra_y_u_box[k,:] / ustar**2.), 'k-',linewidth=2.0, label='box')
-    loglog(k_spanwise_div[:], (spectra_y_u_div[k,:] / ustar**2.), 'g-',linewidth=2.0, label='div')
-    loglog(k_spanwise_les[:], (spectra_y_u_les[k,:] / ustar**2.), 'r-',linewidth=2.0, label='les')
-    loglog(k_spanwise_dns[:], (spectra_y_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='dns')
+    loglog(k_spanwise_box[:], (spectra_y_u_box[k,:] / ustar**2.), 'k-',linewidth=2.0, label='BOX')
+    loglog(k_spanwise_div[:], (spectra_y_u_div[k,:] / ustar**2.), 'g-',linewidth=2.0, label='BOX+INTPL')
+    #loglog(k_spanwise_les[:], (spectra_y_u_les[k,:] / ustar**2.), 'r-',linewidth=2.0, label='LES')
+    loglog(k_spanwise_dns[:], (spectra_y_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='DNS')
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
@@ -323,10 +323,10 @@ for k in range(num_idx):
     #
     figure()
     grid()
-    hist(pdf_fields_u_box[k,:,:].flatten(), bins = bin_edges_u_box, density = True, histtype = 'step', label = 'box')
-    hist(pdf_fields_u_div[k,:,:].flatten(), bins = bin_edges_u_div, density = True, histtype = 'step', label = 'div')
-    hist(pdf_fields_u_les[k,:,:].flatten(), bins = bin_edges_u_les, density = True, histtype = 'step', label = 'les')
-    hist(pdf_fields_u_dns[k,:,:].flatten(), bins = bin_edges_u_dns, density = True, histtype = 'step', label = 'dns')
+    hist(pdf_fields_u_box[k,:,:].flatten(), bins = bin_edges_u_box, density = True, histtype = 'step', label = 'BOX')
+    hist(pdf_fields_u_div[k,:,:].flatten(), bins = bin_edges_u_div, density = True, histtype = 'step', label = 'BOX+INTPL')
+    hist(pdf_fields_u_les[k,:,:].flatten(), bins = bin_edges_u_les, density = True, histtype = 'step', label = 'LES')
+    hist(pdf_fields_u_dns[k,:,:].flatten(), bins = bin_edges_u_dns, density = True, histtype = 'step', label = 'DNS')
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
     legend(loc=0, frameon=False,fontsize=16)
