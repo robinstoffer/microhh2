@@ -773,78 +773,83 @@ void Diff_NN<TF>::diff_U(
 
                 //Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
                 //NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
+                
+                //Introduce backscattering limiting factor, which determines how much backscattering remains (purpose: show LES can handle some backscattering, as long as the total dissipation is large enough to balance the production)
+                TF backscatter_limit_fac = 0.2;
+                //backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
+
                 //xu_upstream
                 if ((-result[0] * (u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) < 0.)
                 {
-                    result[0] = 0.;
+                    result[0] = backscatter_limit_fac * result[0];
                     limit_count_xuup += 1;
                 }
                 //xu_downstream
                 if ((-result[1] * (u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + j * gd.icells + i]) * dxi) < 0.)
                 {
-                    result[1] = 0.;
+                    result[1] = backscatter_limit_fac * result[1];
                     limit_count_xudown += 1;
                 }
                 //yu_upstream
                 if ((-result[2] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
                 {
-                    result[2] = 0.;
+                    result[2] = backscatter_limit_fac * result[2];
                     limit_count_yuup += 1;
                 }
                 //yu_downstream
                 if ((-result[3] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + (j+1) * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + (j+1) * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
                 {
-                    result[3] = 0.;
+                    result[3] = backscatter_limit_fac * result[3];
                     limit_count_yudown += 1;
                 }
                 //zu_upstream
                 if ((k != gd.kstart) and (-result[4] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
                 {
-                    result[4] = 0.;
+                    result[4] = backscatter_limit_fac * result[4];
                     limit_count_zuup += 1;
                 }
                 //zu_downstream
                 if ((k != (gd.kend - 1)) and (-result[5] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
                 {
-                    result[5] = 0.;
+                    result[5] = backscatter_limit_fac * result[5];
                     limit_count_zudown += 1;
                 }
                 
                 //xv_upstream
                 if ((-result[6] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
                 {
-                    result[6] = 0.;
+                    result[6] = backscatter_limit_fac * result[6];
                     limit_count_xvup += 1;
                 }
                 //xv_downstream
                 if ((-result[7] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + (i+1)] - v[k*gd.ijcells + j * gd.icells + i]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + (j-1) * gd.icells + (i+1)]) * dyi))) < 0.)
                 {
-                    result[7] = 0.;
+                    result[7] = backscatter_limit_fac * result[7];
                     limit_count_xvdown += 1;
                 }
                 
                 //yv_upstream
                 if ((-result[8] * (v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi) < 0.)
                 {
-                    result[8] = 0.;
+                    result[8] = backscatter_limit_fac * result[8];
                     limit_count_yvup += 1;
                 }
                 //yv_downstream
                 if ((-result[9] * (v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * dyi) < 0.)
                 {
-                    result[9] = 0.;
+                    result[9] = backscatter_limit_fac * result[9];
                     limit_count_yvdown += 1;
                 }
                 //zv_upstream
                 if ((k != gd.kstart) and (-result[10] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
                 {
-                    result[10] = 0.;
+                    result[10] = backscatter_limit_fac * result[10];
                     limit_count_zvup += 1;
                 }
                 //zv_downstream
                 if ((k != (gd.kend - 1)) and (-result[11] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
                 {
-                    result[11] = 0.;
+                    result[11] = backscatter_limit_fac * result[11];
                     limit_count_zvdown += 1;
                 }
 
@@ -853,38 +858,38 @@ void Diff_NN<TF>::diff_U(
                     //xw_upstream
                     if ((-result[12] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
                     {
-                        result[12] = 0.;
+                        result[12] = backscatter_limit_fac * result[12];
                         limit_count_xwup += 1;
                     }
                     //xw_downstream
                     if ((-result[13] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[(k-1)*gd.ijcells + j * gd.icells + (i+1)]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * dxi))) < 0.)
                     {
-                        result[13] = 0.;
+                        result[13] = backscatter_limit_fac * result[13];
                         limit_count_xwdown += 1;
                     }
                 
                     //yw_upstream
                     if ((-result[14] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
                     {
-                        result[14] = 0.;
+                        result[14] = backscatter_limit_fac * result[14];
                         limit_count_ywup += 1;
                     }
                     //yw_downstream
                     if ((-result[15] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[(k-1)*gd.ijcells + (j+1) * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + (j+1) * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
                     {
-                        result[15] = 0.;
+                        result[15] = backscatter_limit_fac * result[15];
                         limit_count_ywdown += 1;
                     }
                     //zw_upstream
                     if ((-result[16] * (w[k*gd.ijcells + j * gd.icells + i] - w[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzi[k-1]) < 0.)
                     {
-                        result[16] = 0.;
+                        result[16] = backscatter_limit_fac * result[16];
                         limit_count_zwup += 1;
                     }
                     //zw_downstream
                     if ((-result[17] * (w[(k+1)*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dzi[k]) < 0.)
                     {
-                        result[17] = 0.;
+                        result[17] = backscatter_limit_fac * result[17];
                         limit_count_zwdown += 1;
                     } 
                 }
@@ -1134,13 +1139,13 @@ void Diff_NN<TF>::diff_U(
                     //zw_upstream
                     if ((-result_zw[0] * (w[k*gd.ijcells + j * gd.icells + i_2grid] - w[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k-1]) < 0.)
                     {
-                        result_zw[0] = 0.;
+                        result_zw[0] = backscatter_limit_fac * result_zw[0];
                         limit_count_zwup += 1;
                     }
                     //zw_downstream
                     if ((-result_zw[1] * (w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k]) < 0.)
                     {
-                        result_zw[0] = 0.;
+                        result_zw[1] = backscatter_limit_fac * result_zw[1];
                         limit_count_zwdown += 1;
                     }
 
