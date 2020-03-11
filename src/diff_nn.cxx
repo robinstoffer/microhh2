@@ -775,7 +775,9 @@ void Diff_NN<TF>::diff_U(
                 //NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
                 
                 //Introduce backscattering limiting factor, which determines how much backscattering remains (purpose: show LES can handle some backscattering, as long as the total dissipation is large enough to balance the production)
-                TF backscatter_limit_fac = 0.2;
+                TF backscatter_limit_fac = 0.5; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
+                //TF backscatter_limit_fac = 0.9; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
+                //TF backscatter_limit_fac = 0.2; // Observed to achieve numerical stability (but with already some smaller indications of instability eventually) in Moser case channel flow (friction Reynolds number = 590)
                 //backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
 
                 //xu_upstream
