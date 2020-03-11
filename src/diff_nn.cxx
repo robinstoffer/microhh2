@@ -1481,14 +1481,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     const int jgc = 2;
     const int kgc = 2;
     grid.set_minimum_ghost_cells(igc, jgc, kgc);
-
-    fields.mp.at("u")->fld.data(),
-    fields.mp.at("v")->fld.data(),
-    fields.mp.at("w")->fld.data(),
-
-
-////////////////
-
+      
     dnmax = inputin.get_item<TF>("diff", "dnmax", "", 0.4  );
 
 //   if (grid.get_spatial_order() != Grid_order::Second)
@@ -1962,7 +1955,6 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
     fields.mt.at("v")->fld.data(),
     fields.mt.at("w")->fld.data()
     );
-
 
     diff_c<TF>(fields.mt.at("u")->fld.data(), fields.mp.at("u")->fld.data(), fields.visc,
                gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,

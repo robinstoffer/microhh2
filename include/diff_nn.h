@@ -235,6 +235,7 @@ class Diff_NN : public Diff<TF>
         exit(NC_ERR);
     }
     
+
     private:
         using Diff<TF>::master;
         using Diff<TF>::grid;

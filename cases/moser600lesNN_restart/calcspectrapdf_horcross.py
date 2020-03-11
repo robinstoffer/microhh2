@@ -46,6 +46,7 @@ fin.close()
 print("Processing iter = {:07d}".format(iter))
 
 fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/restart_files/u.{:07d}".format(iter),"rb")
+
 raw = fin.read(n*8)
 tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 del(raw)
@@ -56,6 +57,7 @@ fin.close()
 uavg = numpy.nanmean(numpy.nanmean(u,2),1)
 
 fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/restart_files/v.{:07d}".format(iter),"rb")
+
 raw = fin.read(n*8)
 tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 del(raw)
@@ -89,7 +91,9 @@ spectra_x  = numpy.zeros((3,num_idx,nwave_modes_x))
 spectra_y  = numpy.zeros((3,num_idx,nwave_modes_y))
 pdf_fields = numpy.zeros((3,num_idx,ny,nx))
 index_spectra = 0
+
 input_dir = '/home/robin/microhh2/cases/moser600lesNN_restart/restart_files/'
+
 for crossname in variables:
     
     if(crossname == 'u'): loc = [1,0,0]

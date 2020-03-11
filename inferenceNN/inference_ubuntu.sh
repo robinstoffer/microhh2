@@ -5,6 +5,7 @@ cd /home/robin/microhh2/inferenceNN
 ##Set Intel MPI environment variables
 ##bash /home/robin/intel/impi/2019.5.281/intel64/bin/mpivars.sh
 
+
 ##Compile program
 ##test inference
 #g++ -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid_test.cpp main_test.cpp Network.h Network.cpp -I${MKL_ROOT}/include -L${MKL_ROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl -std=c++14 -Ofast -march=native
