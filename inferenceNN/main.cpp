@@ -1,7 +1,7 @@
 // main.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include "Network.h"
-#include "grid.h"
+#include "Grid.h"
 #include "diff_U.h"
 #include <iostream>
 #include <string>
@@ -65,17 +65,22 @@ inline static int nc_error_print(int e)
 int main()
 {
     // For now, hard-code command-line inputs user (Windows)
-	std::string grid_filenc = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
-	std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP13\\";
-	std::string training_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
-	std::string inference_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP13\\inference_reconstructed_field_manual_cpp.nc";
+	//std::string grid_filenc = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
+	//std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP13\\";
+	//std::string training_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
+	//std::string inference_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP13\\inference_reconstructed_field_manual_cpp.nc";
 	
-	// For now, hard-code command-line inputs user (Linux)
+	//// For now, hard-code command-line inputs user (Linux cartesius)
 	//std::string grid_filenc = "/projects/1/flowsim/simulation1/lesscoarse/training_data.nc";
 	//std::string var_filepath = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13/";
 	//std::string training_file = "/projects/1/flowsim/simulation1/lesscoarse/training_data.nc";
 	//std::string inference_file = "/home/robinst/microhh/cases/moser600/git_repository/Neural Network/predictions_real_data_MLP13/inference_reconstructed_field_manual_cpp.nc";
 	
+	// For now, hard-code command-line inputs user (Linux ubuntu)
+	std::string grid_filenc = "/media/sf_Shared_folder/training_data.nc";
+	std::string var_filepath = "/home/robin/microhh2/inferenceNN/Variables_MLP13/";
+	std::string training_file = "/media/sf_Shared_folder/training_data.nc";
+	std::string inference_file = "/home/robin/microhh2/inferenceNN/Variables_MLP13/inference_reconstructed_field_manual_cpp.nc";
 	constexpr bool store_variables = true;
 
 	//Instantiate grid object, which extract the grid information from the specified nc-file (but for now is still hard-coded)

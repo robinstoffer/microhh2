@@ -28,6 +28,10 @@
 #include "diff.h"
 #include "boundary_cyclic.h"
 #include "field3d_operators.h"
+extern "C"
+{
+    #include <netcdf.h>
+}
 
 template<typename> class Stats;
 
@@ -66,7 +70,7 @@ class Diff_NN : public Diff<TF>
         const TF* restrict const u,
         const TF* restrict const v,
         const TF* restrict const w
-        );
+    );
 	
 	void select_box(
 		const TF* restrict const field_var,
@@ -82,11 +86,15 @@ class Diff_NN : public Diff<TF>
 		const int skip_firstz,
 		const int skip_lastz
 	);
+
+    void gkernelcreation(
+        TF* restrict const gkernel
+    );
 	
 	void diff_U(
-		const TF* restrict const u,
-		const TF* restrict const v,
-		const TF* restrict const w,
+		TF* restrict const u,
+		TF* restrict const v,
+		TF* restrict const w,
 		TF* restrict const ut,
 		TF* restrict const vt,
 		TF* restrict const wt
@@ -193,6 +201,40 @@ class Diff_NN : public Diff<TF>
 	std::vector<float> m_stdev_input;
 	std::vector<float> m_mean_label;
 	std::vector<float> m_stdev_label;
+
+    //Means and stdevs training data, needed for limiters
+    std::vector<float> m_ucmean;
+    std::vector<float> m_vcmean;
+    std::vector<float> m_wcmean;
+    std::vector<float> m_ucstd;
+    std::vector<float> m_vcstd;
+    std::vector<float> m_wcstd;
+    std::vector<float> m_xumean;
+    std::vector<float> m_yumean;
+    std::vector<float> m_zumean;
+    std::vector<float> m_xustd;
+    std::vector<float> m_yustd;
+    std::vector<float> m_zustd;
+    std::vector<float> m_xvmean;
+    std::vector<float> m_yvmean;
+    std::vector<float> m_zvmean;
+    std::vector<float> m_xvstd;
+    std::vector<float> m_yvstd;
+    std::vector<float> m_zvstd;
+    std::vector<float> m_xwmean;
+    std::vector<float> m_ywmean;
+    std::vector<float> m_zwmean;
+    std::vector<float> m_xwstd;
+    std::vector<float> m_ywstd;
+    std::vector<float> m_zwstd;
+
+    int NC_ERR = 2; //Exit with this error code when a netCDF error occurs
+    inline int nc_error_print(int e)
+    {
+        std::cerr << "Error: " << nc_strerror(e);
+        exit(NC_ERR);
+    }
+    
 
     private:
         using Diff<TF>::master;
