@@ -77,10 +77,10 @@ int main()
 	//std::string inference_file = "/home/robinst/microhh/cases/moser600/git_repository/Neural Network/predictions_real_data_MLP13/inference_reconstructed_field_manual_cpp.nc";
 	
 	// For now, hard-code command-line inputs user (Linux ubuntu)
-	std::string grid_filenc = "/media/sf_Shared_folder/training_data.nc";
-	std::string var_filepath = "/home/robin/microhh2/inferenceNN/Variables_MLP13/";
-	std::string training_file = "/media/sf_Shared_folder/training_data.nc";
-	std::string inference_file = "/home/robin/microhh2/inferenceNN/Variables_MLP13/inference_reconstructed_field_manual_cpp.nc";
+	std::string grid_filenc = "/media/sf_Shared_folder/training_data_coarse3d.nc";
+	std::string var_filepath = "/home/robin/microhh2/inferenceNN/Variables_MLP30/";
+	std::string training_file = "/media/sf_Shared_folder/training_data_coarse3d.nc";
+	std::string inference_file = "/home/robin/microhh2/inferenceNN/Variables_MLP30/inference_reconstructed_field_manual_cpp.nc";
 	constexpr bool store_variables = true;
 
 	//Instantiate grid object, which extract the grid information from the specified nc-file (but for now is still hard-coded)

@@ -771,130 +771,130 @@ void Diff_NN<TF>::diff_U(
                     m_output.data(), result.data(), false
                     );
 
-                //Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
-                //NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
-                
-                //Introduce backscattering limiting factor, which determines how much backscattering remains (purpose: show LES can handle some backscattering, as long as the total dissipation is large enough to balance the production)
-                TF backscatter_limit_fac = 0.5; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
-                //TF backscatter_limit_fac = 0.9; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
-                //TF backscatter_limit_fac = 0.2; // Observed to achieve numerical stability (but with already some smaller indications of instability eventually) in Moser case channel flow (friction Reynolds number = 590)
-                //backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
+                ////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
+                ////NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
+                //
+                ////Introduce backscattering limiting factor, which determines how much backscattering remains (purpose: show LES can handle some backscattering, as long as the total dissipation is large enough to balance the production)
+                //TF backscatter_limit_fac = 0.5; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
+                ////TF backscatter_limit_fac = 0.9; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
+                ////TF backscatter_limit_fac = 0.2; // Observed to achieve numerical stability (but with already some smaller indications of instability eventually) in Moser case channel flow (friction Reynolds number = 590)
+                ////backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
 
-                //xu_upstream
-                if ((-result[0] * (u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) < 0.)
-                {
-                    result[0] = backscatter_limit_fac * result[0];
-                    limit_count_xuup += 1;
-                }
-                //xu_downstream
-                if ((-result[1] * (u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + j * gd.icells + i]) * dxi) < 0.)
-                {
-                    result[1] = backscatter_limit_fac * result[1];
-                    limit_count_xudown += 1;
-                }
-                //yu_upstream
-                if ((-result[2] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                {
-                    result[2] = backscatter_limit_fac * result[2];
-                    limit_count_yuup += 1;
-                }
-                //yu_downstream
-                if ((-result[3] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + (j+1) * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + (j+1) * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
-                {
-                    result[3] = backscatter_limit_fac * result[3];
-                    limit_count_yudown += 1;
-                }
-                //zu_upstream
-                if ((k != gd.kstart) and (-result[4] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
-                {
-                    result[4] = backscatter_limit_fac * result[4];
-                    limit_count_zuup += 1;
-                }
-                //zu_downstream
-                if ((k != (gd.kend - 1)) and (-result[5] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
-                {
-                    result[5] = backscatter_limit_fac * result[5];
-                    limit_count_zudown += 1;
-                }
-                
-                //xv_upstream
-                if ((-result[6] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                {
-                    result[6] = backscatter_limit_fac * result[6];
-                    limit_count_xvup += 1;
-                }
-                //xv_downstream
-                if ((-result[7] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + (i+1)] - v[k*gd.ijcells + j * gd.icells + i]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + (j-1) * gd.icells + (i+1)]) * dyi))) < 0.)
-                {
-                    result[7] = backscatter_limit_fac * result[7];
-                    limit_count_xvdown += 1;
-                }
-                
-                //yv_upstream
-                if ((-result[8] * (v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi) < 0.)
-                {
-                    result[8] = backscatter_limit_fac * result[8];
-                    limit_count_yvup += 1;
-                }
-                //yv_downstream
-                if ((-result[9] * (v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * dyi) < 0.)
-                {
-                    result[9] = backscatter_limit_fac * result[9];
-                    limit_count_yvdown += 1;
-                }
-                //zv_upstream
-                if ((k != gd.kstart) and (-result[10] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                {
-                    result[10] = backscatter_limit_fac * result[10];
-                    limit_count_zvup += 1;
-                }
-                //zv_downstream
-                if ((k != (gd.kend - 1)) and (-result[11] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                {
-                    result[11] = backscatter_limit_fac * result[11];
-                    limit_count_zvdown += 1;
-                }
+                ////xu_upstream
+                //if ((-result[0] * (u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) < 0.)
+                //{
+                //    result[0] = backscatter_limit_fac * result[0];
+                //    limit_count_xuup += 1;
+                //}
+                ////xu_downstream
+                //if ((-result[1] * (u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + j * gd.icells + i]) * dxi) < 0.)
+                //{
+                //    result[1] = backscatter_limit_fac * result[1];
+                //    limit_count_xudown += 1;
+                //}
+                ////yu_upstream
+                //if ((-result[2] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //{
+                //    result[2] = backscatter_limit_fac * result[2];
+                //    limit_count_yuup += 1;
+                //}
+                ////yu_downstream
+                //if ((-result[3] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + (j+1) * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + (j+1) * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
+                //{
+                //    result[3] = backscatter_limit_fac * result[3];
+                //    limit_count_yudown += 1;
+                //}
+                ////zu_upstream
+                //if ((k != gd.kstart) and (-result[4] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
+                //{
+                //    result[4] = backscatter_limit_fac * result[4];
+                //    limit_count_zuup += 1;
+                //}
+                ////zu_downstream
+                //if ((k != (gd.kend - 1)) and (-result[5] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
+                //{
+                //    result[5] = backscatter_limit_fac * result[5];
+                //    limit_count_zudown += 1;
+                //}
+                //
+                ////xv_upstream
+                //if ((-result[6] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //{
+                //    result[6] = backscatter_limit_fac * result[6];
+                //    limit_count_xvup += 1;
+                //}
+                ////xv_downstream
+                //if ((-result[7] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + (i+1)] - v[k*gd.ijcells + j * gd.icells + i]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + (j-1) * gd.icells + (i+1)]) * dyi))) < 0.)
+                //{
+                //    result[7] = backscatter_limit_fac * result[7];
+                //    limit_count_xvdown += 1;
+                //}
+                //
+                ////yv_upstream
+                //if ((-result[8] * (v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi) < 0.)
+                //{
+                //    result[8] = backscatter_limit_fac * result[8];
+                //    limit_count_yvup += 1;
+                //}
+                ////yv_downstream
+                //if ((-result[9] * (v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * dyi) < 0.)
+                //{
+                //    result[9] = backscatter_limit_fac * result[9];
+                //    limit_count_yvdown += 1;
+                //}
+                ////zv_upstream
+                //if ((k != gd.kstart) and (-result[10] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //{
+                //    result[10] = backscatter_limit_fac * result[10];
+                //    limit_count_zvup += 1;
+                //}
+                ////zv_downstream
+                //if ((k != (gd.kend - 1)) and (-result[11] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //{
+                //    result[11] = backscatter_limit_fac * result[11];
+                //    limit_count_zvdown += 1;
+                //}
 
-                if (k != gd.kstart)
-                {
-                    //xw_upstream
-                    if ((-result[12] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
-                    {
-                        result[12] = backscatter_limit_fac * result[12];
-                        limit_count_xwup += 1;
-                    }
-                    //xw_downstream
-                    if ((-result[13] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[(k-1)*gd.ijcells + j * gd.icells + (i+1)]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * dxi))) < 0.)
-                    {
-                        result[13] = backscatter_limit_fac * result[13];
-                        limit_count_xwdown += 1;
-                    }
-                
-                    //yw_upstream
-                    if ((-result[14] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                    {
-                        result[14] = backscatter_limit_fac * result[14];
-                        limit_count_ywup += 1;
-                    }
-                    //yw_downstream
-                    if ((-result[15] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[(k-1)*gd.ijcells + (j+1) * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + (j+1) * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
-                    {
-                        result[15] = backscatter_limit_fac * result[15];
-                        limit_count_ywdown += 1;
-                    }
-                    //zw_upstream
-                    if ((-result[16] * (w[k*gd.ijcells + j * gd.icells + i] - w[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzi[k-1]) < 0.)
-                    {
-                        result[16] = backscatter_limit_fac * result[16];
-                        limit_count_zwup += 1;
-                    }
-                    //zw_downstream
-                    if ((-result[17] * (w[(k+1)*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dzi[k]) < 0.)
-                    {
-                        result[17] = backscatter_limit_fac * result[17];
-                        limit_count_zwdown += 1;
-                    } 
-                }
+                //if (k != gd.kstart)
+                //{
+                //    //xw_upstream
+                //    if ((-result[12] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
+                //    {
+                //        result[12] = backscatter_limit_fac * result[12];
+                //        limit_count_xwup += 1;
+                //    }
+                //    //xw_downstream
+                //    if ((-result[13] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[(k-1)*gd.ijcells + j * gd.icells + (i+1)]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * dxi))) < 0.)
+                //    {
+                //        result[13] = backscatter_limit_fac * result[13];
+                //        limit_count_xwdown += 1;
+                //    }
+                //
+                //    //yw_upstream
+                //    if ((-result[14] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //    {
+                //        result[14] = backscatter_limit_fac * result[14];
+                //        limit_count_ywup += 1;
+                //    }
+                //    //yw_downstream
+                //    if ((-result[15] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[(k-1)*gd.ijcells + (j+1) * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + (j+1) * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
+                //    {
+                //        result[15] = backscatter_limit_fac * result[15];
+                //        limit_count_ywdown += 1;
+                //    }
+                //    //zw_upstream
+                //    if ((-result[16] * (w[k*gd.ijcells + j * gd.icells + i] - w[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzi[k-1]) < 0.)
+                //    {
+                //        result[16] = backscatter_limit_fac * result[16];
+                //        limit_count_zwup += 1;
+                //    }
+                //    //zw_downstream
+                //    if ((-result[17] * (w[(k+1)*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dzi[k]) < 0.)
+                //    {
+                //        result[17] = backscatter_limit_fac * result[17];
+                //        limit_count_zwdown += 1;
+                //    } 
+                //}
 
                 ////Implement limiter on outputs
                 //
@@ -1137,19 +1137,19 @@ void Diff_NN<TF>::diff_U(
                         m_output_zw.data(), result_zw.data(), true
                     );
                     
-                    //Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
-                    //zw_upstream
-                    if ((-result_zw[0] * (w[k*gd.ijcells + j * gd.icells + i_2grid] - w[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k-1]) < 0.)
-                    {
-                        result_zw[0] = backscatter_limit_fac * result_zw[0];
-                        limit_count_zwup += 1;
-                    }
-                    //zw_downstream
-                    if ((-result_zw[1] * (w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k]) < 0.)
-                    {
-                        result_zw[1] = backscatter_limit_fac * result_zw[1];
-                        limit_count_zwdown += 1;
-                    }
+                    ////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
+                    ////zw_upstream
+                    //if ((-result_zw[0] * (w[k*gd.ijcells + j * gd.icells + i_2grid] - w[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k-1]) < 0.)
+                    //{
+                    //    result_zw[0] = backscatter_limit_fac * result_zw[0];
+                    //    limit_count_zwup += 1;
+                    //}
+                    ////zw_downstream
+                    //if ((-result_zw[1] * (w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k]) < 0.)
+                    //{
+                    //    result_zw[1] = backscatter_limit_fac * result_zw[1];
+                    //    limit_count_zwdown += 1;
+                    //}
 
                     ////Limit highest values
                     //result_zw[0] = std::min(result_zw[0], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
@@ -1174,26 +1174,26 @@ void Diff_NN<TF>::diff_U(
             }
         }
     }
-    master.print_message("Start ANN iteration \n");
-    master.print_message("Number of values removed by backscatter filter xuup: %d \n", limit_count_xuup);
-    master.print_message("Number of values removed by backscatter filter xudown: %d \n", limit_count_xudown);
-    master.print_message("Number of values removed by backscatter filter yuup: %d \n", limit_count_yuup);
-    master.print_message("Number of values removed by backscatter filter yudown: %d \n", limit_count_yudown);
-    master.print_message("Number of values removed by backscatter filter zuup: %d \n", limit_count_zuup);
-    master.print_message("Number of values removed by backscatter filter zudown: %d \n", limit_count_zudown);
-    master.print_message("Number of values removed by backscatter filter xvup: %d \n", limit_count_xvup);
-    master.print_message("Number of values removed by backscatter filter xvdown: %d \n", limit_count_xvdown);
-    master.print_message("Number of values removed by backscatter filter yvup: %d \n", limit_count_yvup);
-    master.print_message("Number of values removed by backscatter filter yvdown: %d \n", limit_count_yvdown);
-    master.print_message("Number of values removed by backscatter filter zvup: %d \n", limit_count_zvup);
-    master.print_message("Number of values removed by backscatter filter zvdown: %d \n", limit_count_zvdown);
-    master.print_message("Number of values removed by backscatter filter xwup: %d \n", limit_count_xwup);
-    master.print_message("Number of values removed by backscatter filter xwdown: %d \n", limit_count_xwdown);
-    master.print_message("Number of values removed by backscatter filter ywup: %d \n", limit_count_ywup);
-    master.print_message("Number of values removed by backscatter filter ywdown: %d \n", limit_count_ywdown);
-    master.print_message("Number of values removed by backscatter filter zwup: %d \n", limit_count_zwup);
-    master.print_message("Number of values removed by backscatter filter zwdown: %d \n", limit_count_zwdown);
-    master.print_message("Finish ANN iteration \n");
+    //master.print_message("Start ANN iteration \n");
+    //master.print_message("Number of values removed by backscatter filter xuup: %d \n", limit_count_xuup);
+    //master.print_message("Number of values removed by backscatter filter xudown: %d \n", limit_count_xudown);
+    //master.print_message("Number of values removed by backscatter filter yuup: %d \n", limit_count_yuup);
+    //master.print_message("Number of values removed by backscatter filter yudown: %d \n", limit_count_yudown);
+    //master.print_message("Number of values removed by backscatter filter zuup: %d \n", limit_count_zuup);
+    //master.print_message("Number of values removed by backscatter filter zudown: %d \n", limit_count_zudown);
+    //master.print_message("Number of values removed by backscatter filter xvup: %d \n", limit_count_xvup);
+    //master.print_message("Number of values removed by backscatter filter xvdown: %d \n", limit_count_xvdown);
+    //master.print_message("Number of values removed by backscatter filter yvup: %d \n", limit_count_yvup);
+    //master.print_message("Number of values removed by backscatter filter yvdown: %d \n", limit_count_yvdown);
+    //master.print_message("Number of values removed by backscatter filter zvup: %d \n", limit_count_zvup);
+    //master.print_message("Number of values removed by backscatter filter zvdown: %d \n", limit_count_zvdown);
+    //master.print_message("Number of values removed by backscatter filter xwup: %d \n", limit_count_xwup);
+    //master.print_message("Number of values removed by backscatter filter xwdown: %d \n", limit_count_xwdown);
+    //master.print_message("Number of values removed by backscatter filter ywup: %d \n", limit_count_ywup);
+    //master.print_message("Number of values removed by backscatter filter ywdown: %d \n", limit_count_ywdown);
+    //master.print_message("Number of values removed by backscatter filter zwup: %d \n", limit_count_zwup);
+    //master.print_message("Number of values removed by backscatter filter zwdown: %d \n", limit_count_zwdown);
+    //master.print_message("Finish ANN iteration \n");
 
     ////Loop over tendencies to apply Gaussian filter for smoothing
 
@@ -1488,7 +1488,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
 //      throw std::runtime_error("Diff_NN only runs with second order grids");
 
     //Hard-code file directory where variables MLP are stored
-    std::string var_filepath = "../../inferenceNN/Variables_MLP13/";
+    std::string var_filepath = "../../inferenceNN/Variables_MLP16/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");
@@ -1603,286 +1603,286 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     m_output.resize(N_output,0.0f);
     m_output_zw.resize(N_output_zw,0.0f);
 
-    //Read means+stdevs of training data for limiters in fluxes calculation
-    std::string meansstd_filepath = "../../inferenceNN/Variables_MLP13/tavg_vert_prof.nc";
+    ////Read means+stdevs of training data for limiters in fluxes calculation
+    //std::string meansstd_filepath = "../../inferenceNN/Variables_MLP13/tavg_vert_prof.nc";
 
-    //Read grid data needed to process means+stdevs
-    auto& gd  = grid.get_grid_data();
+    ////Read grid data needed to process means+stdevs
+    //auto& gd  = grid.get_grid_data();
 
-    //Define IDs for netCDF-file needed for reading
-    int retval = 0; //Status code for netCDF-function, needed for error handling
-    int ncid_reading = 0;
-    int varid_ucmean = 0;
-    int varid_vcmean = 0;
-    int varid_wcmean = 0;
-    int varid_xumean = 0;
-    int varid_yumean = 0;
-    int varid_zumean = 0;
-    int varid_xvmean = 0;
-    int varid_yvmean = 0;
-    int varid_zvmean = 0;
-    int varid_xwmean = 0;
-    int varid_ywmean = 0;
-    int varid_zwmean = 0;
-    int varid_ucstd  = 0;
-    int varid_vcstd  = 0;
-    int varid_wcstd  = 0;
-    int varid_xustd  = 0;
-    int varid_yustd  = 0;
-    int varid_zustd  = 0;
-    int varid_xvstd  = 0;
-    int varid_yvstd  = 0;
-    int varid_zvstd  = 0;
-    int varid_xwstd  = 0;
-    int varid_ywstd  = 0;
-    int varid_zwstd  = 0;
-    size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
-    size_t count_zhgc[1] = {};
-    size_t count_z[1]  = {};
-    size_t count_zh[1] = {};
-    size_t start_z[1]  = {};
+    ////Define IDs for netCDF-file needed for reading
+    //int retval = 0; //Status code for netCDF-function, needed for error handling
+    //int ncid_reading = 0;
+    //int varid_ucmean = 0;
+    //int varid_vcmean = 0;
+    //int varid_wcmean = 0;
+    //int varid_xumean = 0;
+    //int varid_yumean = 0;
+    //int varid_zumean = 0;
+    //int varid_xvmean = 0;
+    //int varid_yvmean = 0;
+    //int varid_zvmean = 0;
+    //int varid_xwmean = 0;
+    //int varid_ywmean = 0;
+    //int varid_zwmean = 0;
+    //int varid_ucstd  = 0;
+    //int varid_vcstd  = 0;
+    //int varid_wcstd  = 0;
+    //int varid_xustd  = 0;
+    //int varid_yustd  = 0;
+    //int varid_zustd  = 0;
+    //int varid_xvstd  = 0;
+    //int varid_yvstd  = 0;
+    //int varid_zvstd  = 0;
+    //int varid_xwstd  = 0;
+    //int varid_ywstd  = 0;
+    //int varid_zwstd  = 0;
+    //size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
+    //size_t count_zhgc[1] = {};
+    //size_t count_z[1]  = {};
+    //size_t count_zh[1] = {};
+    //size_t start_z[1]  = {};
 
-    //Resize dynamically allocated arrays means and stdevs
-    int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
-    m_ucmean.resize(kcells);
-    m_vcmean.resize(kcells);
-    m_wcmean.resize(kcells+1);
-    m_ucstd.resize(kcells);
-    m_vcstd.resize(kcells);
-    m_wcstd.resize(kcells+1);
-    m_xumean.resize(gd.ktot);
-    m_yumean.resize(gd.ktot);
-    m_zumean.resize(gd.ktot+1);
-    m_xvmean.resize(gd.ktot);
-    m_yvmean.resize(gd.ktot);
-    m_zvmean.resize(gd.ktot+1);
-    m_xwmean.resize(gd.ktot+1);
-    m_ywmean.resize(gd.ktot+1);
-    m_zwmean.resize(gd.ktot);
-    m_xustd.resize(gd.ktot);
-    m_yustd.resize(gd.ktot);
-    m_zustd.resize(gd.ktot+1);
-    m_xvstd.resize(gd.ktot);
-    m_yvstd.resize(gd.ktot);
-    m_zvstd.resize(gd.ktot+1);
-    m_xwstd.resize(gd.ktot+1);
-    m_ywstd.resize(gd.ktot+1);
-    m_zwstd.resize(gd.ktot);
-    
-    // Open nc-file  for reading
-    if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
-    {
-        nc_error_print(retval);
-    }
+    ////Resize dynamically allocated arrays means and stdevs
+    //int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
+    //m_ucmean.resize(kcells);
+    //m_vcmean.resize(kcells);
+    //m_wcmean.resize(kcells+1);
+    //m_ucstd.resize(kcells);
+    //m_vcstd.resize(kcells);
+    //m_wcstd.resize(kcells+1);
+    //m_xumean.resize(gd.ktot);
+    //m_yumean.resize(gd.ktot);
+    //m_zumean.resize(gd.ktot+1);
+    //m_xvmean.resize(gd.ktot);
+    //m_yvmean.resize(gd.ktot);
+    //m_zvmean.resize(gd.ktot+1);
+    //m_xwmean.resize(gd.ktot+1);
+    //m_ywmean.resize(gd.ktot+1);
+    //m_zwmean.resize(gd.ktot);
+    //m_xustd.resize(gd.ktot);
+    //m_yustd.resize(gd.ktot);
+    //m_zustd.resize(gd.ktot+1);
+    //m_xvstd.resize(gd.ktot);
+    //m_yvstd.resize(gd.ktot);
+    //m_zvstd.resize(gd.ktot+1);
+    //m_xwstd.resize(gd.ktot+1);
+    //m_ywstd.resize(gd.ktot+1);
+    //m_zwstd.resize(gd.ktot);
+    //
+    //// Open nc-file  for reading
+    //if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
+    //{
+    //    nc_error_print(retval);
+    //}
 
-    // Get the varids of the variables based on their names
-    if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
-    {
-        nc_error_print(retval);
-    }
+    //// Get the varids of the variables based on their names
+    //if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
+    //{
+    //    nc_error_print(retval);
+    //}
 
-    // Define settings such that the entire vertical profile is read from the nc-file
-    count_zgc[0]  = kcells;
-    count_zhgc[0] = kcells + 1;
-    count_z[0]  = gd.ktot;
-    count_zh[0] = gd.ktot + 1;
-    start_z[0] = 0;
+    //// Define settings such that the entire vertical profile is read from the nc-file
+    //count_zgc[0]  = kcells;
+    //count_zhgc[0] = kcells + 1;
+    //count_z[0]  = gd.ktot;
+    //count_zh[0] = gd.ktot + 1;
+    //start_z[0] = 0;
 
-    //Extract vertical profiles from nc-file
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
-    {
-        nc_error_print(retval);
-    }
-    if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
-    {
-        nc_error_print(retval);
-    }
+    ////Extract vertical profiles from nc-file
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
+    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
+    //{
+    //    nc_error_print(retval);
+    //}
 
-    //Close opened nc-file
-    if((retval = nc_close(ncid_reading)))
-    {
-        nc_error_print(retval);
-    }
+    ////Close opened nc-file
+    //if((retval = nc_close(ncid_reading)))
+    //{
+    //    nc_error_print(retval);
+    //}
 }
 
 template<typename TF>
