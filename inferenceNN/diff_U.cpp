@@ -60,7 +60,7 @@ void diff_U(
 {
 	// Initialize std::vectors for storing results mlp
 	std::vector<float> result(MLP.N_output, 0.0f);
-	std::vector<float> result_zw(MLP.N_output_zw, 0.0f);
+	std::vector<float> result_z(MLP.N_output_z, 0.0f);
 
 	//Calculate inverse height differences
 	const float dxi = 1.f / gd.m_dx;
@@ -147,112 +147,114 @@ void diff_U(
 
 				//Calculate tendencies using predictions from mlp
 				//xu_upstream
-				ut[k*gd.m_ijcells + j * gd.m_icells + i] += -result[0] * dxi;
-				ut[k*gd.m_ijcells + j * gd.m_icells + i_upbound] += result[0] * dxi;
+				ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[0] * dxi;
+				ut[k*gd.m_ijcells + j * gd.m_icells + i_upbound] += -result[0] * dxi;
 
 				//xu_downstream
-				ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[1] * dxi;
-				ut[k*gd.m_ijcells + j * gd.m_icells + i_downbound] += -result[1] * dxi;
+				ut[k*gd.m_ijcells + j * gd.m_icells + i] += -result[1] * dxi;
+				ut[k*gd.m_ijcells + j * gd.m_icells + i_downbound] += result[1] * dxi;
 
 				//yu_upstream
-				ut[k*gd.m_ijcells + j * gd.m_icells + i] += -result[2] * dyi;
-				ut[k*gd.m_ijcells + j_upbound * gd.m_icells + i] += result[2] * dyi;
+				ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[2] * dyi;
+				ut[k*gd.m_ijcells + j_upbound * gd.m_icells + i] += -result[2] * dyi;
 
 				//yu_downstream
-				ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[3] * dyi;
-				ut[k*gd.m_ijcells + j_downbound * gd.m_icells + i] += -result[3] * dyi;
+				ut[k*gd.m_ijcells + j * gd.m_icells + i] += -result[3] * dyi;
+				ut[k*gd.m_ijcells + j_downbound * gd.m_icells + i] += result[3] * dyi;
 
 				//zu_upstream
+			    ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[4] * dzi[k];
+			    //ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[4];
 				if (k != gd.m_kstart)
 					// NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
 					// 2) ghost cell is not assigned.
 				{
-					ut[(k - 1)*gd.m_ijcells + j * gd.m_icells + i] += result[4] * dzi[k - 1];
-					ut[k*gd.m_ijcells + j * gd.m_icells + i] += -result[4] * dzi[k];
+					ut[(k - 1)*gd.m_ijcells + j * gd.m_icells + i] += -result[4] * dzi[k - 1];
 				}
 
 				//zu_downstream
+				ut[k*gd.m_ijcells + j * gd.m_icells + i] += -result[5] * dzi[k];
+				//ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[5];
 				if (k != (gd.m_kend - 1))
 					// NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
 					// 2) ghost cell is not assigned.
 				{
-					ut[k*gd.m_ijcells + j * gd.m_icells + i] += result[5] * dzi[k];
-					ut[(k + 1)*gd.m_ijcells + j * gd.m_icells + i] += -result[5] * dzi[k + 1];
+					ut[(k + 1)*gd.m_ijcells + j * gd.m_icells + i] += result[5] * dzi[k + 1];
 				}
 
 				//xv_upstream
-				vt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[6] * dxi;
-				vt[k*gd.m_ijcells + j * gd.m_icells + i_upbound] += result[6] * dxi;
+				vt[k*gd.m_ijcells + j * gd.m_icells + i] += result[6] * dxi;
+				vt[k*gd.m_ijcells + j * gd.m_icells + i_upbound] += -result[6] * dxi;
 
 				//xv_downstream
-				vt[k*gd.m_ijcells + j * gd.m_icells + i] += result[7] * dxi;
-				vt[k*gd.m_ijcells + j * gd.m_icells + i_downbound] += -result[7] * dxi;
+				vt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[7] * dxi;
+				vt[k*gd.m_ijcells + j * gd.m_icells + i_downbound] += result[7] * dxi;
 
 				//yv_upstream
-				vt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[8] * dyi;
-				vt[k*gd.m_ijcells + j_upbound * gd.m_icells + i] += result[8] * dyi;
+				vt[k*gd.m_ijcells + j * gd.m_icells + i] += result[8] * dyi;
+				vt[k*gd.m_ijcells + j_upbound * gd.m_icells + i] += -result[8] * dyi;
 
 				//yv_downstream
-				vt[k*gd.m_ijcells + j * gd.m_icells + i] += result[9] * dyi;
-				vt[k*gd.m_ijcells + j_downbound * gd.m_icells + i] += -result[9] * dyi;
+				vt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[9] * dyi;
+				vt[k*gd.m_ijcells + j_downbound * gd.m_icells + i] += result[9] * dyi;
 
 				//zv_upstream
+				vt[k*gd.m_ijcells + j * gd.m_icells + i] += result[10] * dzi[k];
 				if (k != gd.m_kstart)
 					// NOTES: 1) zu_upstream is in this way implicitly set to 0 at the bottom layer
 					// 2) ghost cell is not assigned.
 				{
-					vt[(k - 1)*gd.m_ijcells + j * gd.m_icells + i] += result[10] * dzi[k - 1];
-					vt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[10] * dzi[k];
+					vt[(k - 1)*gd.m_ijcells + j * gd.m_icells + i] += -result[10] * dzi[k - 1];
 				}
 
 				//zv_downstream
+				vt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[11] * dzi[k];
 				if (k != (gd.m_kend - 1))
 					// NOTES: 1) zu_downstream is in this way implicitly set to 0 at the top layer
 					// 2) ghost cell is not assigned.
 				{
-					vt[k*gd.m_ijcells + j * gd.m_icells + i] += result[11] * dzi[k];
-					vt[(k + 1)*gd.m_ijcells + j * gd.m_icells + i] += -result[11] * dzi[k + 1];
+					vt[(k + 1)*gd.m_ijcells + j * gd.m_icells + i] += result[11] * dzi[k + 1];
 				}
 
 				if (k != gd.m_kstart) //Don't adjust wt for bottom layer, should stay 0
 				{
 					//xw_upstream
-					wt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[12] * dxi;
-					wt[k*gd.m_ijcells + j * gd.m_icells + i_upbound] += result[12] * dxi;
+					wt[k*gd.m_ijcells + j * gd.m_icells + i] += result[12] * dxi;
+					wt[k*gd.m_ijcells + j * gd.m_icells + i_upbound] += -result[12] * dxi;
 
 					//xw_downstream
-					wt[k*gd.m_ijcells + j * gd.m_icells + i] += result[13] * dxi;
-					wt[k*gd.m_ijcells + j * gd.m_icells + i_downbound] += -result[13] * dxi;
+					wt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[13] * dxi;
+					wt[k*gd.m_ijcells + j * gd.m_icells + i_downbound] += result[13] * dxi;
 
 					//yw_upstream
-					wt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[14] * dyi;
-					wt[k*gd.m_ijcells + j_upbound * gd.m_icells + i] += result[14] * dyi;
+					wt[k*gd.m_ijcells + j * gd.m_icells + i] += result[14] * dyi;
+					wt[k*gd.m_ijcells + j_upbound * gd.m_icells + i] += -result[14] * dyi;
 
 					//yw_downstream
-					wt[k*gd.m_ijcells + j * gd.m_icells + i] += result[15] * dyi;
-					wt[k*gd.m_ijcells + j_downbound * gd.m_icells + i] += -result[15] * dyi;
+					wt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[15] * dyi;
+					wt[k*gd.m_ijcells + j_downbound * gd.m_icells + i] += result[15] * dyi;
 
-					//zu_upstream
+					//zw_upstream
 					if (k != (gd.m_kstart + 1))
 						//NOTE: Dont'adjust wt for bottom layer, should stay 0
 					{
-						wt[(k - 1)*gd.m_ijcells + j * gd.m_icells + i] += result[16] * dzhi[k - 1];
+						wt[(k - 1)*gd.m_ijcells + j * gd.m_icells + i] += -result[16] * dzhi[k - 1];
 					}
-					wt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[16] * dzhi[k];
+					wt[k*gd.m_ijcells + j * gd.m_icells + i] += result[16] * dzhi[k];
 
-					//zu_downstream
-					wt[k*gd.m_ijcells + j * gd.m_icells + i] += result[17] * dzhi[k];
+					//zw_downstream
+					wt[k*gd.m_ijcells + j * gd.m_icells + i] += -result[17] * dzhi[k];
 					if (k != (gd.m_kend - 1))
 						// NOTE:although this does not change wt at the bottom layer, 
 						// it is still not included for k=0 to keep consistency between the top and bottom of the domain.
 					{
-						wt[(k + 1)*gd.m_ijcells + j * gd.m_icells + i] += -result[17] * dzhi[k + 1];
+						wt[(k + 1)*gd.m_ijcells + j * gd.m_icells + i] += result[17] * dzhi[k + 1];
 					}
 				}
 
 				// Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
 				// the mlp for a second grid cell to calculate 'missing' zw-values.
-				if ((k == (gd.m_kend - 1)) || (k == (gd.m_kstart + 1)))
+				if ((k == (gd.m_kend - 1)) || (k == (gd.m_kstart + 1)) || (k == (gd.m_kstart)))
 				{
 					//Determine the second grid cell based on the offset.
 					int i_2grid = 0;
@@ -290,19 +292,41 @@ void diff_U(
 						MLP.m_mean_input.data(), MLP.m_stdev_input.data(),
 						MLP.m_mean_label.data(), MLP.m_stdev_label.data(),
 						MLP.m_utau_ref, MLP.m_output_denorm_utau2,
-						MLP.m_output_zw.data(), result_zw.data(), true
+						MLP.m_output_z.data(), result_z.data(), true
 					);
 
 					//Store calculated tendencies
+					//zu_upstream
+					if (k == (gd.m_kstart))
+					{
+						ut[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += -result_z[0] * dzhi[k];
+                      //ut[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += result_z[0];
+					}
+					//zu_downstream
+                    else if (k == (gd.m_kend - 1))
+					{
+						ut[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += result_z[1] * dzhi[k];
+						//ut[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += result_z[1];
+					}
+					//zv_upstream
+					if (k == (gd.m_kstart))
+					{
+						vt[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += -result_z[2] * dzhi[k];
+					}
+					//zv_downstream
+                    else if (k == (gd.m_kend - 1))
+					{
+						vt[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += result_z[3] * dzhi[k];
+					}
 					//zw_upstream
 					if (k == (gd.m_kstart + 1))
 					{
-						wt[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += -result_zw[0] * dzhi[k];
+						wt[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += -result_z[4] * dzhi[k];
 					}
 					//zw_downstream
-					else
-					{
-						wt[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += result_zw[1] * dzhi[k];
+					else if (k == (gd.m_kend - 1))
+                    {
+						wt[k * gd.m_ijcells + j * gd.m_icells + i_2grid] += result_z[5] * dzhi[k];
 					}
 				}
 			}

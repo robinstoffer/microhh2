@@ -54,7 +54,6 @@ void output_layer(
 	}
 }
 
-
 void Inference(
         float* restrict const input_ctrlu_u,
 		float* restrict const input_ctrlu_v,
@@ -88,7 +87,7 @@ void Inference(
 		const float output_denorm_utau2,
 		float* restrict const output,
 		float* restrict const output_denorm,
-		const bool zw_flag)
+		const bool z_flag)
 
 {   
 	// Initialize fixed arrays for input layers
@@ -151,14 +150,24 @@ void Inference(
 	output_layer(outputw_wgth, outputw_bias, hiddenw.data(), outputw.data());
 
 	//Concatenate output layers & denormalize
-	if (zw_flag)
+	if (z_flag)
 	{
-		output[0] = outputw[4]; // zw_upstream
-		output[1] = outputw[5]; // zw_downstream
+		output[0] = outputu[4]; // zu_upstream
+		output[1] = outputu[5]; // zu_downstream
+		
+        output[2] = outputv[4]; // zv_upstream
+		output[3] = outputv[5]; // zv_downstream
 
-		//Denormalize
-		output_denorm[0] = ((output[0] * stdev_label[16]) + mean_label[16]) * output_denorm_utau2;
-		output_denorm[1] = ((output[1] * stdev_label[17]) + mean_label[17]) * output_denorm_utau2;
+		output[4] = outputw[4]; // zw_upstream
+		output[5] = outputw[5]; // zw_downstream
+
+		//Denormalize 
+		output_denorm[0] = ((output[0] * stdev_label[4]) + mean_label[4]) * output_denorm_utau2;
+		output_denorm[1] = ((output[1] * stdev_label[5]) + mean_label[5]) * output_denorm_utau2;
+		output_denorm[2] = ((output[2] * stdev_label[10]) + mean_label[10]) * output_denorm_utau2;
+		output_denorm[3] = ((output[3] * stdev_label[11]) + mean_label[11]) * output_denorm_utau2;
+		output_denorm[4] = ((output[4] * stdev_label[16]) + mean_label[16]) * output_denorm_utau2;
+		output_denorm[5] = ((output[5] * stdev_label[17]) + mean_label[17]) * output_denorm_utau2;
 	}
 	else
 	{
@@ -319,7 +328,7 @@ Network::Network(std::string var_filepath)
 	m_input_ctrlw_v.resize(Network::N_input_adjusted, 0.0f);
 	m_input_ctrlw_w.resize(Network::N_input, 0.0f);
 	m_output.resize(Network::N_output,0.0f);
-	m_output_zw.resize(Network::N_output_zw,0.0f);
+	m_output_z.resize(Network::N_output_z,0.0f);
 }
 
 Network::~Network()

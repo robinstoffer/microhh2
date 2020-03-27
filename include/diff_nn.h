@@ -163,9 +163,9 @@ class Diff_NN : public Diff<TF>
 	static constexpr int N_input_adjusted = 80; //=(4*5*4), adjusted size of 1 sample of 1 variable
 	static constexpr int N_input_tot = 375; //=3*(5*5*5)
 	static constexpr int N_input_tot_adjusted = 285; //=2*(4*5*4)+1*(5*5*5), adjusted size of 1 sample of all variables
-	static constexpr int N_hidden = 64; // number of neurons in hidden layer
+	static constexpr int N_hidden = 1; // number of neurons in hidden layer
 	static constexpr int N_output = 18; // number of output transport components
-	static constexpr int N_output_zw = 2; // number of output transport components in case only zw is evaluated
+	static constexpr int N_output_z  = 6; // number of output transport components that should be evaluated for the entire bottom and top walls
 	static constexpr int N_output_control = 6; // number of output transport components per control volume
 
 	// Network variables
@@ -195,7 +195,7 @@ class Diff_NN : public Diff<TF>
 	std::vector<float> m_input_ctrlw_v;
 	std::vector<float> m_input_ctrlw_w;
 	std::vector<float> m_output;
-	std::vector<float> m_output_zw;
+	std::vector<float> m_output_z;
 	float m_output_denorm_utau2;
 	std::vector<float> m_mean_input;
 	std::vector<float> m_stdev_input;

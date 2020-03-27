@@ -18,5 +18,5 @@ g++ -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid.cpp main.cpp Network.h Network.
 ##Run program
 export MKL_ROOT=/home/robin/intel/compilers_and_libraries_2019.5.281/linux/mkl
 export LD_LIBRARY_PATH=${MKL_ROOT}/lib/intel64
-gdb MLP
-#./MLP
+##gdb MLP
+./MLP
