@@ -26,6 +26,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <random>
 
 #include "grid.h"
 #include "fields.h"
@@ -115,6 +116,9 @@ void Diff_NN<TF>::calc_diff_flux_u(
     std::vector<float> result(N_output, 0.0f);
     std::vector<float> result_z(N_output_z, 0.0f);
     
+    //Define random number generator
+    std::default_random_engine generator;
+    
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
     for (int k = gd.kstart; k < gd.kend; ++k)
@@ -125,33 +129,91 @@ void Diff_NN<TF>::calc_diff_flux_u(
             int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
             for (int i = gd.istart+offset; i < gd.iend; i+=2)
             {
-                //Extract grid box flow fields
-                select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
-                select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
-                select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
-                select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
-                select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
-                select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
-                select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                 
-                //Execute MLP once for selected grid box
-                Inference(
-                    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                    m_outputu_wgth.data(), m_outputu_bias.data(),
-                    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                    m_outputv_wgth.data(), m_outputv_bias.data(),
-                    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
-                    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                    m_outputw_wgth.data(), m_outputw_bias.data(),
-                    m_mean_input.data(), m_stdev_input.data(),
-                    m_mean_label.data(), m_stdev_label.data(),
-                    m_utau_ref, m_output_denorm_utau2,
-                    m_output.data(), result.data(), false
-                    );
+                //Sample Gaussian with mean and standard deviation calculated from training data
+                //xu
+                std::normal_distribution<TF> distribution_xu(m_xumean[k-gd.kstart],m_xustd[k-gd.kstart]);
+                result[0] = distribution_xu(generator);
+                result[1] = distribution_xu(generator);
+
+                //yu
+                std::normal_distribution<TF> distribution_yu(m_yumean[k-gd.kstart],m_yustd[k-gd.kstart]);
+                result[2] = distribution_yu(generator);
+                result[3] = distribution_yu(generator);
+
+                //zu_upstream
+                std::normal_distribution<TF> distribution_zuup(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
+                result[4] = distribution_zuup(generator);
+
+                //zu_downstream
+                std::normal_distribution<TF> distribution_zudown(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
+                result[5] = distribution_zudown(generator);
+                
+                //xv
+                std::normal_distribution<TF> distribution_xv(m_xvmean[k-gd.kstart],m_xvstd[k-gd.kstart]);
+                result[6] = distribution_xv(generator);
+                result[7] = distribution_xv(generator);
+
+                //yv
+                std::normal_distribution<TF> distribution_yv(m_yvmean[k-gd.kstart],m_yvstd[k-gd.kstart]);
+                result[8] = distribution_yv(generator);
+                result[9] = distribution_yv(generator);
+
+                //zv_upstream
+                std::normal_distribution<TF> distribution_zvup(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
+                result[10] = distribution_zvup(generator);
+
+                //zv_downstream
+                std::normal_distribution<TF> distribution_zvdown(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
+                result[11] = distribution_zvdown(generator);
+                
+                if (k != gd.kstart) //Be consistent with tendency calculation below
+                {
+                    //xw
+                    std::normal_distribution<TF> distribution_xw(m_xwmean[k-gd.kstart],m_xwstd[k-gd.kstart]);
+                    result[12] = distribution_xw(generator);
+                    result[13] = distribution_xw(generator);
+
+                    //yw
+                    std::normal_distribution<TF> distribution_yw(m_ywmean[k-gd.kstart],m_ywstd[k-gd.kstart]);
+                    result[14] = distribution_yw(generator);
+                    result[15] = distribution_yw(generator);
+
+                    //zw_upstream
+                    std::normal_distribution<TF> distribution_zwup(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
+                    result[16] = distribution_zwup(generator);
+
+                    //zw_downstream
+                    std::normal_distribution<TF> distribution_zwdown(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
+                    result[17] = distribution_zwdown(generator);
+                }
+ 
+                ////Extract grid box flow fields
+                //select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
+                //select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
+                //select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
+                //select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
+                //select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
+                //select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
+                //select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                // 
+                ////Execute MLP once for selected grid box
+                //Inference(
+                //    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                //    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                //    m_outputu_wgth.data(), m_outputu_bias.data(),
+                //    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                //    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                //    m_outputv_wgth.data(), m_outputv_bias.data(),
+                //    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
+                //    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                //    m_outputw_wgth.data(), m_outputw_bias.data(),
+                //    m_mean_input.data(), m_stdev_input.data(),
+                //    m_mean_label.data(), m_stdev_label.data(),
+                //    m_utau_ref, m_output_denorm_utau2,
+                //    m_output.data(), result.data(), false
+                //    );
 
                 //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
                 int i_downbound = 0;
@@ -170,77 +232,109 @@ void Diff_NN<TF>::calc_diff_flux_u(
                 //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
-                ////zu_upstream
-                //uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] * fac ;//- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
-                //
-                ////zu_downstream
-                //uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] * fac ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                //zu_upstream
+                uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] * fac ;//- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                
+                //zu_downstream
+                uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] * fac ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 
-                if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
-                {
-                    //xw_upstream
-                    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[12] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
-
-                    //xw_downstream
-                    uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
-                }
-
-                //// Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
-                //// the MLP for a second grid cell to calculate 'missing' zw-values.
-                //if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)) || (k == (gd.kstart)))
+                //if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
                 //{
-                //    //Determine the second grid cell based on the offset.
-                //    int i_2grid = 0;
-                //    if (offset == 1)
-                //    {
-                //        i_2grid = i - 1;
-                //    }
-                //    else
-                //    {
-                //        i_2grid = i + 1;
-                //    }
+                //    //xw_upstream
+                //    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[12] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
 
-                //    //Select second grid box
-                //    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                //    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
-                //    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
-                //    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
-                //    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                //    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
-                //    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
-                //    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
-                //    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-
-                //    //Execute MLP for selected second grid cell
-                //    Inference(
-                //        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                //        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                //        m_outputu_wgth.data(), m_outputu_bias.data(),
-                //        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                //        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                //        m_outputv_wgth.data(), m_outputv_bias.data(),
-                //        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
-                //        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                //        m_outputw_wgth.data(), m_outputw_bias.data(),
-                //        m_mean_input.data(), m_stdev_input.data(),
-                //        m_mean_label.data(), m_stdev_label.data(),
-                //        m_utau_ref, m_output_denorm_utau2,
-                //        m_output_z.data(), result_z.data(), true
-                //    );
-                //    
-                //    //Store calculated fluxes
-                //    //zu_upstream
-                //    if (k == gd.kstart)
-                //    {
-                //        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result[4] * fac ;//- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
-                //    }
-                //    
-                //    //zu_downstream
-                //    else if (k == (gd.kend - 1))
-                //    {
-                //        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result[5] * fac ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
-                //    }
+                //    //xw_downstream
+                //    uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
                 //}
+
+                // Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
+                // the MLP for a second grid cell to calculate 'missing' zw-values.
+                if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)) || (k == (gd.kstart)))
+                {
+                    //Determine the second grid cell based on the offset.
+                    int i_2grid = 0;
+                    if (offset == 1)
+                    {
+                        i_2grid = i - 1;
+                    }
+                    else
+                    {
+                        i_2grid = i + 1;
+                    }
+                    
+                    //Sample from Gaussian, similar as above
+                    if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
+                    {
+                        //zu_upstream
+                        std::normal_distribution<TF> distribution_zuup2(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
+                        result_z[0] = distribution_zuup2(generator);
+
+                        //zu_downstream
+                        std::normal_distribution<TF> distribution_zudown2(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
+                        result_z[1] = distribution_zudown2(generator);
+                    }
+                    if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
+                    {
+                        //zv_upstream
+                        std::normal_distribution<TF> distribution_zvup2(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
+                        result_z[2] = distribution_zvup2(generator);
+
+                        //zv_downstream
+                        std::normal_distribution<TF> distribution_zvdown2(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
+                        result_z[3] = distribution_zvdown2(generator);
+                    }
+                    if (k != gd.kstart) //Be consistent with tendency calculation below
+                    {
+                        //zw_upstream
+                        std::normal_distribution<TF> distribution_zwup2(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
+                        result_z[4] = distribution_zwup2(generator);
+
+                        //zw_downstream
+                        std::normal_distribution<TF> distribution_zwdown2(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
+                        result_z[5] = distribution_zwdown2(generator);
+                    }
+
+                    ////Select second grid box
+                    //select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
+                    //select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
+                    //select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
+                    //select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
+                    //select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
+                    //select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
+                    //select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+
+                    ////Execute MLP for selected second grid cell
+                    //Inference(
+                    //    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                    //    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                    //    m_outputu_wgth.data(), m_outputu_bias.data(),
+                    //    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                    //    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                    //    m_outputv_wgth.data(), m_outputv_bias.data(),
+                    //    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
+                    //    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                    //    m_outputw_wgth.data(), m_outputw_bias.data(),
+                    //    m_mean_input.data(), m_stdev_input.data(),
+                    //    m_mean_label.data(), m_stdev_label.data(),
+                    //    m_utau_ref, m_output_denorm_utau2,
+                    //    m_output_z.data(), result_z.data(), true
+                    //);
+                    
+                    //Store calculated fluxes
+                    //zu_upstream
+                    if (k == gd.kstart)
+                    {
+                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[0] * fac ;//- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                    }
+                    
+                    //zu_downstream
+                    else if (k == (gd.kend - 1))
+                    {
+                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[1] * fac ;//- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                    }
+                }
             }
         }
     }
@@ -260,6 +354,9 @@ void Diff_NN<TF>::calc_diff_flux_v(
     std::vector<float> result(N_output, 0.0f);
     std::vector<float> result_z(N_output_z, 0.0f);
     
+    //Define random number generator
+    std::default_random_engine generator;
+    
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
     for (int k = gd.kstart; k < gd.kend; ++k)
@@ -270,33 +367,91 @@ void Diff_NN<TF>::calc_diff_flux_v(
             int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
             for (int i = gd.istart+offset; i < gd.iend; i+=2)
             {
-                //Extract grid box flow fields
-                select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
-                select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
-                select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
-                select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
-                select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
-                select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
-                select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                 
-                //Execute MLP once for selected grid box
-                Inference(
-                    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                    m_outputu_wgth.data(), m_outputu_bias.data(),
-                    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                    m_outputv_wgth.data(), m_outputv_bias.data(),
-                    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
-                    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                    m_outputw_wgth.data(), m_outputw_bias.data(),
-                    m_mean_input.data(), m_stdev_input.data(),
-                    m_mean_label.data(), m_stdev_label.data(),
-                    m_utau_ref, m_output_denorm_utau2,
-                    m_output.data(), result.data(), false
-                    );
+                //Sample Gaussian with mean and standard deviation calculated from training data
+                //xu
+                std::normal_distribution<TF> distribution_xu(m_xumean[k-gd.kstart],m_xustd[k-gd.kstart]);
+                result[0] = distribution_xu(generator);
+                result[1] = distribution_xu(generator);
+
+                //yu
+                std::normal_distribution<TF> distribution_yu(m_yumean[k-gd.kstart],m_yustd[k-gd.kstart]);
+                result[2] = distribution_yu(generator);
+                result[3] = distribution_yu(generator);
+
+                //zu_upstream
+                std::normal_distribution<TF> distribution_zuup(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
+                result[4] = distribution_zuup(generator);
+
+                //zu_downstream
+                std::normal_distribution<TF> distribution_zudown(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
+                result[5] = distribution_zudown(generator);
+                
+                //xv
+                std::normal_distribution<TF> distribution_xv(m_xvmean[k-gd.kstart],m_xvstd[k-gd.kstart]);
+                result[6] = distribution_xv(generator);
+                result[7] = distribution_xv(generator);
+
+                //yv
+                std::normal_distribution<TF> distribution_yv(m_yvmean[k-gd.kstart],m_yvstd[k-gd.kstart]);
+                result[8] = distribution_yv(generator);
+                result[9] = distribution_yv(generator);
+
+                //zv_upstream
+                std::normal_distribution<TF> distribution_zvup(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
+                result[10] = distribution_zvup(generator);
+
+                //zv_downstream
+                std::normal_distribution<TF> distribution_zvdown(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
+                result[11] = distribution_zvdown(generator);
+                
+                if (k != gd.kstart) //Be consistent with tendency calculation below
+                {
+                    //xw
+                    std::normal_distribution<TF> distribution_xw(m_xwmean[k-gd.kstart],m_xwstd[k-gd.kstart]);
+                    result[12] = distribution_xw(generator);
+                    result[13] = distribution_xw(generator);
+
+                    //yw
+                    std::normal_distribution<TF> distribution_yw(m_ywmean[k-gd.kstart],m_ywstd[k-gd.kstart]);
+                    result[14] = distribution_yw(generator);
+                    result[15] = distribution_yw(generator);
+
+                    //zw_upstream
+                    std::normal_distribution<TF> distribution_zwup(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
+                    result[16] = distribution_zwup(generator);
+
+                    //zw_downstream
+                    std::normal_distribution<TF> distribution_zwdown(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
+                    result[17] = distribution_zwdown(generator);
+                }
+                
+                ////Extract grid box flow fields
+                //select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
+                //select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
+                //select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
+                //select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
+                //select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
+                //select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
+                //select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                // 
+                ////Execute MLP once for selected grid box
+                //Inference(
+                //    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                //    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                //    m_outputu_wgth.data(), m_outputu_bias.data(),
+                //    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                //    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                //    m_outputv_wgth.data(), m_outputv_bias.data(),
+                //    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
+                //    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                //    m_outputw_wgth.data(), m_outputw_bias.data(),
+                //    m_mean_input.data(), m_stdev_input.data(),
+                //    m_mean_label.data(), m_stdev_label.data(),
+                //    m_utau_ref, m_output_denorm_utau2,
+                //    m_output.data(), result.data(), false
+                //    );
 
                 //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
                 int j_downbound = 0;
@@ -315,77 +470,110 @@ void Diff_NN<TF>::calc_diff_flux_v(
                 //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
-                ////zv_upstream
-                //vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] * fac ;//- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
-                //
-                ////zv_downstream
-                //vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] * fac ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                //zv_upstream
+                vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] * fac ;//- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                
+                //zv_downstream
+                vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] * fac ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 
-                if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
-                {
-                    //yw_upstream
-                    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[14] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dyi);
-
-                    //yw_downstream
-                    vflux[k*gd.ijcells + j_downbound * gd.icells + i] =  result[15] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dyi);
-                }
-
-                //// Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
-                //// the MLP for a second grid cell to calculate 'missing' zw-values.
-                //if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)) || (k == (gd.kstart)))
+                //if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
                 //{
-                //    //Determine the second grid cell based on the offset.
-                //    int i_2grid = 0;
-                //    if (offset == 1)
-                //    {
-                //        i_2grid = i - 1;
-                //    }
-                //    else
-                //    {
-                //        i_2grid = i + 1;
-                //    }
+                //    //yw_upstream
+                //    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[14] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dyi);
 
-                //    //Select second grid box
-                //    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                //    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
-                //    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
-                //    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
-                //    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                //    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
-                //    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
-                //    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
-                //    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-
-                //    //Execute MLP for selected second grid cell
-                //    Inference(
-                //        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                //        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                //        m_outputu_wgth.data(), m_outputu_bias.data(),
-                //        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                //        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                //        m_outputv_wgth.data(), m_outputv_bias.data(),
-                //        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
-                //        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                //        m_outputw_wgth.data(), m_outputw_bias.data(),
-                //        m_mean_input.data(), m_stdev_input.data(),
-                //        m_mean_label.data(), m_stdev_label.data(),
-                //        m_utau_ref, m_output_denorm_utau2,
-                //        m_output_z.data(), result_z.data(), true
-                //    );
-                //    
-                //    //Store calculated fluxes
-                //    //zv_upstream
-                //    if (k == gd.kstart)
-                //    {
-                //        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result[10] * fac ;//- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
-                //    }
-                //    
-                //    //zv_downstream
-                //    else if (k == (gd.kend - 1))
-                //    {
-                //        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result[11] * fac ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
-                //    }
+                //    //yw_downstream
+                //    vflux[k*gd.ijcells + j_downbound * gd.icells + i] =  result[15] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dyi);
                 //}
+
+                // Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
+                // the MLP for a second grid cell to calculate 'missing' zw-values.
+                if ((k == (gd.kend - 1)) || (k == (gd.kstart + 1)) || (k == (gd.kstart)))
+                {
+                    //Determine the second grid cell based on the offset.
+                    int i_2grid = 0;
+                    if (offset == 1)
+                    {
+                        i_2grid = i - 1;
+                    }
+                    else
+                    {
+                        i_2grid = i + 1;
+                    }
+                    
+                    //Sample from Gaussian, similar as above
+                    if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
+                    {
+                        //zu_upstream
+                        std::normal_distribution<TF> distribution_zuup2(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
+                        result_z[0] = distribution_zuup2(generator);
+
+                        //zu_downstream
+                        std::normal_distribution<TF> distribution_zudown2(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
+                        result_z[1] = distribution_zudown2(generator);
+                    }
+                    if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
+                    {
+                        //zv_upstream
+                        std::normal_distribution<TF> distribution_zvup2(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
+                        result_z[2] = distribution_zvup2(generator);
+
+                        //zv_downstream
+                        std::normal_distribution<TF> distribution_zvdown2(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
+                        result_z[3] = distribution_zvdown2(generator);
+                    }
+                    if (k != gd.kstart) //Be consistent with tendency calculation below
+                    {
+                        //zw_upstream
+                        std::normal_distribution<TF> distribution_zwup2(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
+                        result_z[4] = distribution_zwup2(generator);
+
+                        //zw_downstream
+                        std::normal_distribution<TF> distribution_zwdown2(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
+                        result_z[5] = distribution_zwdown2(generator);
+                    }
+                    
+
+                    ////Select second grid box
+                    //select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
+                    //select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
+                    //select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
+                    //select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
+                    //select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
+                    //select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
+                    //select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+
+                    ////Execute MLP for selected second grid cell
+                    //Inference(
+                    //    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                    //    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                    //    m_outputu_wgth.data(), m_outputu_bias.data(),
+                    //    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                    //    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                    //    m_outputv_wgth.data(), m_outputv_bias.data(),
+                    //    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
+                    //    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                    //    m_outputw_wgth.data(), m_outputw_bias.data(),
+                    //    m_mean_input.data(), m_stdev_input.data(),
+                    //    m_mean_label.data(), m_stdev_label.data(),
+                    //    m_utau_ref, m_output_denorm_utau2,
+                    //    m_output_z.data(), result_z.data(), true
+                    //);
+                    
+                    //Store calculated fluxes
+                    //zv_upstream
+                    if (k == gd.kstart)
+                    {
+                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[2] * fac ;//- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                    }
+                    
+                    //zv_downstream
+                    else if (k == (gd.kend - 1))
+                    {
+                        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[3] * fac ;//- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                    }
+                }
             }
         }
     }
@@ -488,6 +676,9 @@ void Diff_NN<TF>::diff_U(
     const TF dxi = 1.f / gd.dx;
     const TF dyi = 1.f / gd.dy;
 
+    //Define random number generator
+    std::default_random_engine generator;
+
     ////Set counters to track how many values are set to 0.
     //int limit_count_xuup = 0;
     //int limit_count_xudown = 0;
@@ -541,16 +732,74 @@ void Diff_NN<TF>::diff_U(
             int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
             for (int i = gd.istart+offset; i < gd.iend; i+=2)
             {
-                //Extract grid box flow fields
-                select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
-                select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
-                select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
-                select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
-                select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
-                select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
-                select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //Sample Gaussian with mean and standard deviation calculated from training data
+                //xu
+                std::normal_distribution<TF> distribution_xu(m_xumean[k-gd.kstart],m_xustd[k-gd.kstart]);
+                result[0] = distribution_xu(generator);
+                result[1] = distribution_xu(generator);
+
+                //yu
+                std::normal_distribution<TF> distribution_yu(m_yumean[k-gd.kstart],m_yustd[k-gd.kstart]);
+                result[2] = distribution_yu(generator);
+                result[3] = distribution_yu(generator);
+
+                //zu_upstream
+                std::normal_distribution<TF> distribution_zuup(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
+                result[4] = distribution_zuup(generator);
+
+                //zu_downstream
+                std::normal_distribution<TF> distribution_zudown(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
+                result[5] = distribution_zudown(generator);
+                
+                //xv
+                std::normal_distribution<TF> distribution_xv(m_xvmean[k-gd.kstart],m_xvstd[k-gd.kstart]);
+                result[6] = distribution_xv(generator);
+                result[7] = distribution_xv(generator);
+
+                //yv
+                std::normal_distribution<TF> distribution_yv(m_yvmean[k-gd.kstart],m_yvstd[k-gd.kstart]);
+                result[8] = distribution_yv(generator);
+                result[9] = distribution_yv(generator);
+
+                //zv_upstream
+                std::normal_distribution<TF> distribution_zvup(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
+                result[10] = distribution_zvup(generator);
+
+                //zv_downstream
+                std::normal_distribution<TF> distribution_zvdown(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
+                result[11] = distribution_zvdown(generator);
+                
+                if (k != gd.kstart) //Be consistent with tendency calculation below
+                {
+                    //xw
+                    std::normal_distribution<TF> distribution_xw(m_xwmean[k-gd.kstart],m_xwstd[k-gd.kstart]);
+                    result[12] = distribution_xw(generator);
+                    result[13] = distribution_xw(generator);
+
+                    //yw
+                    std::normal_distribution<TF> distribution_yw(m_ywmean[k-gd.kstart],m_ywstd[k-gd.kstart]);
+                    result[14] = distribution_yw(generator);
+                    result[15] = distribution_yw(generator);
+
+                    //zw_upstream
+                    std::normal_distribution<TF> distribution_zwup(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
+                    result[16] = distribution_zwup(generator);
+
+                    //zw_downstream
+                    std::normal_distribution<TF> distribution_zwdown(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
+                    result[17] = distribution_zwdown(generator);
+                }
+
+                ////Extract grid box flow fields
+                //select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
+                //select_box(w, m_input_ctrlu_w.data(), k, j, i, boxsize, 1, 0, 0, 0, 0, 1);
+                //select_box(u, m_input_ctrlv_u.data(), k, j, i, boxsize, 0, 0, 0, 1, 1, 0);
+                //select_box(v, m_input_ctrlv_v.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
+                //select_box(w, m_input_ctrlv_w.data(), k, j, i, boxsize, 1, 0, 0, 1, 0, 0);
+                //select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
+                //select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
+                //select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
                 
                 ////Implement limiter on inputs, 4 separate loops needed because of differences in dims
                 //int b = boxsize / 2; // NOTE: on purpose fractional part dropped
@@ -620,22 +869,22 @@ void Diff_NN<TF>::diff_U(
                 //    i_start += ((boxsize)*(boxsize));
                 //}
                 
-                //Execute MLP once for selected grid box
-                Inference(
-                    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                    m_outputu_wgth.data(), m_outputu_bias.data(),
-                    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                    m_outputv_wgth.data(), m_outputv_bias.data(),
-                    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
-                    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                    m_outputw_wgth.data(), m_outputw_bias.data(),
-                    m_mean_input.data(), m_stdev_input.data(),
-                    m_mean_label.data(), m_stdev_label.data(),
-                    m_utau_ref, m_output_denorm_utau2,
-                    m_output.data(), result.data(), false
-                    );
+                ////Execute MLP once for selected grid box
+                //Inference(
+                //    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                //    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                //    m_outputu_wgth.data(), m_outputu_bias.data(),
+                //    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                //    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                //    m_outputv_wgth.data(), m_outputv_bias.data(),
+                //    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(),  m_input_ctrlw_w.data(),
+                //    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                //    m_outputw_wgth.data(), m_outputw_bias.data(),
+                //    m_mean_input.data(), m_stdev_input.data(),
+                //    m_mean_label.data(), m_stdev_label.data(),
+                //    m_utau_ref, m_output_denorm_utau2,
+                //    m_output.data(), result.data(), false
+                //    );
 
                 ////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
                 ////NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
@@ -975,33 +1224,66 @@ void Diff_NN<TF>::diff_U(
                         i_2grid = i + 1;
                     }
 
-                    //Select second grid box
-                    select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                    select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
-                    select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
-                    select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
-                    select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
-                    select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
-                    select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
-                    select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
-                    select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //Sample from Gaussian, similar as above
+                    if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
+                    {
+                        //zu_upstream
+                        std::normal_distribution<TF> distribution_zuup2(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
+                        result_z[0] = distribution_zuup2(generator);
 
-                    //Execute MLP for selected second grid cell
-                    Inference(
-                        m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
-                        m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
-                        m_outputu_wgth.data(), m_outputu_bias.data(),
-                        m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
-                        m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
-                        m_outputv_wgth.data(), m_outputv_bias.data(),
-                        m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
-                        m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
-                        m_outputw_wgth.data(), m_outputw_bias.data(),
-                        m_mean_input.data(), m_stdev_input.data(),
-                        m_mean_label.data(), m_stdev_label.data(),
-                        m_utau_ref, m_output_denorm_utau2,
-                        m_output_z.data(), result_z.data(), true
-                    );
+                        //zu_downstream
+                        std::normal_distribution<TF> distribution_zudown2(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
+                        result_z[1] = distribution_zudown2(generator);
+                    }
+                    if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
+                    {
+                        //zv_upstream
+                        std::normal_distribution<TF> distribution_zvup2(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
+                        result_z[2] = distribution_zvup2(generator);
+
+                        //zv_downstream
+                        std::normal_distribution<TF> distribution_zvdown2(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
+                        result_z[3] = distribution_zvdown2(generator);
+                    }
+                    if (k != gd.kstart) //Be consistent with tendency calculation below
+                    {
+                        //zw_upstream
+                        std::normal_distribution<TF> distribution_zwup2(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
+                        result_z[4] = distribution_zwup2(generator);
+
+                        //zw_downstream
+                        std::normal_distribution<TF> distribution_zwdown2(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
+                        result_z[5] = distribution_zwdown2(generator);
+                    }
+                     
+
+                    ////Select second grid box
+                    //select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //select_box(v, m_input_ctrlu_v.data(), k, j, i_2grid, boxsize, 0, 0, 1, 0, 0, 1);
+                    //select_box(w, m_input_ctrlu_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 0, 0, 1);
+                    //select_box(u, m_input_ctrlv_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 1, 1, 0);
+                    //select_box(v, m_input_ctrlv_v.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+                    //select_box(w, m_input_ctrlv_w.data(), k, j, i_2grid, boxsize, 1, 0, 0, 1, 0, 0);
+                    //select_box(u, m_input_ctrlw_u.data(), k, j, i_2grid, boxsize, 0, 1, 0, 0, 1, 0);
+                    //select_box(v, m_input_ctrlw_v.data(), k, j, i_2grid, boxsize, 0, 1, 1, 0, 0, 0);
+                    //select_box(w, m_input_ctrlw_w.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
+
+                    ////Execute MLP for selected second grid cell
+                    //Inference(
+                    //    m_input_ctrlu_u.data(), m_input_ctrlu_v.data(), m_input_ctrlu_w.data(),
+                    //    m_hiddenu_wgth.data(), m_hiddenu_bias.data(), m_hiddenu_alpha,
+                    //    m_outputu_wgth.data(), m_outputu_bias.data(),
+                    //    m_input_ctrlv_u.data(), m_input_ctrlv_v.data(), m_input_ctrlv_w.data(),
+                    //    m_hiddenv_wgth.data(), m_hiddenv_bias.data(), m_hiddenv_alpha,
+                    //    m_outputv_wgth.data(), m_outputv_bias.data(),
+                    //    m_input_ctrlw_u.data(), m_input_ctrlw_v.data(), m_input_ctrlw_w.data(),
+                    //    m_hiddenw_wgth.data(), m_hiddenw_bias.data(), m_hiddenw_alpha,
+                    //    m_outputw_wgth.data(), m_outputw_bias.data(),
+                    //    m_mean_input.data(), m_stdev_input.data(),
+                    //    m_mean_label.data(), m_stdev_label.data(),
+                    //    m_utau_ref, m_output_denorm_utau2,
+                    //    m_output_z.data(), result_z.data(), true
+                    //);
                     
                     ////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
                     ////zw_upstream
@@ -1373,6 +1655,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     boundary_cyclic(master, grid),
     field3d_operators(master, grid, fields)
 {
+
     const int igc = 2;
     const int jgc = 2;
     const int kgc = 2;
@@ -1384,7 +1667,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
 //      throw std::runtime_error("Diff_NN only runs with second order grids");
 
     //Hard-code file directory where variables MLP are stored
-    std::string var_filepath = "../../inferenceNN/Variables_MLP30/";
+    std::string var_filepath = "../../inferenceNN/Variables_MLP36/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");
@@ -1499,286 +1782,286 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     m_output.resize(N_output,0.0f);
     m_output_z.resize(N_output_z,0.0f);
 
-    ////Read means+stdevs of training data for limiters in fluxes calculation
-    //std::string meansstd_filepath = "../../inferenceNN/Variables_MLP13/tavg_vert_prof.nc";
+    //Read means+stdevs of training data for limiters in fluxes calculation
+    std::string meansstd_filepath = "../../inferenceNN/Variables_MLP36/tavg_vert_prof.nc";
 
-    ////Read grid data needed to process means+stdevs
-    //auto& gd  = grid.get_grid_data();
+    //Read grid data needed to process means+stdevs
+    auto& gd  = grid.get_grid_data();
 
-    ////Define IDs for netCDF-file needed for reading
-    //int retval = 0; //Status code for netCDF-function, needed for error handling
-    //int ncid_reading = 0;
-    //int varid_ucmean = 0;
-    //int varid_vcmean = 0;
-    //int varid_wcmean = 0;
-    //int varid_xumean = 0;
-    //int varid_yumean = 0;
-    //int varid_zumean = 0;
-    //int varid_xvmean = 0;
-    //int varid_yvmean = 0;
-    //int varid_zvmean = 0;
-    //int varid_xwmean = 0;
-    //int varid_ywmean = 0;
-    //int varid_zwmean = 0;
-    //int varid_ucstd  = 0;
-    //int varid_vcstd  = 0;
-    //int varid_wcstd  = 0;
-    //int varid_xustd  = 0;
-    //int varid_yustd  = 0;
-    //int varid_zustd  = 0;
-    //int varid_xvstd  = 0;
-    //int varid_yvstd  = 0;
-    //int varid_zvstd  = 0;
-    //int varid_xwstd  = 0;
-    //int varid_ywstd  = 0;
-    //int varid_zwstd  = 0;
-    //size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
-    //size_t count_zhgc[1] = {};
-    //size_t count_z[1]  = {};
-    //size_t count_zh[1] = {};
-    //size_t start_z[1]  = {};
+    //Define IDs for netCDF-file needed for reading
+    int retval = 0; //Status code for netCDF-function, needed for error handling
+    int ncid_reading = 0;
+    int varid_ucmean = 0;
+    int varid_vcmean = 0;
+    int varid_wcmean = 0;
+    int varid_xumean = 0;
+    int varid_yumean = 0;
+    int varid_zumean = 0;
+    int varid_xvmean = 0;
+    int varid_yvmean = 0;
+    int varid_zvmean = 0;
+    int varid_xwmean = 0;
+    int varid_ywmean = 0;
+    int varid_zwmean = 0;
+    int varid_ucstd  = 0;
+    int varid_vcstd  = 0;
+    int varid_wcstd  = 0;
+    int varid_xustd  = 0;
+    int varid_yustd  = 0;
+    int varid_zustd  = 0;
+    int varid_xvstd  = 0;
+    int varid_yvstd  = 0;
+    int varid_zvstd  = 0;
+    int varid_xwstd  = 0;
+    int varid_ywstd  = 0;
+    int varid_zwstd  = 0;
+    size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
+    size_t count_zhgc[1] = {};
+    size_t count_z[1]  = {};
+    size_t count_zh[1] = {};
+    size_t start_z[1]  = {};
 
-    ////Resize dynamically allocated arrays means and stdevs
-    //int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
-    //m_ucmean.resize(kcells);
-    //m_vcmean.resize(kcells);
-    //m_wcmean.resize(kcells+1);
-    //m_ucstd.resize(kcells);
-    //m_vcstd.resize(kcells);
-    //m_wcstd.resize(kcells+1);
-    //m_xumean.resize(gd.ktot);
-    //m_yumean.resize(gd.ktot);
-    //m_zumean.resize(gd.ktot+1);
-    //m_xvmean.resize(gd.ktot);
-    //m_yvmean.resize(gd.ktot);
-    //m_zvmean.resize(gd.ktot+1);
-    //m_xwmean.resize(gd.ktot+1);
-    //m_ywmean.resize(gd.ktot+1);
-    //m_zwmean.resize(gd.ktot);
-    //m_xustd.resize(gd.ktot);
-    //m_yustd.resize(gd.ktot);
-    //m_zustd.resize(gd.ktot+1);
-    //m_xvstd.resize(gd.ktot);
-    //m_yvstd.resize(gd.ktot);
-    //m_zvstd.resize(gd.ktot+1);
-    //m_xwstd.resize(gd.ktot+1);
-    //m_ywstd.resize(gd.ktot+1);
-    //m_zwstd.resize(gd.ktot);
-    //
-    //// Open nc-file  for reading
-    //if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
-    //{
-    //    nc_error_print(retval);
-    //}
+    //Resize dynamically allocated arrays means and stdevs
+    int kcells = gd.ktot + 2*gd.kgc; //gd.kcells in for some reason undefined in this function, and needs to be calculated explicitly
+    m_ucmean.resize(kcells);
+    m_vcmean.resize(kcells);
+    m_wcmean.resize(kcells+1);
+    m_ucstd.resize(kcells);
+    m_vcstd.resize(kcells);
+    m_wcstd.resize(kcells+1);
+    m_xumean.resize(gd.ktot);
+    m_yumean.resize(gd.ktot);
+    m_zumean.resize(gd.ktot+1);
+    m_xvmean.resize(gd.ktot);
+    m_yvmean.resize(gd.ktot);
+    m_zvmean.resize(gd.ktot+1);
+    m_xwmean.resize(gd.ktot+1);
+    m_ywmean.resize(gd.ktot+1);
+    m_zwmean.resize(gd.ktot);
+    m_xustd.resize(gd.ktot);
+    m_yustd.resize(gd.ktot);
+    m_zustd.resize(gd.ktot+1);
+    m_xvstd.resize(gd.ktot);
+    m_yvstd.resize(gd.ktot);
+    m_zvstd.resize(gd.ktot+1);
+    m_xwstd.resize(gd.ktot+1);
+    m_ywstd.resize(gd.ktot+1);
+    m_zwstd.resize(gd.ktot);
+    
+    // Open nc-file  for reading
+    if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
+    {
+        nc_error_print(retval);
+    }
 
-    //// Get the varids of the variables based on their names
-    //if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
+    // Get the varids of the variables based on their names
+    if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
+    {
+        nc_error_print(retval);
+    }
 
-    //// Define settings such that the entire vertical profile is read from the nc-file
-    //count_zgc[0]  = kcells;
-    //count_zhgc[0] = kcells + 1;
-    //count_z[0]  = gd.ktot;
-    //count_zh[0] = gd.ktot + 1;
-    //start_z[0] = 0;
+    // Define settings such that the entire vertical profile is read from the nc-file
+    count_zgc[0]  = kcells;
+    count_zhgc[0] = kcells + 1;
+    count_z[0]  = gd.ktot;
+    count_zh[0] = gd.ktot + 1;
+    start_z[0] = 0;
 
-    ////Extract vertical profiles from nc-file
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
+    //Extract vertical profiles from nc-file
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
+    {
+        nc_error_print(retval);
+    }
+    if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
+    {
+        nc_error_print(retval);
+    }
 
-    ////Close opened nc-file
-    //if((retval = nc_close(ncid_reading)))
-    //{
-    //    nc_error_print(retval);
-    //}
+    //Close opened nc-file
+    if((retval = nc_close(ncid_reading)))
+    {
+        nc_error_print(retval);
+    }
 }
 
 template<typename TF>
