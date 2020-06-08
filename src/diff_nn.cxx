@@ -234,10 +234,10 @@ void Diff_NN<TF>::calc_diff_flux_u(
 
                 //Calculate tendencies using predictions from MLP
                 //zu_upstream
-                uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] * fac - (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] * fac; //- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 
                 //zu_downstream
-                uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] * fac - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] * fac; //- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 
                 //if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
                 //{
@@ -327,13 +327,13 @@ void Diff_NN<TF>::calc_diff_flux_u(
                     //zu_upstream
                     if (k == gd.kstart)
                     {
-                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[0] * fac - (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[0] * fac; //- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
                     }
                     
                     //zu_downstream
                     else if (k == (gd.kend - 1))
                     {
-                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[1] * fac - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[1] * fac; //- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
                     }
                 }
             }
@@ -473,10 +473,10 @@ void Diff_NN<TF>::calc_diff_flux_v(
 
                 //Calculate tendencies using predictions from MLP
                 //zv_upstream
-                vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] * fac - (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] * fac; //- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 
                 //zv_downstream
-                vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] * fac - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] * fac; //- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 
                 //if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
                 //{
@@ -567,13 +567,13 @@ void Diff_NN<TF>::calc_diff_flux_v(
                     //zv_upstream
                     if (k == gd.kstart)
                     {
-                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[2] * fac - (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[2] * fac; //- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
                     }
                     
                     //zv_downstream
                     else if (k == (gd.kend - 1))
                     {
-                        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[3] * fac - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[3] * fac; //- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
                     }
                 }
             }
@@ -682,25 +682,25 @@ void Diff_NN<TF>::diff_U(
     //std::random_device rd; //Creates a non-deterministic seed for the random engine below
     //std::default_random_engine generator(rd());
 
-    ////Set counters to track how many values are set to 0.
-    //int limit_count_xuup = 0;
-    //int limit_count_xudown = 0;
-    //int limit_count_yuup = 0;
-    //int limit_count_yudown = 0;
-    //int limit_count_zuup = 0;
-    //int limit_count_zudown = 0;
-    //int limit_count_xvup = 0;
-    //int limit_count_xvdown = 0;
-    //int limit_count_yvup = 0;
-    //int limit_count_yvdown = 0;
-    //int limit_count_zvup = 0;
-    //int limit_count_zvdown = 0;
-    //int limit_count_xwup = 0;
-    //int limit_count_xwdown = 0;
-    //int limit_count_ywup = 0;
-    //int limit_count_ywdown = 0;
-    //int limit_count_zwup = 0;
-    //int limit_count_zwdown = 0;
+    //Set counters to track how many values are set to 0.
+    int limit_count_xuup = 0;
+    int limit_count_xudown = 0;
+    int limit_count_yuup = 0;
+    int limit_count_yudown = 0;
+    int limit_count_zuup = 0;
+    int limit_count_zudown = 0;
+    int limit_count_xvup = 0;
+    int limit_count_xvdown = 0;
+    int limit_count_yvup = 0;
+    int limit_count_yvdown = 0;
+    int limit_count_zvup = 0;
+    int limit_count_zvdown = 0;
+    int limit_count_xwup = 0;
+    int limit_count_xwdown = 0;
+    int limit_count_ywup = 0;
+    int limit_count_ywdown = 0;
+    int limit_count_zwup = 0;
+    int limit_count_zwdown = 0;
 
     ////Calculate Gaussian 2D filter
     //std::array<TF,25> gkernel;
@@ -893,10 +893,10 @@ void Diff_NN<TF>::diff_U(
                 ////NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
                 //
                 ////Introduce backscattering limiting factor, which determines how much backscattering remains (purpose: show LES can handle some backscattering, as long as the total dissipation is large enough to balance the production)
-                //TF backscatter_limit_fac = 0.5; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
+                ////TF backscatter_limit_fac = 0.5; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
                 ////TF backscatter_limit_fac = 0.9; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
                 ////TF backscatter_limit_fac = 0.2; // Observed to achieve numerical stability (but with already some smaller indications of instability eventually) in Moser case channel flow (friction Reynolds number = 590)
-                ////backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
+                //TF backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
 
                 ////xu_upstream
                 //if ((-result[0] * (u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) < 0.)
@@ -923,13 +923,13 @@ void Diff_NN<TF>::diff_U(
                 //    limit_count_yudown += 1;
                 //}
                 ////zu_upstream
-                //if ((k != gd.kstart) and (-result[4] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
+                //if (-result[4] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi)) < 0.)
                 //{
                 //    result[4] = backscatter_limit_fac * result[4];
                 //    limit_count_zuup += 1;
                 //}
                 ////zu_downstream
-                //if ((k != (gd.kend - 1)) and (-result[5] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
+                //if (-result[5] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + j * gd.icells + (i-1)]) * dxi)) < 0.)
                 //{
                 //    result[5] = backscatter_limit_fac * result[5];
                 //    limit_count_zudown += 1;
@@ -961,13 +961,13 @@ void Diff_NN<TF>::diff_U(
                 //    limit_count_yvdown += 1;
                 //}
                 ////zv_upstream
-                //if ((k != gd.kstart) and (-result[10] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //if (-result[10] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi)) < 0.)
                 //{
                 //    result[10] = backscatter_limit_fac * result[10];
                 //    limit_count_zvup += 1;
                 //}
                 ////zv_downstream
-                //if ((k != (gd.kend - 1)) and (-result[11] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
+                //if (-result[11] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i]) * dyi)) < 0.)
                 //{
                 //    result[11] = backscatter_limit_fac * result[11];
                 //    limit_count_zvdown += 1;
@@ -1290,16 +1290,40 @@ void Diff_NN<TF>::diff_U(
                     );
                     
                     ////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
-                    ////zw_upstream
-                    //if ((-result_zw[0] * (w[k*gd.ijcells + j * gd.icells + i_2grid] - w[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k-1]) < 0.)
+                    ////zu_upstream
+                    //if (-result_z[0] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + (i_2grid-1)]) * dxi)) < 0.)
                     //{
-                    //    result_zw[0] = backscatter_limit_fac * result_zw[0];
+                    //    result_z[0] = backscatter_limit_fac * result_z[0];
+                    //    limit_count_zuup += 1;
+                    //}
+                    ////zu_downstream
+                    //if (-result_z[1] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[(k+1)*gd.ijcells + j * gd.icells + (i_2grid-1)]) * dxi)) < 0.)
+                    //{
+                    //    result_z[1] = backscatter_limit_fac * result_z[1];
+                    //    limit_count_zudown += 1;
+                    //}
+                    ////zv_upstream
+                    //if (-result_z[2] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + (j-1) * gd.icells + i_2grid]) * dyi)) < 0.)
+                    //{
+                    //    result_z[2] = backscatter_limit_fac * result_z[2];
+                    //    limit_count_zvup += 1;
+                    //}
+                    ////zv_downstream
+                    //if (-result_z[3] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i_2grid]) * dyi)) < 0.)
+                    //{
+                    //    result_z[3] = backscatter_limit_fac * result_z[3];
+                    //    limit_count_zvdown += 1;
+                    //}
+                    ////zw_upstream
+                    //if ((-result_z[4] * (w[k*gd.ijcells + j * gd.icells + i_2grid] - w[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k-1]) < 0.)
+                    //{
+                    //    result_z[4] = backscatter_limit_fac * result_z[4];
                     //    limit_count_zwup += 1;
                     //}
                     ////zw_downstream
-                    //if ((-result_zw[1] * (w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k]) < 0.)
+                    //if ((-result_z[5] * (w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k]) < 0.)
                     //{
-                    //    result_zw[1] = backscatter_limit_fac * result_zw[1];
+                    //    result_z[5] = backscatter_limit_fac * result_z[5];
                     //    limit_count_zwdown += 1;
                     //}
 
@@ -1671,7 +1695,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
 //      throw std::runtime_error("Diff_NN only runs with second order grids");
 
     //Hard-code file directory where variables MLP are stored
-    std::string var_filepath = "../../inferenceNN/Variables_MLP36/";
+    std::string var_filepath = "../../inferenceNN/Variables_MLP53/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");

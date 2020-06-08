@@ -1,7 +1,7 @@
 import sys
-import numpy
-import struct
-import netCDF4
+import numpy as np
+import struct as st
+import netCDF4 as nc
 #import pdb
 #import tkinter
 import matplotlib as mpl
@@ -22,54 +22,62 @@ nz = 64
 #iterstep = 500
 #nt   = 7
 
-iter = 1200
+iter_begin = 0
+iterstep = 20
+#nt = 13
+nt = 7
 
 # read the grid data
 n = nx*ny*nz
 
 fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
-x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
+x   = np.array(st.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
-xh  = numpy.array(struct.unpack('<{}d'.format(nx), raw))
+xh  = np.array(st.unpack('<{}d'.format(nx), raw))
 raw = fin.read(ny*8)
-y   = numpy.array(struct.unpack('<{}d'.format(ny), raw))
+y   = np.array(st.unpack('<{}d'.format(ny), raw))
 raw = fin.read(ny*8)
-yh  = numpy.array(struct.unpack('<{}d'.format(ny), raw))
+yh  = np.array(st.unpack('<{}d'.format(ny), raw))
 raw = fin.read(nz*8)
-z   = numpy.array(struct.unpack('<{}d'.format(nz), raw))
+z   = np.array(st.unpack('<{}d'.format(nz), raw))
 raw = fin.read(nz*8)
-zh  = numpy.array(struct.unpack('<{}d'.format(nz), raw))
+zh  = np.array(st.unpack('<{}d'.format(nz), raw))
 fin.close()
 
-# read the 3d data and process it
-print("Processing iter = {:07d}".format(iter))
+#Calculate friction velocity over selected time steps
+uavg = np.zeros((nt,nz))
+vavg = np.zeros((nt,nz))
+for t in range(nt):
+    iter = iter_begin + t*iterstep
+    print("Processing iter = {:07d} for u* calc".format(iter))
 
-fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/restart_files/u.{:07d}".format(iter),"rb")
+    fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/u.{:07d}".format(iter),"rb")
 
-raw = fin.read(n*8)
-tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
-del(raw)
-u   = tmp.reshape((nz, ny, nx))
-del(tmp)
-fin.close()
+    raw = fin.read(n*8)
+    tmp = np.array(st.unpack('<{}d'.format(n), raw))
+    del(raw)
+    u   = tmp.reshape((nz, ny, nx))
+    del(tmp)
+    uavg[t,:] = np.nanmean(u, axis=(1,2))
+    del(u)
+    fin.close()
 
-uavg = numpy.nanmean(numpy.nanmean(u,2),1)
+    fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/v.{:07d}".format(iter),"rb")
 
-fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/restart_files/v.{:07d}".format(iter),"rb")
+    raw = fin.read(n*8)
+    tmp = np.array(st.unpack('<{}d'.format(n), raw))
+    del(raw)
+    v   = tmp.reshape((nz, ny, nx))
+    del(tmp)
+    vavg[t,:] = np.nanmean(v, axis=(1,2))
+    del(v)
+    fin.close()
 
-raw = fin.read(n*8)
-tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
-del(raw)
-v   = tmp.reshape((nz, ny, nx))
-del(tmp)
-fin.close()
-
-vavg = numpy.nanmean(numpy.nanmean(v,2),1)
-
-utotavg = (uavg**2. + vavg**2.)**.5
+utotavg  = (uavg**2. + vavg**2.)**.5
+utottavg = np.nanmean(utotavg,axis=0)
 visc    = 1.0e-5
-ustar   = (visc * utotavg[0] / z[0])**0.5
+ustar   = (visc * utottavg[0] / z[0])**0.5
 
 print('u_tau  = %.6f' % ustar)
 print('Re_tau = %.2f' % (ustar / visc))
@@ -81,18 +89,17 @@ yplush = zh * ustar / visc
 starty = 0
 endy   = int(z.size / 2)
 
-# read cross-sections
+# read cross-sections and calculate spectra
 variables=["u","v","w"]
 nwave_modes_x = int(nx * 0.5)
-nwave_modes_y = int(ny * 0.5)
 indexes_local = get_cross_indices('u', 'xy') #Assume that for every variable the same amount of indices has been stored, if not the script possibly crashes!
 num_idx = np.size(indexes_local)
-spectra_x  = numpy.zeros((3,num_idx,nwave_modes_x))
-spectra_y  = numpy.zeros((3,num_idx,nwave_modes_y))
-pdf_fields = numpy.zeros((3,num_idx,ny,nx))
+spectra_x  = np.zeros((3,nt,num_idx,nwave_modes_x))
+pdf_fields = np.zeros((3,nt,num_idx,ny,nx))
 index_spectra = 0
 
-input_dir = '/home/robin/microhh2/cases/moser600lesNN_restart/restart_files/'
+#input_dir = '/home/robin/microhh2/cases/moser600lesNN_restart/'
+input_dir = '/home/robin/microhh2/cases/moser600les_restart/smag_sgs/'
 
 for crossname in variables:
     
@@ -107,128 +114,187 @@ for crossname in variables:
     
     indexes_local = get_cross_indices(crossname, 'xy')
     stop = False
-    for k in range(num_idx):
-        index = indexes_local[k]
-        zplus = yplus if locz=='z' else yplush
-        f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, iter)
-        try:
-            fin = open(input_dir + f_in, "rb")
-        except:
-            print('Stopping: cannot find file {}'.format(f_in))
-            crossfile.sync()
-            stop = True
-            break
-        
-        print("Processing %8s, time=%7i, index=%4i"%(crossname, iter, index))
-        
-        #fin = open("{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter), "rb")
-        raw = fin.read(nx*ny*8)
-        tmp = np.array(st.unpack('{0}{1}d'.format("<", nx*ny), raw))
-        del(raw)
-        s = tmp.reshape((ny, nx))
-        del(tmp)
-        fftx = numpy.fft.rfft(s,axis=1)*(1/nx)
-        ffty = numpy.fft.rfft(s,axis=0)*(1/ny)
-        Px = fftx[:,1:] * numpy.conjugate(fftx[:,1:])
-        Py = ffty[1:,:] * numpy.conjugate(ffty[1:,:])
-        if int(nx % 2) == 0:
-            Ex = np.append(2*Px[:,:-1],np.reshape(Px[:,-1],(ny,1)),axis=1)
-        else:
-            Ex = 2*Px[:,:]
-        
-        if int(ny % 2) == 0:
-            Ey = np.append(2*Py[:-1,:],np.reshape(Py[-1,:],(1,nx)),axis=0)
-        else:
-            Ey = 2*Py[:,:]
+    for t in range(nt):
+        iter = iter_begin + t*iterstep
+        for k in range(num_idx):
+            index = indexes_local[k]
+            zplus = yplus if locz=='z' else yplush
+            f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, iter)
+            try:
+                fin = open(input_dir + f_in, "rb")
+            except:
+                print('Stopping: cannot find file {}'.format(f_in))
+                crossfile.sync()
+                stop = True
+                break
             
-        spectra_x[index_spectra,k,:]    = numpy.nanmean(Ex,axis=0) #Average Fourier transform over the direction where it was not calculated
-        spectra_y[index_spectra,k,:]    = numpy.nanmean(Ey,axis=1)
-        pdf_fields[index_spectra,k,:,:] = s[:,:]
-        fin.close()
+            print("Processing %8s, time=%7i, index=%4i"%(crossname, iter, index))
+            
+            #fin = open("{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter), "rb")
+            raw = fin.read(nx*ny*8)
+            tmp = np.array(st.unpack('{0}{1}d'.format("<", nx*ny), raw))
+            del(raw)
+            s = tmp.reshape((ny, nx))
+            del(tmp)
+            fftx = np.fft.rfft(s,axis=1)*(1/nx)
+            Px = fftx[:,1:] * np.conjugate(fftx[:,1:])
+            if int(nx % 2) == 0:
+                Ex = np.append(2*Px[:,:-1],np.reshape(Px[:,-1],(ny,1)),axis=1)
+            else:
+                Ex = 2*Px[:,:]
+            
+            spectra_x[index_spectra,t,k,:]    = np.nanmean(Ex,axis=0) #Average Fourier transform over the direction where it was not calculated
+            pdf_fields[index_spectra,t,k,:,:] = s[:,:]
+            fin.close()
 
     index_spectra +=1
 
 k_streamwise = np.arange(1,nwave_modes_x+1)
-k_spanwise = np.arange(1,nwave_modes_y+1)
 
-#Determine bins for pdfs
-num_bins = 100
-bin_edges_u = np.linspace(np.nanmin(pdf_fields[0,:,:]),np.nanmax(pdf_fields[0,:,:]), num_bins)
-bin_edges_v = np.linspace(np.nanmin(pdf_fields[1,:,:]),np.nanmax(pdf_fields[1,:,:]), num_bins)
-bin_edges_w = np.linspace(np.nanmin(pdf_fields[2,:,:]),np.nanmax(pdf_fields[2,:,:]), num_bins)
+#Plot predicted transport components and calculated TKE as function of z for specified time range, chosen to be identical to time steps plotted before
+tstart = iter_begin
+tend  = iter_begin + iterstep * nt
+stats  = nc.Dataset('long_run_smag.nc','r')
+z      = np.array(stats['z'][:])
+zh     = np.array(stats['zh'][:])
+tau_wu = np.array(stats['default']['u_diff'][tstart:tend,:])
+tke    = np.array(stats['budget']['tke'][tstart:tend,:])
+#
+figure()
+colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
+for t in range(nt):
+    plot(zh[:], (tau_wu[t,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+    #plot(zh[:8], (tau_wu[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t],linewidth=2.0, label=str(t))
+xlabel(r'$\frac{z}{\delta} \ [-]$',fontsize = 20)
+ylabel(r'$\frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize = 20)
+#legend(loc=0, frameon=False,fontsize=16)
+xticks(fontsize = 16, rotation = 90)
+yticks(fontsize = 16, rotation = 0)
+grid()
+axis([0, 2, -2.0, 1.5])
+#axis([0, 0.25, -2.0, 0])
+tight_layout()
+savefig("/home/robin/microhh2/cases/moser600lesNN_restart/tau_wu.png")
+close()
+#
+figure()
+colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
+for t in range(nt):
+    plot(z[:], (tke[t,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+    #plot(z[:8], (tke[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t], linewidth=2.0, label=str(t))
+xlabel(r'$\frac{z}{\delta} \ [-]$',fontsize = 20)
+ylabel(r'$\frac{TKE}{u_{\tau}^2} \ [-]$',fontsize = 20)
+#legend(loc=0, frameon=False,fontsize=16)
+xticks(fontsize = 16, rotation = 90)
+yticks(fontsize = 16, rotation = 0)
+grid()
+axis([0, 2, 0.5, 6.0])
+#axis([0, 0.25, 1.5, 4.5])
+tight_layout()
+savefig("/home/robin/microhh2/cases/moser600lesNN_restart/tke.png")
+close()
 
-#Plot balances
+#Determine bins for pdfs based only on first time step
+num_bins = 25
+bin_edges_u = np.linspace(np.nanmin(pdf_fields[0,0,:,:]),np.nanmax(pdf_fields[0,0,:,:]), num_bins)
+bin_edges_v = np.linspace(np.nanmin(pdf_fields[1,0,:,:]),np.nanmax(pdf_fields[1,0,:,:]), num_bins)
+bin_edges_w = np.linspace(np.nanmin(pdf_fields[2,0,:,:]),np.nanmax(pdf_fields[2,0,:,:]), num_bins)
+
+#Plot spectra and pdfs
 indexes_local = get_cross_indices('u', 'xy')
 for k in range(np.size(indexes_local)):
     figure()
-    loglog(k_streamwise[:], (spectra_x[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
-    loglog(k_streamwise[:], (spectra_x[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
-    loglog(k_streamwise[:], (spectra_x[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
+    colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
+    for t in range(nt):
+        loglog(k_streamwise[:], (spectra_x[0,t,k,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
-    legend(loc=0, frameon=False,fontsize=16)
+    #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 250, 0.000001, 3])
+    axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_z_" + str(indexes_local[k]) + ".png")
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_u_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
-    loglog(k_spanwise[:], (spectra_y[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
-    loglog(k_spanwise[:], (spectra_y[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
-    loglog(k_spanwise[:], (spectra_y[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
+    colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
+    for t in range(nt):
+        loglog(k_streamwise[:], (spectra_x[1,t,k,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
-    legend(loc=0, frameon=False,fontsize=16)
+    #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 250, 0.000001, 3])
+    axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectray_z_" + str(indexes_local[k]) + ".png")
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_v_z_" + str(indexes_local[k]) + ".png")
+    close()
+    #
+    figure()
+    colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
+    for t in range(nt):
+        loglog(k_streamwise[:], (spectra_x[2,t,k,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+    
+    xlabel(r'$\kappa \ [-]$',fontsize = 20)
+    ylabel(r'$E \ [-]$',fontsize = 20)
+    #legend(loc=0, frameon=False,fontsize=16)
+    xticks(fontsize = 16, rotation = 90)
+    yticks(fontsize = 16, rotation = 0)
+    grid()
+    axis([1, 250, 0.00001, 3])
+    tight_layout()
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_w_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
     grid()
-    hist(pdf_fields[0,k,:,:].flatten(), bins = bin_edges_u, density = True, histtype = 'step', label = 'u')
+    colors = cm.Blues(np.linspace(0.4,1,nt))
+    for t in range(nt):
+        hist(pdf_fields[0,t,k,:,:].flatten(), bins = bin_edges_u, color=colors[t], density = True, histtype = 'step', label =str(t))
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
-    legend(loc=0, frameon=False,fontsize=16)
+    #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([0, 0.16, 0, 140])
+    axis([0, 0.16, 0, 100])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdfu_z_" + str(indexes_local[k]) + ".png")
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdf_u_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
     grid()
-    hist(pdf_fields[1,k,:,:].flatten(), bins = bin_edges_v, density = True, histtype = 'step', label = 'v')
+    colors = cm.Blues(np.linspace(0.4,1,nt))
+    for t in range(nt):
+        hist(pdf_fields[1,t,k,:,:].flatten(), bins = bin_edges_v, color=colors[t], density = True, histtype = 'step', label =str(t))
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
-    legend(loc=0, frameon=False,fontsize=16)
+    #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
-    axis([-0.04, 0.04, 0, 140])
+    grid()
+    axis([-0.04,0.04,0,100])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdfv_z_" + str(indexes_local[k]) + ".png")
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdf_v_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
     grid()
-    hist(pdf_fields[2,k,:,:].flatten(), bins = bin_edges_w, density = True, histtype = 'step', label = 'w')
+    colors = cm.Blues(np.linspace(0.4,1,nt))
+    for t in range(nt):
+        hist(pdf_fields[2,t,k,:,:].flatten(), bins = bin_edges_w, color=colors[t], density = True, histtype = 'step', label =str(t))
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
-    legend(loc=0, frameon=False,fontsize=16)
+    #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
-    axis([-0.03, 0.03, 0, 140])
+    grid()
+    axis([-0.03,0.03,0,100])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdfw_z_" + str(indexes_local[k]) + ".png")
+    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdf_w_z_" + str(indexes_local[k]) + ".png")
     close()
-    #
