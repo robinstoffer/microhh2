@@ -7,8 +7,11 @@ import netCDF4 as nc
 import matplotlib as mpl
 mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
-sys.path.append("/home/robin/microhh2/python")
+sys.path.append("../../python")
 from microhh_tools import *
+
+#stats_dir = './long_run_MLP53.nc'
+stats_dir = './moser600lesNN_default_0000000.nc'
 
 #nx = 768
 #ny = 384
@@ -23,14 +26,14 @@ nz = 64
 #nt   = 7
 
 iter_begin = 0
-iterstep = 20
+iterstep = 2
 #nt = 13
 nt = 7
 
 # read the grid data
 n = nx*ny*nz
 
-fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/grid.{:07d}".format(0),"rb")
+fin = open("./grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = np.array(st.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -52,7 +55,7 @@ for t in range(nt):
     iter = iter_begin + t*iterstep
     print("Processing iter = {:07d} for u* calc".format(iter))
 
-    fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/u.{:07d}".format(iter),"rb")
+    fin = open("./u.{:07d}".format(iter),"rb")
 
     raw = fin.read(n*8)
     tmp = np.array(st.unpack('<{}d'.format(n), raw))
@@ -63,7 +66,7 @@ for t in range(nt):
     del(u)
     fin.close()
 
-    fin = open("/home/robin/microhh2/cases/moser600lesNN_restart/v.{:07d}".format(iter),"rb")
+    fin = open("./v.{:07d}".format(iter),"rb")
 
     raw = fin.read(n*8)
     tmp = np.array(st.unpack('<{}d'.format(n), raw))
@@ -98,8 +101,8 @@ spectra_x  = np.zeros((3,nt,num_idx,nwave_modes_x))
 pdf_fields = np.zeros((3,nt,num_idx,ny,nx))
 index_spectra = 0
 
-#input_dir = '/home/robin/microhh2/cases/moser600lesNN_restart/'
-input_dir = '/home/robin/microhh2/cases/moser600les_restart/smag_sgs/'
+input_dir = './'
+#input_dir = '../moser600les_restart/smag_sgs/'
 
 for crossname in variables:
     
@@ -154,7 +157,7 @@ k_streamwise = np.arange(1,nwave_modes_x+1)
 #Plot predicted transport components and calculated TKE as function of z for specified time range, chosen to be identical to time steps plotted before
 tstart = iter_begin
 tend  = iter_begin + iterstep * nt
-stats  = nc.Dataset('long_run_smag.nc','r')
+stats  = nc.Dataset(stats_dir,'r')
 z      = np.array(stats['z'][:])
 zh     = np.array(stats['zh'][:])
 tau_wu = np.array(stats['default']['u_diff'][tstart:tend,:])
@@ -174,7 +177,7 @@ grid()
 axis([0, 2, -2.0, 1.5])
 #axis([0, 0.25, -2.0, 0])
 tight_layout()
-savefig("/home/robin/microhh2/cases/moser600lesNN_restart/tau_wu.png")
+savefig("./tau_wu.png")
 close()
 #
 figure()
@@ -191,7 +194,7 @@ grid()
 axis([0, 2, 0.5, 6.0])
 #axis([0, 0.25, 1.5, 4.5])
 tight_layout()
-savefig("/home/robin/microhh2/cases/moser600lesNN_restart/tke.png")
+savefig("./tke.png")
 close()
 
 #Determine bins for pdfs based only on first time step
@@ -216,7 +219,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_u_z_" + str(indexes_local[k]) + ".png")
+    savefig("./spectrax_u_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -232,7 +235,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_v_z_" + str(indexes_local[k]) + ".png")
+    savefig("./spectrax_v_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -248,7 +251,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/spectrax_w_z_" + str(indexes_local[k]) + ".png")
+    savefig("./spectrax_w_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -264,7 +267,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([0, 0.16, 0, 100])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdf_u_z_" + str(indexes_local[k]) + ".png")
+    savefig("./pdf_u_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -280,7 +283,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([-0.04,0.04,0,100])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdf_v_z_" + str(indexes_local[k]) + ".png")
+    savefig("./pdf_v_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -296,5 +299,5 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([-0.03,0.03,0,100])
     tight_layout()
-    savefig("/home/robin/microhh2/cases/moser600lesNN_restart/pdf_w_z_" + str(indexes_local[k]) + ".png")
+    savefig("./pdf_w_z_" + str(indexes_local[k]) + ".png")
     close()

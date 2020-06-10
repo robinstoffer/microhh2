@@ -18,8 +18,8 @@ indexes_local_dnsuv = [12,27,38,46,96,128,159,209,217,228,243]
 
 
 #Fetch training data
-#training_filepath = "/media/sf_Shared_folder/training_data_coarse3d.nc"
-training_filepath = "/media/sf_Shared_folder/training_data.nc"
+training_filepath = "/media/sf_Shared_folder/training_data_coarse3d.nc"
+#training_filepath = "/media/sf_Shared_folder/training_data.nc"
 a = nc.Dataset(training_filepath, 'r')
 
 #Fetch DNS data, focus only on uu-component
@@ -273,10 +273,11 @@ for k in range(num_idx):
     print("Plotting index " + str(k+1) + " of " + str(num_idx))
     #u
     figure()
+    loglog(k_streamwise_dns[:], (spectra_x_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='DNS')
     loglog(k_streamwise_box[:], (spectra_x_u_box[k,:] / ustar**2.), 'k-',linewidth=2.0, label='BOX')
     loglog(k_streamwise_div[:], (spectra_x_u_div[k,:] / ustar**2.), 'g-',linewidth=2.0, label='BOX+INTPL')
     #loglog(k_streamwise_les[:], (spectra_x_u_les[k,:] / ustar**2.), 'r-',linewidth=2.0, label='LES')
-    loglog(k_streamwise_dns[:], (spectra_x_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='DNS')
+
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
@@ -305,10 +306,10 @@ for k in range(num_idx):
     close()
     #
     figure()
+    loglog(k_spanwise_dns[:], (spectra_y_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='DNS')
     loglog(k_spanwise_box[:], (spectra_y_u_box[k,:] / ustar**2.), 'k-',linewidth=2.0, label='BOX')
     loglog(k_spanwise_div[:], (spectra_y_u_div[k,:] / ustar**2.), 'g-',linewidth=2.0, label='BOX+INTPL')
     #loglog(k_spanwise_les[:], (spectra_y_u_les[k,:] / ustar**2.), 'r-',linewidth=2.0, label='LES')
-    loglog(k_spanwise_dns[:], (spectra_y_u_dns[k,:] / ustar**2.), 'b-',linewidth=2.0, label='DNS')
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
