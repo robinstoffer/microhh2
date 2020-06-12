@@ -28,7 +28,7 @@ nz = 64
 iter_begin = 0
 iterstep = 2
 #nt = 13
-nt = 7
+nt = 8
 
 # read the grid data
 n = nx*ny*nz

@@ -42,8 +42,8 @@
 
 extern "C"
 {
-    //#include <cblas.h>
-    #include <mkl.h>
+    #include <cblas.h>
+    // #include <mkl.h>
     #include <netcdf.h>
 }
 
@@ -2153,15 +2153,61 @@ template<typename TF>
 void Diff_NN<TF>::exec(Stats<TF>& stats)
 {
     auto& gd  = grid.get_grid_data();
-    
+
+    auto tmp_u = fields.get_tmp();
+    auto tmp_v = fields.get_tmp();
+    auto tmp_w = fields.get_tmp();
+
+    auto zero = [](std::vector<TF>& v) { std::fill(v.begin(), v.end(), TF(0.)); };
+
+    auto filter = [](
+            TF* restrict at, const TF* restrict a,
+            int istart, int iend, int jstart, int jend, int kstart, int kend,
+            int jj, int kk)
+    {
+        constexpr int ii = 1;
+
+        for (int k=kstart; k<kend; ++k)
+            for (int j=jstart; j<jend; ++j)
+                #pragma ivdep
+                for (int i=istart; i<iend; ++i)
+                {
+                    const int ijk = i + j*jj + k*kk;
+                    at[ijk] += TF(1./12.)*a[ijk-ii] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+ii]
+                             + TF(1./12.)*a[ijk-jj] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+jj]
+                             + TF(1./12.)*a[ijk-kk] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+kk];
+                }
+    };
+
+    zero(tmp_u->fld);
+    zero(tmp_v->fld);
+    zero(tmp_w->fld);
+
     diff_U(
-    fields.mp.at("u")->fld.data(),
-    fields.mp.at("v")->fld.data(),
-    fields.mp.at("w")->fld.data(),
-    fields.mt.at("u")->fld.data(),
-    fields.mt.at("v")->fld.data(),
-    fields.mt.at("w")->fld.data()
-    );
+        fields.mp.at("u")->fld.data(),
+        fields.mp.at("v")->fld.data(),
+        fields.mp.at("w")->fld.data(),
+        tmp_u->fld.data(),
+        tmp_v->fld.data(),
+        tmp_w->fld.data());
+
+    boundary_cyclic.exec(tmp_u->fld.data());
+    boundary_cyclic.exec(tmp_v->fld.data());
+    boundary_cyclic.exec(tmp_w->fld.data());
+
+    filter( fields.mt.at("u")->fld.data(), tmp_u->fld.data(),
+            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
+            gd.icells, gd.ijcells);
+    filter( fields.mt.at("v")->fld.data(), tmp_v->fld.data(),
+            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
+            gd.icells, gd.ijcells);
+    filter( fields.mt.at("w")->fld.data(), tmp_w->fld.data(),
+            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
+            gd.icells, gd.ijcells);
+
+    fields.release_tmp(tmp_u);
+    fields.release_tmp(tmp_v);
+    fields.release_tmp(tmp_w);
 
     diff_c<TF>(fields.mt.at("u")->fld.data(), fields.mp.at("u")->fld.data(), fields.visc,
                gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,
