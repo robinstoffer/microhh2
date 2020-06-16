@@ -10,8 +10,9 @@ from matplotlib.pyplot import *
 sys.path.append("../../python")
 from microhh_tools import *
 
-#stats_dir = './long_run_MLP53.nc'
-stats_dir = './moser600lesNN_default_0000000.nc'
+stats_dir = './long_run_MLP53_explicitfilt/long_run_MLP53_explicitfilt.nc'
+#stats_dir = './moser600lesNN_default_0000000.nc'
+#stats_dir = 'test.nc'
 
 #nx = 768
 #ny = 384
@@ -26,9 +27,9 @@ nz = 64
 #nt   = 7
 
 iter_begin = 0
-iterstep = 2
-#nt = 13
-nt = 8
+iterstep = 8
+nt = 13
+#nt = 8
 
 # read the grid data
 n = nx*ny*nz
@@ -156,7 +157,7 @@ k_streamwise = np.arange(1,nwave_modes_x+1)
 
 #Plot predicted transport components and calculated TKE as function of z for specified time range, chosen to be identical to time steps plotted before
 tstart = iter_begin
-tend  = iter_begin + iterstep * nt
+tend  = iter_begin + iterstep * (nt-1)
 stats  = nc.Dataset(stats_dir,'r')
 z      = np.array(stats['z'][:])
 zh     = np.array(stats['zh'][:])
@@ -165,9 +166,11 @@ tke    = np.array(stats['budget']['tke'][tstart:tend,:])
 #
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
-for t in range(nt):
-    plot(zh[:], (tau_wu[t,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+c=0
+for t in range(tstart, tend, nt):
+    plot(zh[:], (tau_wu[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     #plot(zh[:8], (tau_wu[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t],linewidth=2.0, label=str(t))
+    c+=1
 xlabel(r'$\frac{z}{\delta} \ [-]$',fontsize = 20)
 ylabel(r'$\frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize = 20)
 #legend(loc=0, frameon=False,fontsize=16)
@@ -182,9 +185,11 @@ close()
 #
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
-for t in range(nt):
-    plot(z[:], (tke[t,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+c=0
+for t in range(tstart, tend, nt):
+    plot(z[:], (tke[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     #plot(z[:8], (tke[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t], linewidth=2.0, label=str(t))
+    c+=1
 xlabel(r'$\frac{z}{\delta} \ [-]$',fontsize = 20)
 ylabel(r'$\frac{TKE}{u_{\tau}^2} \ [-]$',fontsize = 20)
 #legend(loc=0, frameon=False,fontsize=16)

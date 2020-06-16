@@ -326,6 +326,25 @@ void Advec_2<TF>::exec(Stats<TF>& stats)
                 }
     };
 
+    auto boundary_noslipbc = [](TF* restrict at, int kstart, int kend, int icells, int jcells, int jj, int kk)
+    {
+        for (int j=0; j<jcells; ++j)
+            #pragma ivdep
+            for (int i=0; i<icells; ++i)
+            {
+                const int ijk = i + j*jj + kstart*kk;
+                at[ijk-kk] = -at[ijk];
+            }
+        
+        for (int j=0; j<jcells; ++j)
+            #pragma ivdep
+            for (int i=0; i<icells; ++i)
+            {
+                const int ijk = i + j*jj + (kend-1)*kk;
+                at[ijk+kk] = -at[ijk];
+            }
+    };
+
     zero(tmp->fld);
     advec_u(tmp->fld.data(),
             fields.mp.at("u")->fld.data(), fields.mp.at("v")->fld.data(), fields.mp.at("w")->fld.data(),
@@ -334,6 +353,7 @@ void Advec_2<TF>::exec(Stats<TF>& stats)
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
     boundary_cyclic.exec(tmp->fld.data());
+    boundary_noslipbc(tmp->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
     filter( fields.mt.at("u")->fld.data(), tmp->fld.data(),
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
@@ -346,6 +366,7 @@ void Advec_2<TF>::exec(Stats<TF>& stats)
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
     boundary_cyclic.exec(tmp->fld.data());
+    boundary_noslipbc(tmp->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
     filter( fields.mt.at("v")->fld.data(), tmp->fld.data(),
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);

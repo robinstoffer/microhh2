@@ -42,8 +42,8 @@
 
 extern "C"
 {
-    #include <cblas.h>
-    // #include <mkl.h>
+    //#include <cblas.h>
+    #include <mkl.h>
     #include <netcdf.h>
 }
 
@@ -2178,6 +2178,25 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
                              + TF(1./12.)*a[ijk-kk] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+kk];
                 }
     };
+    
+    auto boundary_noslipbc = [](TF* restrict at, int kstart, int kend, int icells, int jcells, int jj, int kk)
+    {
+        for (int j=0; j<jcells; ++j)
+            #pragma ivdep
+            for (int i=0; i<icells; ++i)
+            {
+                const int ijk = i + j*jj + kstart*kk;
+                at[ijk-kk] = -at[ijk];
+            }
+        
+        for (int j=0; j<jcells; ++j)
+            #pragma ivdep
+            for (int i=0; i<icells; ++i)
+            {
+                const int ijk = i + j*jj + (kend-1)*kk;
+                at[ijk+kk] = -at[ijk];
+            }
+    };
 
     zero(tmp_u->fld);
     zero(tmp_v->fld);
@@ -2195,6 +2214,9 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
     boundary_cyclic.exec(tmp_v->fld.data());
     boundary_cyclic.exec(tmp_w->fld.data());
 
+    boundary_noslipbc(tmp_u->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
+    boundary_noslipbc(tmp_v->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
+    
     filter( fields.mt.at("u")->fld.data(), tmp_u->fld.data(),
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
@@ -2202,7 +2224,7 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
     filter( fields.mt.at("w")->fld.data(), tmp_w->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
+            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart+1, gd.kend,
             gd.icells, gd.ijcells);
 
     fields.release_tmp(tmp_u);
