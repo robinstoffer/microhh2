@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import struct as st
 import netCDF4 as nc
+import os
 #import pdb
 #import tkinter
 import matplotlib as mpl
@@ -10,7 +11,13 @@ from matplotlib.pyplot import *
 sys.path.append("../../python")
 from microhh_tools import *
 
-stats_dir = './long_run_MLP53_explicitfilt/long_run_MLP53_explicitfilt.nc'
+
+#input_dir = './'
+input_dir = './long_run_lookuptable/'
+
+stats_dir = './long_run_lookuptable/long_run_lookuptable.nc'
+#stats_dir = './long_run_lookuptable_explicitfilt.nc'
+#stats_dir = './long_run_MLP53_explicitfilt/long_run_MLP53_explicitfilt.nc'
 #stats_dir = './moser600lesNN_default_0000000.nc'
 #stats_dir = 'test.nc'
 
@@ -27,7 +34,7 @@ nz = 64
 #nt   = 7
 
 iter_begin = 0
-iterstep = 8
+iterstep = 1
 nt = 13
 #nt = 8
 
@@ -56,7 +63,7 @@ for t in range(nt):
     iter = iter_begin + t*iterstep
     print("Processing iter = {:07d} for u* calc".format(iter))
 
-    fin = open("./u.{:07d}".format(iter),"rb")
+    fin = open(input_dir + "u.{:07d}".format(iter),"rb")
 
     raw = fin.read(n*8)
     tmp = np.array(st.unpack('<{}d'.format(n), raw))
@@ -67,7 +74,7 @@ for t in range(nt):
     del(u)
     fin.close()
 
-    fin = open("./v.{:07d}".format(iter),"rb")
+    fin = open(input_dir + "v.{:07d}".format(iter),"rb")
 
     raw = fin.read(n*8)
     tmp = np.array(st.unpack('<{}d'.format(n), raw))
@@ -96,14 +103,19 @@ endy   = int(z.size / 2)
 # read cross-sections and calculate spectra
 variables=["u","v","w"]
 nwave_modes_x = int(nx * 0.5)
-indexes_local = get_cross_indices('u', 'xy') #Assume that for every variable the same amount of indices has been stored, if not the script possibly crashes!
+
+#Search for cross_indices, temporarily change search directory to input directory
+#NOTE: assume each variable is stored at the same number of cross indices. If this is not the case, the script possibly crashes!
+work_dir = os.getcwd()
+os.chdir(input_dir)
+indexes_local = get_cross_indices('u', 'xy')
+os.chdir(work_dir)
+#
+
 num_idx = np.size(indexes_local)
 spectra_x  = np.zeros((3,nt,num_idx,nwave_modes_x))
 pdf_fields = np.zeros((3,nt,num_idx,ny,nx))
 index_spectra = 0
-
-input_dir = './'
-#input_dir = '../moser600les_restart/smag_sgs/'
 
 for crossname in variables:
     
@@ -116,7 +128,12 @@ for crossname in variables:
     locy = 'y' if loc[1] == 0 else 'yh'
     locz = 'z' if loc[2] == 0 else 'zh'
     
+    #Search for cross_indices, temporarily change search directory to input directory
+    work_dir = os.getcwd()
+    os.chdir(input_dir)
     indexes_local = get_cross_indices(crossname, 'xy')
+    os.chdir(work_dir)
+    #
     stop = False
     for t in range(nt):
         iter = iter_begin + t*iterstep
@@ -167,7 +184,7 @@ tke    = np.array(stats['budget']['tke'][tstart:tend,:])
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
 c=0
-for t in range(tstart, tend, nt):
+for t in range(tstart, tend, iterstep):
     plot(zh[:], (tau_wu[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     #plot(zh[:8], (tau_wu[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t],linewidth=2.0, label=str(t))
     c+=1
@@ -186,7 +203,7 @@ close()
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
 c=0
-for t in range(tstart, tend, nt):
+for t in range(tstart, tend, iterstep):
     plot(z[:], (tke[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     #plot(z[:8], (tke[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t], linewidth=2.0, label=str(t))
     c+=1
@@ -209,7 +226,15 @@ bin_edges_v = np.linspace(np.nanmin(pdf_fields[1,0,:,:]),np.nanmax(pdf_fields[1,
 bin_edges_w = np.linspace(np.nanmin(pdf_fields[2,0,:,:]),np.nanmax(pdf_fields[2,0,:,:]), num_bins)
 
 #Plot spectra and pdfs
+
+#Search for cross_indices, temporarily change search directory to input directory
+#NOTE: assume each variable is stored at the same number of cross indices. If this is not the case, the script possibly crashes!
+work_dir = os.getcwd()
+os.chdir(input_dir)
 indexes_local = get_cross_indices('u', 'xy')
+os.chdir(work_dir)
+#
+
 for k in range(np.size(indexes_local)):
     figure()
     colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
@@ -224,7 +249,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("./spectrax_u_z_" + str(indexes_local[k]) + ".png")
+    savefig(input_dir + "spectrax_u_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -240,7 +265,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("./spectrax_v_z_" + str(indexes_local[k]) + ".png")
+    savefig(input_dir + "spectrax_v_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -256,7 +281,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.00001, 3])
     tight_layout()
-    savefig("./spectrax_w_z_" + str(indexes_local[k]) + ".png")
+    savefig(input_dir + "spectrax_w_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -272,7 +297,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([0, 0.16, 0, 100])
     tight_layout()
-    savefig("./pdf_u_z_" + str(indexes_local[k]) + ".png")
+    savefig(input_dir + "pdf_u_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -288,7 +313,7 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([-0.04,0.04,0,100])
     tight_layout()
-    savefig("./pdf_v_z_" + str(indexes_local[k]) + ".png")
+    savefig(input_dir + "pdf_v_z_" + str(indexes_local[k]) + ".png")
     close()
     #
     figure()
@@ -304,5 +329,5 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([-0.03,0.03,0,100])
     tight_layout()
-    savefig("./pdf_w_z_" + str(indexes_local[k]) + ".png")
+    savefig(input_dir + "pdf_w_z_" + str(indexes_local[k]) + ".png")
     close()

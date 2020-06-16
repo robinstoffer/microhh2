@@ -320,9 +320,10 @@ void Advec_2<TF>::exec(Stats<TF>& stats)
                 for (int i=istart; i<iend; ++i)
                 {
                     const int ijk = i + j*jj + k*kk;
-                    at[ijk] += TF(1./12.)*a[ijk-ii] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+ii]
-                             + TF(1./12.)*a[ijk-jj] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+jj]
-                             + TF(1./12.)*a[ijk-kk] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+kk];
+                    //at[ijk] += TF(1./12.)*a[ijk-ii] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+ii]
+                    //         + TF(1./12.)*a[ijk-jj] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+jj]
+                    //         + TF(1./12.)*a[ijk-kk] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+kk];
+                    at[ijk] = a[ijk];
                 }
     };
 
