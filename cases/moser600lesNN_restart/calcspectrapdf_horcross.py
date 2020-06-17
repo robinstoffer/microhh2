@@ -12,10 +12,18 @@ sys.path.append("../../python")
 from microhh_tools import *
 
 
-#input_dir = './'
-input_dir = './long_run_lookuptable/'
+#input_dir = './long_run_MLP53/'
+#input_dir = './long_run_MLP53_time01/'
+#input_dir = './long_run_MLP53_time001/'
+#input_dir = './long_run_lookuptable/'
+#input_dir = './long_run_MLP53_explicitfilt/'
+input_dir = './long_run_MLP53_time01_explicitfilt/'
 
-stats_dir = './long_run_lookuptable/long_run_lookuptable.nc'
+#stats_dir = './long_run_MLP53/long_run_MLP53.nc'
+stats_dir = './long_run_MLP53_time01_explicitfilt/moser600lesNN_default_0000000.nc'
+#stats_dir = './long_run_MLP53_time01/moser600lesNN_default_0000000.nc'
+#stats_dir = './long_run_MLP53_time001/moser600lesNN_default_0000000.nc'
+#stats_dir = './long_run_lookuptable/long_run_lookuptable.nc'
 #stats_dir = './long_run_lookuptable_explicitfilt.nc'
 #stats_dir = './long_run_MLP53_explicitfilt/long_run_MLP53_explicitfilt.nc'
 #stats_dir = './moser600lesNN_default_0000000.nc'
@@ -34,14 +42,14 @@ nz = 64
 #nt   = 7
 
 iter_begin = 0
-iterstep = 1
-nt = 13
+iterstep = 10
+nt = 11
 #nt = 8
 
 # read the grid data
 n = nx*ny*nz
 
-fin = open("./grid.{:07d}".format(0),"rb")
+fin = open(input_dir + "grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = np.array(st.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -197,7 +205,7 @@ grid()
 axis([0, 2, -2.0, 1.5])
 #axis([0, 0.25, -2.0, 0])
 tight_layout()
-savefig("./tau_wu.png")
+savefig(input_dir + "tau_wu.png")
 close()
 #
 figure()
@@ -216,7 +224,7 @@ grid()
 axis([0, 2, 0.5, 6.0])
 #axis([0, 0.25, 1.5, 4.5])
 tight_layout()
-savefig("./tke.png")
+savefig(input_dir + "tke.png")
 close()
 
 #Determine bins for pdfs based only on first time step
