@@ -19,15 +19,24 @@ utau_ref = np.array(a['utau_ref'][:])
 igc        = int(a['igc'][:])
 jgc        = int(a['jgc'][:])
 kgc_center = int(a['kgc_center'][:])
+kgc_edge   = int(a['kgc_edge'][:])
 iend       = int(a['iend'][:])
 jend       = int(a['jend'][:])
 kend       = int(a['kend'][:])
+khend       = int(a['khend'][:])
 
 #Select flow fields for selected time step, remove all the ghost cells, denormalize, and multiply with constant factor to test extrapolation capability NN
 const_factor = 1.0
 uc_singlefield = np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc:iend]) * utau_ref * const_factor
 vc_singlefield = np.array(a['vc'][t,kgc_center:kend,jgc:jend,igc:iend]) * utau_ref * const_factor
-wc_singlefield = np.array(a['wc'][t,kgc_center:kend,jgc:jend,igc:iend]) * utau_ref * const_factor
+wc_singlefield = np.array(a['wc'][t,kgc_edge:khend,jgc:jend,igc:iend]) * utau_ref * const_factor
+
+uc_avg = np.mean(uc_singlefield,axis=(1,2))
+vc_avg = np.mean(vc_singlefield,axis=(1,2))
+wc_avg = np.mean(wc_singlefield,axis=(1,2))
+print(uc_avg)
+print(vc_avg)
+print(wc_avg)
 
 #Write flow fields to binary files
 uc_singlefield.tofile("u.restart")
