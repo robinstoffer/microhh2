@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2019 Chiel van Heerwaarden
- * Copyright (c) 2011-2019 Thijs Heus
- * Copyright (c) 2014-2019 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -94,9 +94,9 @@ void Column<TF>::create(Input& inputin, Timeloop<TF>& timeloop, std::string sim_
     for (auto& col : columns)
     {
         std::stringstream filename;
-        filename << sim_name << "_" << "column" << "_"
-                 << std::setfill('0') << std::setw(5) << col.coord[0] << "_"
-                 << std::setfill('0') << std::setw(5) << col.coord[1] << "_"
+        filename << sim_name << "." << "column" << "."
+                 << std::setfill('0') << std::setw(5) << col.coord[0] << "."
+                 << std::setfill('0') << std::setw(5) << col.coord[1] << "."
                  << std::setfill('0') << std::setw(7) << timeloop.get_iotime() << ".nc";
 
         // Create new NetCDF file.

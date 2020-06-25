@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2019 Chiel van Heerwaarden
- * Copyright (c) 2011-2019 Thijs Heus
- * Copyright (c) 2014-2019 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -329,7 +329,7 @@ namespace
 
                     // Tomita Eq. 50. Our N_d is SI units, so conversion is applied.
                     TF P_raut = !(has_liq) ? TF(0.) :
-                        TF(16.7)/rho[k] * pow2(rho[k]*ql[ijk]) / (TF(5.) + TF(3.6e-5) * TF(1.e-6)*N_d / (D_d*rho[k]*ql[ijk]));
+                        TF(16.7)/rho[k] * pow2(rho[k]*ql[ijk]) / (TF(5.) + TF(3.66e-2) * TF(1.e-6)*N_d / (D_d*rho[k]*ql[ijk]));
 
                     // // Kharoutdinov and Kogan autoconversion.
                     // TF P_raut = (has_liq) ?
@@ -914,9 +914,11 @@ Microphys_nsw6<TF>::Microphys_nsw6(Master& masterin, Grid<TF>& gridin, Fields<TF
     N_d = inputin.get_item<TF>("micro", "Nd", "", 100.e6); // CvH: 50 cm-3 do we need conversion, or do we stick with Tomita?
 
     // Initialize the qr (rain water specific humidity) and nr (droplot number concentration) fields
-    fields.init_prognostic_field("qr", "Rain water specific humidity", "kg kg-1", gd.sloc);
-    fields.init_prognostic_field("qs", "Snow specific humidity", "kg kg-1", gd.sloc);
-    fields.init_prognostic_field("qg", "Graupel specific humidity", "kg kg-1", gd.sloc);
+    const std::string group_name = "thermo";
+
+    fields.init_prognostic_field("qr", "Rain water specific humidity", "kg kg-1", group_name, gd.sloc);
+    fields.init_prognostic_field("qs", "Snow specific humidity", "kg kg-1", group_name, gd.sloc);
+    fields.init_prognostic_field("qg", "Graupel specific humidity", "kg kg-1", group_name, gd.sloc);
 
     // Load the viscosity for both fields.
     fields.sp.at("qr")->visc = inputin.get_item<TF>("fields", "svisc", "qr");

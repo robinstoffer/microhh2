@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2017 Chiel van Heerwaarden
- * Copyright (c) 2011-2017 Thijs Heus
- * Copyright (c) 2014-2017 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -20,8 +20,8 @@
  * along with MicroHH.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef STATS
-#define STATS
+#ifndef STATS_H
+#define STATS_H
 
 #include <regex>
 #include "boundary_cyclic.h"
@@ -112,7 +112,7 @@ class Stats
 
         // Interface functions.
         void add_dimension(const std::string&, const int);
-        void add_mask(const std::string);
+        void add_mask(const std::string&);
         void add_prof(
                 const std::string&, const std::string&,
                 const std::string&, const std::string&, const std::string&,
@@ -138,20 +138,20 @@ class Stats
 
         void calc_mask_stats(
                 std::pair<const std::string, Mask<TF>>&,
-                const std::string, const Field3d<TF>&, const TF, const TF);
+                const std::string&, const Field3d<TF>&, const TF, const TF);
 
         void calc_mask_mean_profile(
                 std::vector<TF>&,
                 const std::pair<const std::string, Mask<TF>>&,
                 const Field3d<TF>&);
 
-        void calc_stats(const std::string, const Field3d<TF>&, const TF, const TF);
-        void calc_stats_2d(const std::string, const std::vector<TF>&, const TF);
-        void calc_covariance(const std::string, const Field3d<TF>&, const TF, const TF, const int,
-                             const std::string, const Field3d<TF>&, const TF, const TF, const int);
-        void calc_tend(Field3d<TF>&, const std::string);
-        void set_prof(const std::string, const std::vector<TF>&);
-        void set_timeseries(const std::string, const TF);
+        void calc_stats(const std::string&, const Field3d<TF>&, const TF, const TF);
+        void calc_stats_2d(const std::string&, const std::vector<TF>&, const TF);
+        void calc_covariance(const std::string&, const Field3d<TF>&, const TF, const TF, const int,
+                             const std::string&, const Field3d<TF>&, const TF, const TF, const int);
+        void calc_tend(Field3d<TF>&, const std::string&);
+        void set_prof(const std::string&, const std::vector<TF>&);
+        void set_time_series(const std::string&, const TF);
 
         Mask_map<TF>& get_masks() { return masks; }
 
@@ -169,9 +169,9 @@ class Stats
         std::vector<std::regex> whitelist;
         std::vector<std::regex> blacklist;
         std::vector<std::string> varlist;
-        void add_operation(std::vector<std::string>&, std::string, std::string);
-        void sanitize_operations_vector(std::string, std::vector<std::string>&);
-        bool is_blacklisted(std::string, Stats_whitelist_type = Stats_whitelist_type::Default);
+        void add_operation(std::vector<std::string>&, const std::string&, const std::string&);
+        void sanitize_operations_vector(const std::string&, std::vector<std::string>&);
+        bool is_blacklisted(const std::string&, Stats_whitelist_type = Stats_whitelist_type::Default);
 
         int statistics_counter;
         double sampletime;

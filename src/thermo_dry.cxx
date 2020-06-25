@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2018 Chiel van Heerwaarden
- * Copyright (c) 2011-2018 Thijs Heus
- * Copyright (c) 2014-2018 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -310,7 +310,9 @@ Thermo_dry<TF>::Thermo_dry(
 
     swthermo = "dry";
 
-    fields.init_prognostic_field("th", "Potential Temperature", "K", gd.sloc);
+    const std::string group_name = "thermo";
+
+    fields.init_prognostic_field("th", "Potential Temperature", "K", group_name, gd.sloc);
 
     fields.sp.at("th")->visc = inputin.get_item<TF>("fields", "svisc", "th");
 
@@ -719,7 +721,7 @@ void Thermo_dry<TF>::exec_stats(Stats<TF>& stats)
     stats.calc_stats("b", *b, no_offset, no_threshold);
 
     fields.release_tmp(b);
-    stats.set_timeseries("zi", gd.z[get_bl_depth()]);
+    stats.set_time_series("zi", gd.z[get_bl_depth()]);
 }
 
 template<typename TF>

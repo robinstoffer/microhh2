@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2017 Chiel van Heerwaarden
- * Copyright (c) 2011-2017 Thijs Heus
- * Copyright (c) 2014-2017 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -452,6 +452,9 @@ void Boundary_surface<TF>::init(Input& inputin, Thermo<TF>& thermo)
 
     // 4. Initialize the boundary cyclic.
     boundary_cyclic.init();
+
+    // 5. Init the field3d_io.
+    field3d_io.init();
 }
 
 template<typename TF>

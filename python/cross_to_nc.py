@@ -1,3 +1,25 @@
+# 
+#  MicroHH
+#  Copyright (c) 2011-2020 Chiel van Heerwaarden
+#  Copyright (c) 2011-2020 Thijs Heus
+#  Copyright (c) 2014-2020 Bart van Stratum
+# 
+#  This file is part of MicroHH
+# 
+#  MicroHH is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# 
+#  MicroHH is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+# 
+#  You should have received a copy of the GNU General Public License
+#  along with MicroHH.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import os
 import microhh_tools as mht  # available in microhh/python directory
 import argparse
@@ -47,11 +69,11 @@ def convert_to_nc(variables):
                     dim.update({'x': indexes_local})
                     n = ktot * jtot
 
-                if variable is 'u':
+                if variable == 'u':
                     dim['xh'] = dim.pop('x')
-                if variable is 'v':
+                if variable == 'v':
                     dim['yh'] = dim.pop('y')
-                if variable is 'w':
+                if variable == 'w':
                     dim['zh'] = dim.pop('z')
 
                 ncfile = mht.Create_ncfile(
@@ -176,6 +198,10 @@ else:
     iotimeprec = 0.
 
 variables = args.vars if args.vars is not None else nl['cross']['crosslist']
+
+# In case variables is a single string, convert to list.
+variables = [ variables ] if not isinstance(variables, list) else variables
+
 precision = args.precision
 nprocs = args.nprocs if args.nprocs is not None else len(variables)
 compression = not(args.nocompression)
