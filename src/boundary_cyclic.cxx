@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2018 Chiel van Heerwaarden
- * Copyright (c) 2011-2018 Thijs Heus
- * Copyright (c) 2014-2018 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -505,6 +505,7 @@ void Boundary_cyclic<TF>::exec_2d(TF* restrict data)
             }
     }
 }
+
 template<typename TF>
 void Boundary_cyclic<TF>::exec(unsigned int* restrict data, Edge edge)
 {

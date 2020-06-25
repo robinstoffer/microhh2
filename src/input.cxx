@@ -1,3 +1,25 @@
+/*
+ * MicroHH
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
+ *
+ * This file is part of MicroHH
+ *
+ * MicroHH is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+
+ * MicroHH is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with MicroHH.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -259,21 +281,40 @@ T Input::get_item(const std::string& blockname,
 {
     T item;
     std::string itemqualifier;
+    bool revert_to_default = false;
+
+    std::string value = "";
 
     try
     {
-        std::string value = get_item_string(itemlist, blockname, itemname, subitemname);
-        item = convert_value_to_item<T>(value);
+        value = get_item_string(itemlist, blockname, itemname, subitemname);
     }
     catch (std::runtime_error& e)
     {
-        item = default_value;
-        itemqualifier = "(default)";
+        revert_to_default = true;
     }
 
     std::string itemout = "[" + blockname + "][" + itemname + "]";
     if (!subitemname.empty())
         itemout += "[" + subitemname + "]";
+
+    if (revert_to_default)
+    {
+        item = default_value;
+        itemqualifier = "(default)";
+    }
+    else
+    {
+        try
+        {
+            item = convert_value_to_item<T>(value);
+        }
+        catch (std::runtime_error& e)
+        {
+            const std::string error = itemout + " = " + value + " is illegal.";
+            throw std::runtime_error(error);
+        }
+    }
 
     std::ostringstream ss;
     ss << std::left << std::setw(30) << itemout << "= "

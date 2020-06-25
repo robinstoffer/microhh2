@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2017 Chiel van Heerwaarden
- * Copyright (c) 2011-2017 Thijs Heus
- * Copyright (c) 2014-2017 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -310,7 +310,9 @@ Thermo<TF>(masterin, gridin, fieldsin, inputin)
     auto& gd = grid.get_grid_data();
     swthermo = "buoy";
 
-    fields.init_prognostic_field("b", "Buoyancy", "m s-2", gd.sloc);
+    const std::string group_name = "thermo";
+
+    fields.init_prognostic_field("b", "Buoyancy", "m s-2", group_name, gd.sloc);
 
     bs.alpha = inputin.get_item<TF>("thermo", "alpha", "", 0.);
     bs.n2 = inputin.get_item<TF>("thermo", "N2"   , "", 0.);

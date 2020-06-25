@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2017 Chiel van Heerwaarden
- * Copyright (c) 2011-2017 Thijs Heus
- * Copyright (c) 2014-2017 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -332,8 +332,10 @@ Thermo_vapor<TF>::Thermo_vapor(Master& masterin, Grid<TF>& gridin, Fields<TF>& f
         throw std::runtime_error("swthermo=moist is not supported for swspatialorder=4\n");
 
     // Initialize the prognostic fields
-    fields.init_prognostic_field("thl", "Liquid water potential temperature", "K", gd.sloc);
-    fields.init_prognostic_field("qt", "Total water mixing ratio", "kg kg-1", gd.sloc);
+    const std::string group_name = "thermo";
+
+    fields.init_prognostic_field("thl", "Liquid water potential temperature", "K", group_name, gd.sloc);
+    fields.init_prognostic_field("qt", "Total water mixing ratio", "kg kg-1", group_name, gd.sloc);
 
     // Get the diffusivities of temperature and moisture
     fields.sp.at("thl")->visc = inputin.get_item<TF>("fields", "svisc", "thl");
@@ -623,7 +625,7 @@ void Thermo_vapor<TF>::get_thermo_field(
     else if (name == "N2")
     {
         calc_N2(fld.fld.data(), fields.sp.at("thl")->fld.data(), gd.dzi.data(), base.thvref.data(),
-                gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kcells, gd.icells, gd.ijcells);
+                gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells);
     }
     else if (name == "T")
     {
@@ -864,7 +866,7 @@ void Thermo_vapor<TF>::exec_stats(Stats<TF>& stats)
         stats.set_prof("rho" , fields.rhoref);
         stats.set_prof("rhoh", fields.rhorefh);
     }
-    stats.set_timeseries("zi", gd.z[get_bl_depth()]);
+    stats.set_time_series("zi", gd.z[get_bl_depth()]);
 }
 
 #ifndef USECUDA

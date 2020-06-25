@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2018 Chiel van Heerwaarden
- * Copyright (c) 2011-2018 Thijs Heus
- * Copyright (c) 2014-2018 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -699,8 +699,10 @@ Thermo_moist<TF>::Thermo_moist(Master& masterin, Grid<TF>& gridin, Fields<TF>& f
         throw std::runtime_error("swthermo=moist is not supported for swspatialorder=4\n");
 
     // Initialize the prognostic fields
-    fields.init_prognostic_field("thl", "Liquid water potential temperature", "K", gd.sloc);
-    fields.init_prognostic_field("qt", "Total water mixing ratio", "kg kg-1", gd.sloc);
+    const std::string group_name = "thermo";
+
+    fields.init_prognostic_field("thl", "Liquid water potential temperature", "K", group_name, gd.sloc);
+    fields.init_prognostic_field("qt", "Total water mixing ratio", "kg kg-1", group_name, gd.sloc);
 
     // Get the diffusivities of temperature and moisture
     fields.sp.at("thl")->visc = inputin.get_item<TF>("fields", "svisc", "thl");
@@ -813,6 +815,8 @@ void Thermo_moist<TF>::load(const int iotime)
         }
         else
         {
+            master.print_message("OK\n");
+
             fread(&bs.thvref [gd.kstart], sizeof(TF), gd.ktot  , pFile);
             fread(&bs.thvrefh[gd.kstart], sizeof(TF), gd.ktot+1, pFile);
             fclose(pFile);
@@ -823,9 +827,7 @@ void Thermo_moist<TF>::load(const int iotime)
     master.sum(&nerror, 1);
 
     if (nerror)
-        throw std::runtime_error("Error in thermo_basestate");
-    else
-        master.print_message("OK\n");
+        throw std::runtime_error("Error in loading thermo_moist basestate");
 
     master.broadcast(&bs.thvref [gd.kstart], gd.ktot  );
     master.broadcast(&bs.thvrefh[gd.kstart], gd.ktot+1);
@@ -1468,7 +1470,7 @@ void Thermo_moist<TF>::exec_stats(Stats<TF>& stats)
         stats.set_prof("rhoh"   , bs_stats.rhorefh);
     }
 
-    stats.set_timeseries("zi", gd.z[get_bl_depth()]);
+    stats.set_time_series("zi", gd.z[get_bl_depth()]);
 }
 
 #ifndef USECUDA

@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2018 Chiel van Heerwaarden
- * Copyright (c) 2011-2018 Thijs Heus
- * Copyright (c) 2014-2018 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -23,6 +23,8 @@
 #ifndef BOUNDARY_H
 #define BOUNDARY_H
 
+#include <memory>
+
 #include "timedep.h"
 #include "boundary_cyclic.h"
 #include "field3d_io.h"
@@ -34,6 +36,7 @@ template<typename> class Fields;
 template<typename> class Diff;
 template<typename> class Thermo;
 template<typename> class Timedep;
+template<typename> class Stats;
 
 class Input;
 

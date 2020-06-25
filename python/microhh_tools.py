@@ -1,3 +1,25 @@
+# 
+#  MicroHH
+#  Copyright (c) 2011-2020 Chiel van Heerwaarden
+#  Copyright (c) 2011-2020 Thijs Heus
+#  Copyright (c) 2014-2020 Bart van Stratum
+# 
+#  This file is part of MicroHH
+# 
+#  MicroHH is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# 
+#  MicroHH is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+# 
+#  You should have received a copy of the GNU General Public License
+#  along with MicroHH.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import netCDF4 as nc
 import numpy as np
 import struct as st
@@ -64,10 +86,9 @@ class Read_namelist:
             nl = Read_namelist()    # with no name specified, it searches for a .ini file in the current dir
             itot = nl['grid']['itot']
             enttime = nl['time']['endtime']
-            printing e.g. nl['grid'] provides an overview of the available variables in a group
     """
 
-    def __init__(self, namelist_file=None):
+    def __init__(self,  namelist_file=None, ducktype=True):
         if (namelist_file is None):
             namelist_file = _find_namelist_file()
 
@@ -81,18 +102,54 @@ class Read_namelist:
                         self.groups[curr_group_name] = {}
                     elif ("=" in line):
                         var_name = lstrip.split('=')[0]
-                        value = _convert_value(lstrip.split('=')[1])
+                        value    = lstrip.split('=')[1]
+
+                        if ducktype:
+                            value = _convert_value(value)
+
                         self.groups[curr_group_name][var_name] = value
 
     def __getitem__(self, name):
+        """
+        Get group dictionary with `nl['group_name']` syntax
+        """
         if name in self.groups.keys():
             return self.groups[name]
         else:
             raise RuntimeError(
                 'Can\'t find group \"{}\" in .ini file'.format(name))
 
+
     def __repr__(self):
+        """
+        Print list of availabe groups
+        """
         return 'Available groups:\n{}'.format(', '.join(self.groups.keys()))
+
+
+    def set_value(self, group, variable, value):
+        """
+        Set value in namelist file/dict, if the group or
+        variable does not exist, it is newly defined
+        """
+        if group not in self.groups:
+            self.groups[group] = {}
+        self.groups[group][variable] = value
+
+
+    def save(self, namelist_file, allow_overwrite=False):
+        """
+        Write namelist from (nested) dictionary back to .ini file
+        """
+        if os.path.exists(namelist_file) and not allow_overwrite:
+            raise Exception('.ini file \"{}\" already exists!'.format(namelist_file))
+
+        with open(namelist_file, 'w') as f:
+            for group in self.groups:
+                f.write('[{}]\n'.format(group))
+                for variable, value in self.groups[group].items():
+                    f.write('{}={}\n'.format(variable, value))
+                f.write('\n')
 
 
 def replace_namelist_value(item, new_value, group=None, namelist_file=None):
@@ -275,7 +332,7 @@ class Create_ncfile():
             self.dim[key] = self.ncfile.createDimension(key, len(value))
             self.dimvar[key] = self.ncfile.createVariable(
                 key, precision, (key))
-            if key is not 'time':
+            if key != 'time':
                 self.dimvar[key][:] = grid.dim[key][value]
         self.var = self.ncfile.createVariable(
             varname, precision, tuple(
@@ -385,7 +442,7 @@ def merge_options(options, options_to_add):
         if group in options:
             options[group].update(options_to_add[group])
         else:
-            options[group] = options_to_add[group]
+            options[group] = copy.deepcopy(options_to_add[group])
 
 
 def run_scripts(scripts):
@@ -535,7 +592,7 @@ def run_cases(cases, executable, mode, outputfile=''):
         rundir = rootdir + '/' + case.casedir + '/' + case.rundir + '/'
 
         casedir = rootdir + '/' + case.casedir + '/'
-        if case.rundir is not '':
+        if case.rundir != '':
             try:
                 shutil.rmtree(rundir)
             except Exception:
@@ -559,11 +616,16 @@ def run_cases(cases, executable, mode, outputfile=''):
 
         try:
             # Update .ini file for testing
-            for group, group_dict in case.options.items():
-                for item, value in group_dict.items():
-                    replace_namelist_value(
-                            item, value, group=group, namelist_file='{0}.ini'.format(case.name))
+            ini_file = '{0}.ini'.format(case.name)
+            nl = Read_namelist(ini_file, ducktype=False)
 
+            for group, group_dict in case.options.items():
+                for variable, value in group_dict.items():
+                    nl.set_value(group, variable, value)
+
+            nl.save(ini_file, allow_overwrite=True)
+
+            # Find the number of MPI tasks
             ntasks = determine_ntasks()
 
             # Create input data, and do other pre-processing
@@ -574,7 +636,7 @@ def run_cases(cases, executable, mode, outputfile=''):
                 if mode == 'cpu' or mode == 'gpu':
                     execute('{} {} {}'.format(executable, phase, case.name))
                 elif mode == 'cpumpi':
-                    execute('mpirun --oversubscribe -n {} {} {} {}'.format(
+                    execute('mpiexec --oversubscribe -n {} {} {} {}'.format(
                         ntasks, executable, phase, case.name))
                 else:
                     raise ValueError('{} is an illegal value for mode'.format(mode))
@@ -597,7 +659,7 @@ def run_cases(cases, executable, mode, outputfile=''):
             os.chdir(rootdir)
 
     # Write the output file and remove unnecssary dirs
-    if outputfile is not '':
+    if outputfile != '':
         with open(outputfile, 'w') as csv_file:
             write = csv.writer(csv_file)
             write.writerow(['Name', 'Run Dir', 'Success', 'Time', 'Options'])
@@ -736,6 +798,7 @@ def generator_scaling(cases, procs, type='strong', dir='y'):
     return cases_out
 
 
+"""
 def generator_parameter_change(cases, **kwargs):
     cases_out = []
     if len(kwargs) > 0:
@@ -752,13 +815,17 @@ def generator_parameter_change(cases, **kwargs):
             cases_out = generator_parameter_change(cases_out, **kwargs)
 
     return cases_out
-
+"""
 
 def generator_parameter_permutations(base_case, lists):
     """
     Function to permutate lists of dictionaries to generate cases to run
     """
     cases_out = []
+
+    # Put a single dictionary into a list with one item.
+    if type(lists) is dict:
+        lists = [lists]
 
     # Convert the dictionaries into tuples to enable to permutate the list.
     tuple_lists = []
@@ -844,6 +911,41 @@ def run_case(
         mode,
         outputfile='{}/{}_{}.csv'.format(case_dir, case_name, experiment))
 
+    for case in cases:
+        if not case.success:
+            return 1
+    return 0
+
+
+def run_permutations(
+        case_name, options_in, options_mpi_in, permutations_in,
+        executable='microhh', mode='cpu',
+        case_dir='.', experiment='local'):
+
+    options = deepcopy(options_in)
+
+    if mode == 'cpumpi':
+        merge_options(options, options_mpi_in)
+
+    base_case = Case(
+            case_name,
+            casedir=case_dir,
+            rundir=experiment,
+            options=options)
+
+    cases = generator_parameter_permutations(base_case, permutations_in)
+
+    run_cases(
+        cases,
+        executable,
+        mode,
+        outputfile='{}/{}_{}.csv'.format(case_dir, case_name, experiment))
+
+    for case in cases:
+        if not case.success:
+            return 1
+    return 0
+
 
 def run_restart(
         case_name, options_in, options_mpi_in, permutations_in=None,
@@ -869,7 +971,7 @@ def run_restart(
             rundir=experiment,
             options=options)
 
-        base_cases = generator_parameter_permutations(base_case, [permutations_in])
+        base_cases = generator_parameter_permutations(base_case, permutations_in)
 
     cases = []
     for case in base_cases:
@@ -880,3 +982,8 @@ def run_restart(
         executable,
         mode,
         outputfile='{}/{}_restart_{}.csv'.format(case_dir, case_name, experiment))
+
+    for case in cases:
+        if not case.success:
+            return 1
+    return 0

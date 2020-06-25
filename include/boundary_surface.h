@@ -1,8 +1,8 @@
 /*
  * MicroHH
- * Copyright (c) 2011-2018 Chiel van Heerwaarden
- * Copyright (c) 2011-2018 Thijs Heus
- * Copyright (c) 2014-2018 Bart van Stratum
+ * Copyright (c) 2011-2020 Chiel van Heerwaarden
+ * Copyright (c) 2011-2020 Thijs Heus
+ * Copyright (c) 2014-2020 Bart van Stratum
  *
  * This file is part of MicroHH
  *
@@ -72,6 +72,7 @@ class Boundary_surface : public Boundary<TF>
         using Boundary<TF>::fields;
         using Boundary<TF>::boundary_cyclic;
         using Boundary<TF>::swboundary;
+        using Boundary<TF>::field3d_io;
 
         using Boundary<TF>::process_bcs;
 
