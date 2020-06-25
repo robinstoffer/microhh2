@@ -17,10 +17,12 @@ from microhh_tools import *
 #input_dir = './long_run_MLP53_time001/'
 #input_dir = './long_run_lookuptable/'
 #input_dir = './long_run_MLP53_explicitfilt/'
-input_dir = './long_run_MLP53_time01_explicitfilt/'
+#input_dir = './long_run_MLP53_time01_explicitfilt/'
+input_dir = './long_run_MLP53_time001_explicitfilt/'
 
 #stats_dir = './long_run_MLP53/long_run_MLP53.nc'
-stats_dir = './long_run_MLP53_time01_explicitfilt/moser600lesNN_default_0000000.nc'
+#stats_dir = './long_run_MLP53_time01_explicitfilt/moser600lesNN_default_0000000.nc'
+stats_dir = './long_run_MLP53_time001_explicitfilt/moser600lesNN_default_0000000.nc'
 #stats_dir = './long_run_MLP53_time01/moser600lesNN_default_0000000.nc'
 #stats_dir = './long_run_MLP53_time001/moser600lesNN_default_0000000.nc'
 #stats_dir = './long_run_lookuptable/long_run_lookuptable.nc'
@@ -42,9 +44,10 @@ nz = 64
 #nt   = 7
 
 iter_begin = 0
-iterstep = 10
+iterstep = 100
 nt = 11
-#nt = 8
+int_tstat = 10 #specify different value from 1 when stats are not stored every time step
+#int_tstat = 1
 
 # read the grid data
 n = nx*ny*nz
@@ -192,7 +195,8 @@ tke    = np.array(stats['budget']['tke'][tstart:tend,:])
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
 c=0
-for t in range(tstart, tend, iterstep):
+#for t in range(tstart, tend, iterstep):
+for t in range(int(tstart/int_tstat), int(tend/int_tstat), int(iterstep/int_tstat)):
     plot(zh[:], (tau_wu[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     #plot(zh[:8], (tau_wu[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t],linewidth=2.0, label=str(t))
     c+=1
@@ -211,7 +215,7 @@ close()
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
 c=0
-for t in range(tstart, tend, iterstep):
+for t in range(int(tstart/int_tstat), int(tend/int_tstat), int(iterstep/int_tstat)):
     plot(z[:], (tke[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     #plot(z[:8], (tke[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t], linewidth=2.0, label=str(t))
     c+=1
