@@ -1,25 +1,15 @@
-# Cartesius using EasyBuild.
+# Cartesius
 # Tested with:
 #####
-# NOTE: module below for GCC compiler outdated! The ones for the Intel compiler are up-to-date (26-6-2020)
-# GCC compiler (if USECUDA is on, build on GPU):
-# module purge
-# module load eb #(Use the new software development and installation framework EasyBuild currently implemented by SURFsara)
-# module load surfsara
-# module load CMake/3.9.5-GCCcore-6.4.0 #(Loads GCCcore as well)
-# module load cuDNN/7.0.5-CUDA-9.0.176 #(Loads CUDA as well,cuDNN needed for Tensorflow-gpu)
-# module load netCDF/4.5.0-foss-2017b #(Loads as well HDF5,cURL,sZIP,openMPI,FFTW3,GCC)
-# module load netCDF-C++4/4.3.0-foss-2017b
-# module load Doxygen/1.8.13-GCCcore-6.4.0
-# module unload ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20 #(Prevent crash during compiling: "(..)/microhh/src/../src/tools.cu([number]): (..) identifier [name] is undefined")
-#####
-# Intel Compiler (in all other cases):
+# Intel Compiler:
 # module purge
 # module load 2019
 # module load CMake
 # module load intel/2018b
 # module load netCDF/4.6.1-intel-2018b
 # module load FFTW/3.3.8-intel-2018b
+#####
+#NOTE: not tested with GNU compiler, in that case the script below has to be changed to include the MKL library correctly.
 
 # Use "lfs setstripe -c 50" in empty directories if large files need to be
 # written with MPI-IO. It hugely increases the IO performance.
@@ -41,7 +31,7 @@ if(USECUDA)
 endif()
 
 if(USEICC)
-    set(USER_CXX_FLAGS "-std=c++14 -restrict")
+    set(USER_CXX_FLAGS "-std=c++14 -restrict -mkl=sequential")
     set(USER_CXX_FLAGS_RELEASE "-Ofast -xAVX -axCORE-AVX-I,CORE-AVX2,CORE-AVX512")
     add_definitions(-DRESTRICTKEYWORD=restrict)
 else()
@@ -59,7 +49,6 @@ set(IRC_LIB        "irc")
 set(IRC_LIB        "")
 set(HDF5_LIB       "hdf5")
 set(SZIP_LIB       "sz")
-set(MKL_LIB        "mkl")
 
 set(LIBS ${FFTW_LIB} ${FFTWF_LIB} ${NETCDF_LIB_C} ${HDF5_LIB} ${SZIP_LIB} ${IRC_LIB} m z curl)
 
