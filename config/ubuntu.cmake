@@ -6,7 +6,6 @@ else()
   set(ENV{CC}  gcc) # C compiler for serial build
   set(ENV{CXX} g++) # C++ compiler for serial build
 endif()
-set(ENV{MKL_ROOT} "/home/robin/intel/compilers_and_libraries_2019.5.281/linux/mkl")
 
 set(USER_CXX_FLAGS "-std=c++17")
 set(USER_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
