@@ -1,0 +1,40 @@
+#!/bin/bash
+####SBATCH -t 5-00:00:00
+#SBATCH -t 1:00:00
+#SBATCH -N 2
+#SBATCH -n 48
+#SBATCH -p short
+###SBATCH -p gpu_short
+###SBATCH -p gpu
+
+cd
+cd microhh/cases/moser600/simulation2
+
+module purge
+module load eb
+module load surfsara
+module load CMake/3.7.2-intel-2016b
+module load cuDNN/7.0.5-CUDA-9.0.176
+module load netCDF/4.4.1.1-intel-2016b
+module load netCDF-C++4/4.3.0-intel-2016b
+module load FFTW/3.3.5-intel-2016b
+module load Doxygen/1.8.11-intel-2016b
+module load Python/3.6.1-intel-2016b
+
+export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared Python libraries can be found
+
+#module purge
+#module load eb
+#module load surfsara
+#module load CMake/3.9.5-GCCcore-6.4.0
+#module load cuDNN/7.0.5-CUDA-9.0.176
+#module load netCDF/4.5.0-foss-2017b
+#module load netCDF-C++4/4.3.0-foss-2017b
+#module load Doxygen/1.8.13-GCCcore-6.4.0
+#module unload ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20
+
+source ~/virtualenv/firstCNN_intel/bin/activate
+
+srun ./microhh init moser600
+srun ./microhh run moser600
+#python3 CNN1.py

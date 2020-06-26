@@ -1,6 +1,7 @@
 # Cartesius using EasyBuild.
 # Tested with:
 #####
+# NOTE: module below for GCC compiler outdated! The ones for the Intel compiler are up-to-date (26-6-2020)
 # GCC compiler (if USECUDA is on, build on GPU):
 # module purge
 # module load eb #(Use the new software development and installation framework EasyBuild currently implemented by SURFsara)
@@ -14,8 +15,6 @@
 #####
 # Intel Compiler (in all other cases):
 # module purge
-# module load surfsara
-# module load compilerwrappers
 # module load 2019
 # module load CMake
 # module load intel/2018b
@@ -60,6 +59,7 @@ set(IRC_LIB        "irc")
 set(IRC_LIB        "")
 set(HDF5_LIB       "hdf5")
 set(SZIP_LIB       "sz")
+set(MKL_LIB        "mkl")
 
 set(LIBS ${FFTW_LIB} ${FFTWF_LIB} ${NETCDF_LIB_C} ${HDF5_LIB} ${SZIP_LIB} ${IRC_LIB} m z curl)
 
