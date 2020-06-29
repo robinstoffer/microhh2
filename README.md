@@ -13,21 +13,21 @@ Additionally, this repository contains the ANN SGS model described in detail by 
 Requirements + software libraries used by Stoffer et al. (2020)
 ------------
 In order to compile MicroHH and use all the scripts related to the ANN SGS model, you need several additional software libraries. We list them below, together with the versions used by Stoffer et al. (2020):
-* C++ compiler (Used: Intel compiler version 18.0 update 3 for Linux)
-* Intel MKL (Used: version 18.0 update 3 for Linux)
+* C++ compiler (Used: Intel compiler version 18.0 update 3 for Linux).
+* Intel MKL (Used: version 18.0 update 3 for Linux).
     Note: the Intel MKL library is only needed for the calls to the `cblas_sgemv` function in `diff_nn.cxx`. It is therefore possible to use other CBLAS libraries. If you want       this, do change the header file named in `diff_nn.cxx:46` to the one corresponding with the desired CBLAS library. Furthermore, the configuration files mentioned below (with     extension `.cmake`) have to be changed accordingly as well.
-* FFTW3 libraries (Used: version 3.3.8)
-* NetCDF4-C library (Used: version 4.6.1)
-* CMake (Used: version 3.12.1)
-* MPI2/3 implementation (Optional for MPI support; used: Intel MPI library version update 3.0 for Linux)
-* CUDA (Optional for GPU support; not used)
+* FFTW3 libraries (Used: version 3.3.8).
+* NetCDF4-C library (Used: version 4.6.1).
+* CMake (Used: version 3.12.1).
+* MPI2/3 implementation (Optional for MPI support; used: Intel MPI library version update 3.0 for Linux).
+* CUDA (Optional for GPU support; not used).
 * Python3 (Used: version 3.6.6) with the following libraries:
-    * Tensorflow v1 (not version >=2.0; Used: version 1.12.0)
-    * Numpy (Used: version 1.15.4)
-    * Scipy (Used: version 1.2.0)
-    * Matplotlib (Used: version 3.0.2)
-    * NetCDF4 (Used: version 1.14.2)
-    * Scikit-learn (Used: version 3.0.2)
+    * Tensorflow v1 (not version >=2.0; Used: version 1.12.0).
+    * Numpy (Used: version 1.15.4).
+    * Scipy (Used: version 1.2.0).
+    * Matplotlib (Used: version 3.0.2).
+    * NetCDF4 (Used: version 1.14.2).
+    * Scikit-learn (Used: version 3.0.2).
 
 Compilation of the code
 -----------------------
