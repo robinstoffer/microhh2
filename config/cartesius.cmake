@@ -1,5 +1,5 @@
 # Cartesius
-# Before using this config file, execute the followign commands first:
+# Before using this config file, execute the following commands first:
 #####
 # Intel Compiler:
 # module purge

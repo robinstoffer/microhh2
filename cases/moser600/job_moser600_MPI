@@ -17,7 +17,8 @@ module load CMake/3.12.1-GCCcore-7.3.0
 module load FFTW/3.3.8-intel-2018b
 module load Doxygen/1.8.14-GCCcore-7.3.0
 
-source ~/virtualenv/firstCNN_intel_CPU/bin/activate
+source ~/virtualenv/firstMLP_intel_CPU/bin/activate #Note: to ensure consistent runs, actives virtual environment created with install_tensorflow_cpu_cartesius.sh.
+
 #Build MicroHH on CPU node where run is executed for optimal performance
 cd ../../config
 cp cartesius.cmake default.cmake
