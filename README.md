@@ -19,15 +19,15 @@ In order to compile MicroHH and use all the scripts related to the ANN SGS model
 * FFTW3 libraries (Used: version 3.3.8)
 * NetCDF4-C library (Used: version 4.6.1)
 * CMake (Used: version 3.12.1)
-* MPI2/3 implementation (optional for MPI support; used: Intel MPI library version update 3.0 for Linux)
-* CUDA (optional for GPU support; not used)
-* Python3 (Used: version 3.6.6) with the following libraries):
-- Tensorflow v1 (not >=2.0; Used: version 1.12.0)
-- Numpy (Used: version 1.15.4)
-- Scipy (Used: version 1.2.0)
-- Matplotlib (Used: version 3.0.2)
-- NetCDF4 (Used: version 1.14.2)
-- Scikit-learn (Used: version 3.0.2)
+* MPI2/3 implementation (Optional for MPI support; used: Intel MPI library version update 3.0 for Linux)
+* CUDA (Optional for GPU support; not used)
+* Python3 (Used: version 3.6.6) with the following libraries:
+    * Tensorflow v1 (not version >=2.0; Used: version 1.12.0)
+    * Numpy (Used: version 1.15.4)
+    * Scipy (Used: version 1.2.0)
+    * Matplotlib (Used: version 3.0.2)
+    * NetCDF4 (Used: version 1.14.2)
+    * Scikit-learn (Used: version 3.0.2)
 
 Compilation of the code
 -----------------------
