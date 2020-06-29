@@ -120,6 +120,8 @@ if(NOT HASCACHE)
     "Flags used by the Fortran-compiler during debug builds." FORCE)
   set(CMAKE_Fortran_FLAGS_RELEASE ${USER_FC_FLAGS_RELEASE} CACHE STRING
     "Flags used by the Fortran-compiler during release builds." FORCE)
+  set(CMAKE_EXE_LINKER_FLAGS ${USER_EXE_LINKER_FLAGS} CACHE STRING
+    "Flags used by the linker during all build types." FORCE)
 
 
   if(USECUDA)
