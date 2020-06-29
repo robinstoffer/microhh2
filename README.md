@@ -91,7 +91,7 @@ If everything works out properly, a series of files has been created. The model 
 
     ./microhh run moser600
 
-This will take, depending on the run settings in the file 'moser600.ini', quite some time. It is therefore recommended to run the case with MPI enabled on a number of nodes. For the Dutch national supercomputer Cartesius, the job script we used has been provided as an example ('job_moser600_MPI'). 
+This will take, depending on the run settings in the file 'moser600.ini', quite some time. It is therefore recommended to run the case with MPI enabled on a number of nodes. For the Dutch national supercomputer Cartesius, the job script we used has been provided as an example ('job_moser600_MPI'). In case you want to use that one, please note that this job scripts requires the output `from the install_tensorflow_cpu_cartesius.sh` script.
 
-After the simulation is finished, a statistics file called `moser600.default.0000000.nc` is created. You can open this file with your favorite plotting tool, or plot the results against the reference data of Moser et al. (1999) with the three scripts provided (`moser600budget.py`, `moser600spectra.py`, `moser600stats.py`).
+After the simulation is finished, a statistics file called `moser600.default.0000000.nc` is created. You can open this file with a plotting tool like `ncview`, or plot the results against the reference data of Moser et al. (1999) with the three scripts provided (`moser600budget.py`, `moser600spectra.py`, `moser600stats.py`).
 
