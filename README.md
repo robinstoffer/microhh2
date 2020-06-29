@@ -29,7 +29,7 @@ In order to compile MicroHH and use all the scripts related to the ANN SGS model
     * NetCDF4 (Used: version 1.14.2).
     * Scikit-learn (Used: version 3.0.2).
 
-Note: in the `config` directory, for Cartesius a bash script `install_tensorflow_cpu.sh` is provided that creates a virtual environment with all the required Python libraries.
+Note: in the `config` directory, for Cartesius a bash script `install_tensorflow_cpu_cartesius.sh` is provided that creates a virtual environment with all the required Python libraries.
 
 Compilation of the code
 -----------------------
