@@ -1,27 +1,33 @@
-MicroHH
+MicroHH (v2.0 with ANN SGS model from Stoffer et al. (2020))
 -------
 [![Travis](https://api.travis-ci.org/microhh/microhh.svg?branch=master)](https://travis-ci.org/microhh/microhh) [![Documentation Status](https://readthedocs.org/projects/microhh/badge/?version=latest)](https://microhh.readthedocs.io/en/latest/?badge=latest)
 
-MicroHH is a computational fluid dynamics code made for Direct Numerical Simulation (DNS) and Large-Eddy Simulation of turbulent flows in the atmospheric boundary layer. The code is written in C++.
+MicroHH (v2.0) is a computational fluid dynamics code made for Direct Numerical Simulation (DNS) and Large-Eddy Simulation of turbulent flows in the atmospheric boundary layer. The code is written in C++.
 
-MicroHH is hosted on GitHub (http://github.com/microhh). Here, the latest version of the source code can be found, as well as all releases. Bug notifications and fixes are always welcome.
-
-MicroHH is described in detail in [Van Heerwaarden et al. (2017)](http://www.geosci-model-dev-discuss.net/gmd-2017-41/#discussion). In case you decide to use MicroHH for your own research, the developers would appreciate to be notified and kindly request to cite their reference paper. The version described in the reference paper has been assigned a DOI via [Zenodo](https://zenodo.org).
+The base code of MicroHH (v2.0) is hosted on GitHub (http://github.com/microhh2). Here, the latest version of the base code can be found, as well as all releases. A detailed description of the base code can be found on [Van Heerwaarden et al. (2017)](http://www.geosci-model-dev-discuss.net/gmd-2017-41/#discussion). In case you decide to use MicroHH for your own research, the developers of MicroHH would appreciate to be notified and kindly request to cite their reference paper. The version (1.0) described in the reference paper has been assigned a DOI via [Zenodo](https://zenodo.org).
 
 [![DOI](https://zenodo.org/badge/14754940.svg)](https://zenodo.org/badge/latestdoi/14754940)
 
-Requirements
+Additionally, this repository contains the ANN SGS model described in detail by Stoffer et al. (2020). It is fully integrated in the MicroHH (v2.0) code. All the scripts needed to train the ANN are included a well.
+
+Requirements + software libraries used by Stoffer et al. (2020)
 ------------
-In order to compile MicroHH you need:
-* C++ compiler
-* FFTW3 libraries
-* Boost libraries
-* NetCDF4
-* CMake
-* MPI2/3 implementation (optional for MPI support)
-* CUDA (optional for GPU support)
-* Python + numpy + python-netcdf4 (optional for running example cases)
-* Ipython + python-netcdf4 + matplotlib (optional for plotting results example cases)
+In order to compile MicroHH and use all the scripts related to the ANN SGS model, you need several additional software libraries. We list them below, together with the versions used by Stoffer et al. (2020):
+* C++ compiler (Used: Intel compiler version 18.0 update 3 for Linux)
+* Intel MKL (Used: version 18.0 update 3 for Linux)
+    Note: the Intel MKL library is only needed for the calls to the `cblas_sgemv` function in `diff_nn.cxx`. It is therefore possible to use other CBLAS libraries. If you want       this, do change the header file named in `diff_nn.cxx:46` to the one corresponding with the desired CBLAS library. Furthermore, the configuration files mentioned below (with     extension `.cmake`) have to be changed accordingly as well.
+* FFTW3 libraries (Used: version 3.3.8)
+* NetCDF4-C library (Used: version 4.6.1)
+* CMake (Used: version 3.12.1)
+* MPI2/3 implementation (optional for MPI support; used: Intel MPI library version update 3.0 for Linux)
+* CUDA (optional for GPU support; not used)
+* Python3 (Used: version 3.6.6) with the following libraries):
+- Tensorflow v1 (not >=2.0; Used: version 1.12.0)
+- Numpy (Used: version 1.15.4)
+- Scipy (Used: version 1.2.0)
+- Matplotlib (Used: version 3.0.2)
+- NetCDF4 (Used: version 1.14.2)
+- Scikit-learn (Used: version 3.0.2)
 
 Compilation of the code
 -----------------------
@@ -29,7 +35,9 @@ First, enter the config directory:
 
     cd config
 
-Here, you find a potential series of settings with the extension .cmake for different systems. Check whether your system is there. If not, create a file with the correct compiler settings and the proper location for all libraries. Then, copy your system file to default.cmake. Let us assume your system is Ubuntu:
+Here, you find two `.cmake` files with settings for the Dutch national supercomputer Cartesius (https://userinfo.surfsara.nl/systems/cartesius) and ubunty systems (tested for version 18.04.4 LTS). All the results shown in Stoffer et al. (2020) have been created on Cartesius. If you want to run the code on an ubunty system, check that the specified library locations are correct for your specific system and update if necessary. If you want to run the code on another system, create a new cmake file with the correct compiler settings and the proper location for all libraries.
+
+Subsequently, copy the file corresponding with your system to default.cmake. Let us assume your system is Ubuntu:
 
     cp ubuntu.cmake default.cmake
 
@@ -51,7 +59,7 @@ or
 
     cmake .. -DUSECUDA=TRUE
 
-(Note that once the build has been configured and you wish to change the `USECUDA` or `USEMPI` setting, you must delete the build directory or create an additional empty directory from which `cmake` is run.)
+(Note that once the build has been configured and you wish to change the `USECUDA` or `USEMPI` setting, you must delete the build directory or create an additional empty directory from which `cmake` is run. For the moser600 DNS test case used in Stoffer et al. (2020), it is recommended to enable MPI to keep the total simulation time feasible.)
 
 With the previous command you have triggered the build system and created the make files, if the `default.cmake` file contains the correct settings. Now, you can start the compilation of the code and create the microhh executable with:
 
@@ -59,15 +67,15 @@ With the previous command you have triggered the build system and created the ma
 
 Your directory should contain a file named `microhh` now. This is the main executable.
 
-Running an example case
+Running the moser600 DNS test case used by Stoffer et al. (2020)
 -----------------------
-To start one of the included test cases, go back to the main directory and  open the directory `cases`. Here, a collection of test cases has been included. In this example, we start the `drycblles` case, a simple large-eddy simulation of a dry convective boundary layer.
+To start one of the included test cases, go back to the main directory and  open the directory `cases`. Here, the high-resolution DNS `moser600` case and the corresponding LES case with ANN SGS model `moser600_lesNNrestart` have been included. We start with the DNS `moser600` case, the high-resolution direct numerical simulation of turbulent channel flow used by Stoffer et al. (2020).
 
-    cd cases/drycblles
+    cd cases/moser600
 
 First, we have to create the vertical profiles for our prognostic variables:
 
-    python drycblles_input.py
+    python moser600_input.py
 
 Then, we have to copy or link the `microhh` executable to the current directory. Here we assume the executable is in the build directory that we have created before.
 
@@ -75,18 +83,13 @@ Then, we have to copy or link the `microhh` executable to the current directory.
 
 Now, we can start `microhh` in initialization mode to create the initial fields:
 
-    ./microhh init drycblles
+    ./microhh init moser600
 
 If everything works out properly, a series of files has been created. The model can be started now following:
 
-    ./microhh run drycblles
+    ./microhh run moser600
 
-This will take some time. Now, a statistics file called `drycblles.default.0000000.nc` has been created. You can open this file with your favorite plotting tool, or run some example plots using the provided plotting script that uses Python and matplotlib. This is most easily done in interactive python:
+This will take, depending on the run settings in the file 'moser600.ini', quite some time. It is therefore recommended to run the case with MPI enabled on a number of nodes. For the Dutch national supercomputer Cartesius, the job script we used has been provided as an example ('job_moser600_MPI'). 
 
-    ipython  
-    run drycbllesstats
-
-This should show you a set of basic plots. Congratulations, you have just completed your first run of MicroHH.
-
-Happy MicroHHing!
+After the simulation is finished, a statistics file called `moser600.default.0000000.nc` is created. You can open this file with your favorite plotting tool, or plot the results against the reference data of Moser et al. (1999) with the three scripts provided (`moser600budget.py`, `moser600spectra.py`, `moser600stats.py`).
 
