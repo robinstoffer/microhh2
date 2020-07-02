@@ -1,33 +1,26 @@
 #Script that generates the training data for the NN
-#Author: Robin Stoffer (robin.stoffer@wur.nl)
-#NOTE: Developed for Python 3!
 import numpy   as np
 import netCDF4 as nc
 import scipy.interpolate
 from downsampling_training import generate_coarsecoord_centercell, generate_coarsecoord_edgecell
 from grid_objects_training import Finegrid, Coarsegrid
 import matplotlib as mpl
-mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
+mpl.use('agg')
 import matplotlib.pyplot as plt
 import warnings
 
-###############################################
-#Actual functions to generate the training data
-###############################################
-
-def generate_training_data(dim_new_grid, input_directory, output_directory, reynolds_number_tau, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): 
+def generate_training_data(dim_new_grid, input_directory, output_directory, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): 
     
-    ''' Generates the training data required for a supervised machine learning algorithm, making use of the Finegrid and Coarsegrid objects defined in grid_objects_training.py. NOTE: the script  does not yet extract individual samples out of the flow fields; this is done in sample_training_data_tfrecord.py. \\ 
+    ''' Generates the training data required for a supervised machine learning algorithm, making use of the Finegrid and Coarsegrid objects defined in grid_objects_training.py. NOTE: the script does not extract individual samples out of the flow fields; this is done in sample_training_data_tfrecord.py. \\ 
     For each available time step in the MicroHH output, the steps in this script are as follows: 
-        1) Read the wind velocity variables and the pressure from the output files produced by MicroHH in the specified input_directory (which should be a string).
-        In this procedure, the wind velocities are normalized using a reference friction velocity that is calculated from the specified friction Reynolds number (via the variable reynolds_number_tau, which should be an integer or float).\\
+        1) Read the wind velocity variables from the output files produced by MicroHH in the specified input_directory (which should be a string).\\
         2) Downsample these variables to a user-defined coarse grid. \\ 
         The dimensions of this new grid are defined via the dim_new_grid variable, which should be a tuple existing of three integers each specifying the amount of grid cells in the z,y,x-directions respectively. \\ 
         The script implicitly assumes that the grid distances are uniform in all three directions, and that the sizes of the domain are the same as in the original grid produced by MicroHH. \\
         3) Interpolate the wind velocities on the fine grid to the grid boundaries of the coarse grid. \\
-        4) Use the interpolated wind velocities calculated in step 3 to calculate all nine total turbulent transport components by integrating them over the corresponding grid boundaries. This includes calculating weights (or to be precise, fractions) that compensate for the relative contributions to the total integral. \\
+        4) Use the interpolated wind velocities from step 3 to calculate all nine total turbulent transport components by integrating them over the corresponding grid boundaries. This includes calculating weights (or to be precise, fractions) that compensate for the relative contributions to the total integral. \\
         5) Interpolate the wind velocities on the coarse grid cells to the grid boundaries of the coarse grid. \\
-        6) Calculate all nine resolved turbulent transport components by multiplying the corresponding interpolated wind velocities calculated in step 5, and calculate all nine unresolved turbulent transport components by taking the difference between the total and resolved turbulent transport components. \\
+        6) Calculate all nine resolved turbulent transport components by multiplying the corresponding interpolated wind velocities from step 5, and calculate all nine unresolved turbulent transport components by taking the difference between the total and resolved turbulent transport components. \\
         7) Store all variables in a netCDF-file with user-specified name (the variable name_output_file, which should be a string) in user-specified output directory (via the variable output_directory, which should be a string), which serves as input for the script sample_training_data_tfrecord.py. \\
         
         NOTE: In the steps above the script implicitly assumes that the variables are located on a staggered Arakawa C-grid, where the variables located on the grid edges are always upstream/down of the corresponding grid centers (as is the case in MicroHH). \\
@@ -36,7 +29,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         -dim_new_grid: a tuple existing of three integers, which specifies for each coordinate directions (z,y,x) the amount of grid cells in the user-defined coarse grid. \\
         -input_directory: a string specifying where the MicroHH output binary files are stored. \\
         -output_directory: a string specifying where the created netCDF-file should be stored. \\
-        -reynolds_number_tau: an integer or float specifying a reference friction Reynolds number for the flow being considered. \\
         -size_samples: an integer specifying the size of the samples that are eventually extracted in the sample_training_data_tfrecord.py script. This is used to determine the correct amount of ghost cells. \\
         -precision: should be either 'double' or 'single'; specifies the required floating point precision for the calculations. \\
         -fourth_order: a boolean flag specifying the order of the interpolations. When False, second-order interpolation is used. When True, an error is thrown because fourth-order interpolation has not been implemented yet. \\
@@ -60,9 +52,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
 
     if not isinstance(grid_filepath,str):
         raise TypeError("Specified grid filepath should be a string.")
-
-    if not (isinstance(reynolds_number_tau,int) or isinstance(reynolds_number_tau,float)):
-        raise TypeError("Specified friction Reynolds number should be either a integer or float.")
 
     if not isinstance(name_output_file,str):
         raise TypeError("Specified name of output file should be a string.")
@@ -104,47 +93,24 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     
     #Initialize finegrid object
     if testing:
-        #coordx = np.array([0.25,0.75,1.25,1.75,2.25,2.75,3.25,3.75,4.25,4.75,5.25,5.75,6.25,6.75,7.25,7.75,8.25,8.75,9.25,9.75]) #NOTE: small rounding errors in 12th decimal, in case in 9th decimal
-        #xsize = 10.0
-        #coordy = np.array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5])
-        #ysize = 20.0
-        #coordz = np.array([0.01,0.05,0.1,0.2,0.4,0.6,0.8,1.0,2.0,3.0,4.0,5.0,5.1,5.15,5.2,5.4,6.0,9.0,9.5,10.0,11.5,12.3,13.0,13.5,13.7,13.8,13.85,13.9,13.95])
-        #zsize = 14.0
-        #coordz = np.array([0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9,3.1,3.3,3.5,3.7,3.9,4.1,4.3,4.5,4.7,4.9,5.1,5.3,5.5,5.7])
-        #zsize = 5.8
+        xsize = 10.0
+        coordx = np.array([0.25,0.75,1.25,1.75,2.25,2.75,3.25,3.75,4.25,4.75,5.25,5.75,6.25,6.75,7.25,7.75,8.25,8.75,9.25,9.75])
+        nx = len(coordx)
+        ysize = 14.0
+        coordy = np.array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5])
+        ny = len(coordy)
+        zsize = 5.8
+        coordz = np.array([0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9,3.1,3.3,3.5,3.7,3.9,4.1,4.3,4.5,4.7,4.9,5.1,5.3,5.5,5.7])
+        nz = len(coordz)
 
-        #Define similar coordinates as real case
-        nz, ny, nx = 256, 384, 768 #Dimensions fine grid
-        #xsize = 6.283185307179586
-        xsize = 6.
-        #ysize = 3.141592653589793
-        ysize = 3.
-        zsize = 2.
-        dx = xsize / nx
-        dy = ysize / ny
-        coordxh = np.arange(0, xsize, dx)
-        coordyh = np.arange(0, ysize, dy)
-        coordx = np.arange(dx/2, xsize, dx)
-        coordy = np.arange(dy/2, ysize, dy)
-
-        with nc.Dataset("/projects/1/flowsim/simulation1/robin_moser_stats.nc", "r") as nc_file:
-            coordz  = nc_file.variables["z" ][:]
-            #coordzh = nc_file.variables["zh"][:]
-            #Define for test arrays zh such that it is located exactly in between the grid centers, which is NOT the case for zh from the stats file.
-            coordzh = np.zeros(len(coordz) + 1)
-            for k in range(1, len(coordz)):
-                coordzh[k] = coordz[k-1] + 0.5* (coordz[k] - coordz[k-1])
-            coordzh[-1] = zsize
-        dz = coordzh[1:] - coordzh[:-1]
-        
         finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False)
             
-        #Define arbritary values for scalars that the script below needs.
+        #Define values for scalars that the script below needs.
         finegrid['fields']['visc'] = 1e-5
         finegrid['grid']['channel_half_width'] = 1.
 
     else:
-        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH, normalize grid with channel half width
+        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH, normalize grid with channel half width
  
     #Define orientation on grid for all the variables (z,y,x). True means variable is located on the sides in that direction, false means it is located in the grid centers.
     bool_edge_gridcell_u = (False, False, True)
@@ -152,13 +118,9 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     bool_edge_gridcell_w = (True, False, False)
     bool_edge_gridcell_p = (False, False, False)
 
-    #Define reference friction velocity based on viscosity and channel half-width read from the settings files produced by Microhh, and the user-defined Reynolds number
+    #Extract molecular viscosity and channel half width from finegrid object
     mvisc = finegrid['fields']['visc']
     channel_half_width = finegrid['grid']['channel_half_width']
-    utau_ref = (reynolds_number_tau * mvisc) / channel_half_width
-    
-    #Define reference kinematic viscosity based on reference friction velocity and channel_half_width
-    mvisc_ref = mvisc / (utau_ref * channel_half_width)
 
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
@@ -171,26 +133,18 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #Read variables from fine resolution data into finegrid or manually define them when testing
         if testing:
             output_shape  = (nz, ny, nx)
-#            start_value   = 0
-#            end_value     = start_value + output_shape[0]*output_shape[1]*output_shape[2]
-#            output_array  = np.reshape(np.arange(start_value,end_value), output_shape)
+            start_value   = 0
+            end_value     = start_value + output_shape[0]*output_shape[1]*output_shape[2]
+            output_array  = np.reshape(np.arange(start_value,end_value), output_shape)
             
-            #Define output_array that has only a gradient in the z-direction.
-            output_array  = np.zeros((nz, ny, nx))
-            output_1level = np.ones((nz, ny))
-            for i in range(1,nx+1):
-                output_array[:,:,i-1] = (i ** 1.01)  * output_1level
-
             finegrid.create_variables('u', output_array, bool_edge_gridcell_u)
             finegrid.create_variables('v', output_array, bool_edge_gridcell_v)
             finegrid.create_variables('w', output_array, bool_edge_gridcell_w)
-            finegrid.create_variables('p', output_array, bool_edge_gridcell_p)
             
         else:
-            finegrid.read_binary_variables(input_directory, 'u', t, bool_edge_gridcell_u, normalisation_factor = utau_ref)
-            finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v, normalisation_factor = utau_ref)
-            finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w, normalisation_factor = utau_ref)
-            finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p, normalisation_factor = 1.)
+            finegrid.read_binary_variables(input_directory, 'u', t, bool_edge_gridcell_u, normalisation_factor = 1.)
+            finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v, normalisation_factor = 1.)
+            finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w, normalisation_factor = 1.)
 
         ##Downsample from fine DNS data to user specified coarse grid ##
         ################################################################
@@ -202,7 +156,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         coarsegrid.downsample('u')
         coarsegrid.downsample('v')
         coarsegrid.downsample('w')
-        coarsegrid.downsample('p')
 
         ##Interpolate from fine grid to side boundaries coarse gridcells ##
         ###################################################################
@@ -341,23 +294,23 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             raise RuntimeError("There should be at least one ghost cell present in the finegrid object for each direction in order to calculate the viscous transports.")
 
         #Calculate viscous transport for all grid cells on fine grid
-        fine_tau_xu_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc+1:finegrid.ihend] - finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend-1]) / (finegrid['grid']['xh'][finegrid.igc+1:finegrid.ihend] - finegrid['grid']['xh'][finegrid.igc:finegrid.ihend-1])[None,None,:]) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
+        fine_tau_xu_visc[:,:,:] = -mvisc * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc+1:finegrid.ihend] - finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend-1]) / (finegrid['grid']['xh'][finegrid.igc+1:finegrid.ihend] - finegrid['grid']['xh'][finegrid.igc:finegrid.ihend-1])[None,None,:]) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
 
-        fine_tau_yu_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend] - finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc-1:finegrid.jend,finegrid.igc:finegrid.ihend]) / (finegrid['grid']['y'][finegrid.jgc:finegrid.jend+1] - finegrid['grid']['y'][finegrid.jgc-1:finegrid.jend])[None,:,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        fine_tau_yu_visc[:,:,:] = -mvisc * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend] - finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc-1:finegrid.jend,finegrid.igc:finegrid.ihend]) / (finegrid['grid']['y'][finegrid.jgc:finegrid.jend+1] - finegrid['grid']['y'][finegrid.jgc-1:finegrid.jend])[None,:,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
         
-        fine_tau_zu_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend] - finegrid['output']['u']['variable'][finegrid.kgc_center-1:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]) / (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend+1] - finegrid['grid']['z'][finegrid.kgc_center-1:finegrid.kend])[:,None,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        fine_tau_zu_visc[:,:,:] = -mvisc * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend] - finegrid['output']['u']['variable'][finegrid.kgc_center-1:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]) / (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend+1] - finegrid['grid']['z'][finegrid.kgc_center-1:finegrid.kend])[:,None,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
                   
-        fine_tau_xv_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1] - finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc-1:finegrid.iend]) / (finegrid['grid']['x'][finegrid.igc:finegrid.iend+1] - finegrid['grid']['x'][finegrid.igc-1:finegrid.iend])[None,None,:]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        fine_tau_xv_visc[:,:,:] = -mvisc * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1] - finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc-1:finegrid.iend]) / (finegrid['grid']['x'][finegrid.igc:finegrid.iend+1] - finegrid['grid']['x'][finegrid.igc-1:finegrid.iend])[None,None,:]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
 
-        fine_tau_yv_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc+1:finegrid.jhend,finegrid.igc:finegrid.iend] - finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend-1,finegrid.igc:finegrid.iend]) / (finegrid['grid']['yh'][finegrid.jgc+1:finegrid.jhend] - finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend-1])[None,:,None]) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
+        fine_tau_yv_visc[:,:,:] = -mvisc * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc+1:finegrid.jhend,finegrid.igc:finegrid.iend] - finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend-1,finegrid.igc:finegrid.iend]) / (finegrid['grid']['yh'][finegrid.jgc+1:finegrid.jhend] - finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend-1])[None,:,None]) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
 
-        fine_tau_zv_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend] - finegrid['output']['v']['variable'][finegrid.kgc_center-1:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]) / (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend+1] - finegrid['grid']['z'][finegrid.kgc_center-1:finegrid.kend])[:,None,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        fine_tau_zv_visc[:,:,:] = -mvisc * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend] - finegrid['output']['v']['variable'][finegrid.kgc_center-1:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]) / (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend+1] - finegrid['grid']['z'][finegrid.kgc_center-1:finegrid.kend])[:,None,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
         
-        fine_tau_xw_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc-1:finegrid.iend]) / (finegrid['grid']['x'][finegrid.igc:finegrid.iend+1] - finegrid['grid']['x'][finegrid.igc-1:finegrid.iend])[None,None,:]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        fine_tau_xw_visc[:,:,:] = -mvisc * ((finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc-1:finegrid.iend]) / (finegrid['grid']['x'][finegrid.igc:finegrid.iend+1] - finegrid['grid']['x'][finegrid.igc-1:finegrid.iend])[None,None,:]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
 
-        fine_tau_yw_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc-1:finegrid.jend,finegrid.igc:finegrid.iend]) / (finegrid['grid']['y'][finegrid.jgc:finegrid.jend+1] - finegrid['grid']['y'][finegrid.jgc-1:finegrid.jend])[None,:,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        fine_tau_yw_visc[:,:,:] = -mvisc * ((finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc-1:finegrid.jend,finegrid.igc:finegrid.iend]) / (finegrid['grid']['y'][finegrid.jgc:finegrid.jend+1] - finegrid['grid']['y'][finegrid.jgc-1:finegrid.jend])[None,:,None]) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
         
-        fine_tau_zw_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge+1:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend]) / (finegrid['grid']['zh'][finegrid.kgc_edge+1:finegrid.khend] - finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend-1])[:,None,None]) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
+        fine_tau_zw_visc[:,:,:] = -mvisc * ((finegrid['output']['w']['variable'][finegrid.kgc_edge+1:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend]) / (finegrid['grid']['zh'][finegrid.kgc_edge+1:finegrid.khend] - finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend-1])[:,None,None]) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
 
         #Interpolate calculated viscous transports on fine grid to the edges of the control volume on the coarse grid
         interp_tau_xu_visc[:,:,:] = _interpolate_side_cell(fine_tau_xu_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
@@ -532,9 +485,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
  
         #yz-boundary
         uc_uyzint = _interpolate_side_cell(coarsegrid['output']['u']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['y'],  coarsegrid['grid']['xh']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend],          coarsegrid['grid']['x'][coarsegrid.igc-1:coarsegrid.iend]))
-        #uc_uyzint = np.zeros((uc_uyzint_noghost.shape[0], uc_uyzint_noghost.shape[1], uc_uyzint_noghost.shape[2]+1))
-        #uc_uyzint[:,:,1:] = uc_uyzint_noghost.copy()
-        #uc_uyzint[:,:,0] = uc_uyzint_noghost[:,:,-1]
  
         #xy-boundary
         uc_uxyint = _interpolate_side_cell(coarsegrid['output']['u']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['y'],  coarsegrid['grid']['xh']), (coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend],   coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend],          coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
@@ -544,9 +494,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #NOTE: all transport terms need to be calculated on the upstream boundaries of the v control volume
         #xz-boundary
         vc_vxzint = _interpolate_side_cell(coarsegrid['output']['v']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['yh'], coarsegrid['grid']['x']),  (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc-1:coarsegrid.jend],   coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
-        #vc_vxzint = np.zeros((vc_vxzint_noghost.shape[0], vc_vxzint_noghost.shape[1]+1, vc_vxzint_noghost.shape[2]))
-        #vc_vxzint[:,1:,:] = vc_vxzint_noghost.copy()
-        #vc_vxzint[:,0,:] = vc_vxzint_noghost[:,-1,:]
     
         #yz-boundary
         uc_vyzint = _interpolate_side_cell(coarsegrid['output']['u']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['y'],  coarsegrid['grid']['xh']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],          coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
@@ -569,9 +516,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #xy-boundary
         #NOTE: At the bottom boundary 1 ghostcell needs to be implemented, which aligns the coordinates such that w_wxyint is located below the center of the control volume. Make use of Dirichlet BC that w = 0.
         wc_wxyint = _interpolate_side_cell(coarsegrid['output']['w']['variable'], (coarsegrid['grid']['zh'], coarsegrid['grid']['y'],  coarsegrid['grid']['x']),  (coarsegrid['grid']['z'][coarsegrid.kgc-1:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend],    coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
-        #wc_wxyint = np.zeros((wc_wxyint_noghost.shape[0]+1, wc_wxyint_noghost.shape[1], wc_wxyint_noghost.shape[2]))
-        #wc_wxyint[1:,:,:] = wc_wxyint_noghost.copy()
-        #wc_wxyint[0,:,:] = 0 - wc_wxyint_noghost[0,:,:]
         
         ##Calculate resolved and unresolved transport user specified coarse grid ##
         ###########################################################################
@@ -597,19 +541,19 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         res_tau_yu_turb = vc_uxzint * uc_uxzint
         
         #Contribution viscous forces
-        res_tau_yu_visc = - (mvisc_ref * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc - 1:coarsegrid.jhend - 1,coarsegrid.igc:coarsegrid.ihend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jhend,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc - 1:coarsegrid.jhend - 1,np.newaxis]),(len_zc,len_yhc,len_xhc))))
+        res_tau_yu_visc = - (mvisc * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc - 1:coarsegrid.jhend - 1,coarsegrid.igc:coarsegrid.ihend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jhend,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc - 1:coarsegrid.jhend - 1,np.newaxis]),(len_zc,len_yhc,len_xhc))))
 
         #Contribution turbulence
         res_tau_yv_turb = vc_vxzint ** 2 
         
         #Contribution viscous forces
-        res_tau_yv_visc = - (mvisc_ref * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend + 1,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc-1:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jend + 1,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc-1:coarsegrid.jend,np.newaxis]),(len_zc,len_yc+1,len_xc))))
+        res_tau_yv_visc = - (mvisc * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend + 1,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc-1:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jend + 1,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc-1:coarsegrid.jend,np.newaxis]),(len_zc,len_yc+1,len_xc))))
 
         #Contribution turbulence
         res_tau_yw_turb = vc_wxzint * wc_wxzint 
         
         #Contribution viscous forces
-        res_tau_yw_visc = - (mvisc_ref * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc - 1:coarsegrid.jhend - 1,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jhend,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc - 1:coarsegrid.jhend - 1,np.newaxis]),(len_zhc,len_yhc,len_xc))))
+        res_tau_yw_visc = - (mvisc * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc - 1:coarsegrid.jhend - 1,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jhend,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc - 1:coarsegrid.jhend - 1,np.newaxis]),(len_zhc,len_yhc,len_xc))))
 
         #Unresolved transport due to turbulence
         unres_tau_yu_turb = total_tau_yu_turb - res_tau_yu_turb
@@ -630,19 +574,19 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         res_tau_xu_turb = uc_uyzint ** 2
         
         #Contribution viscous forces
-        res_tau_xu_visc = - (mvisc_ref * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend + 1] - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc-1:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['xh'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.iend + 1] - coarsegrid['grid']['xh'][np.newaxis,np.newaxis,coarsegrid.igc-1:coarsegrid.iend]),(len_zc,len_yc,len_xc+1))))
+        res_tau_xu_visc = - (mvisc * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend + 1] - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc-1:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['xh'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.iend + 1] - coarsegrid['grid']['xh'][np.newaxis,np.newaxis,coarsegrid.igc-1:coarsegrid.iend]),(len_zc,len_yc,len_xc+1))))
 
         #Contribution turbulence
         res_tau_xv_turb = uc_vyzint * vc_vyzint
         
         #Contribution viscous forces
-        res_tau_xv_visc = - (mvisc_ref * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc - 1:coarsegrid.ihend - 1]) / np.broadcast_to((coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc - 1:coarsegrid.ihend - 1]),(len_zc,len_yhc,len_xhc))))
+        res_tau_xv_visc = - (mvisc * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc - 1:coarsegrid.ihend - 1]) / np.broadcast_to((coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc - 1:coarsegrid.ihend - 1]),(len_zc,len_yhc,len_xhc))))
 
         #Contribution turbulence
         res_tau_xw_turb = uc_wyzint * wc_wyzint
         
         #Contribution viscous forces
-        res_tau_xw_visc = - (mvisc_ref * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc - 1:coarsegrid.ihend - 1]) / np.broadcast_to((coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc - 1:coarsegrid.ihend - 1]),(len_zhc,len_yc,len_xhc))))
+        res_tau_xw_visc = - (mvisc * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc - 1:coarsegrid.ihend - 1]) / np.broadcast_to((coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc - 1:coarsegrid.ihend - 1]),(len_zhc,len_yc,len_xhc))))
 
         #Unresolved transport due to turbulence
         unres_tau_xu_turb = total_tau_xu_turb - res_tau_xu_turb
@@ -665,19 +609,19 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         res_tau_zu_turb = wc_uxyint * uc_uxyint
         
         #Contribution viscous forces
-        res_tau_zu_visc = - (mvisc_ref * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend + 1,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['u']['variable'][coarsegrid.kgc - 1:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend]) / np.broadcast_to((coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend + 1,np.newaxis,np.newaxis] - coarsegrid['grid']['z'][coarsegrid.kgc - 1:coarsegrid.kend,np.newaxis,np.newaxis]),(len_zhc,len_yc,len_xhc))))
+        res_tau_zu_visc = - (mvisc * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend + 1,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['u']['variable'][coarsegrid.kgc - 1:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend]) / np.broadcast_to((coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend + 1,np.newaxis,np.newaxis] - coarsegrid['grid']['z'][coarsegrid.kgc - 1:coarsegrid.kend,np.newaxis,np.newaxis]),(len_zhc,len_yc,len_xhc))))
 
         #Contribution turbulence
         res_tau_zv_turb = wc_vxyint * vc_vxyint
         
         #Contribution viscous forces
-        res_tau_zv_visc = - (mvisc_ref * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend + 1,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc - 1:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend + 1,np.newaxis,np.newaxis] - coarsegrid['grid']['z'][coarsegrid.kgc - 1:coarsegrid.kend,np.newaxis,np.newaxis]),(len_zhc,len_yhc,len_xc))))
+        res_tau_zv_visc = - (mvisc * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend + 1,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc - 1:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend + 1,np.newaxis,np.newaxis] - coarsegrid['grid']['z'][coarsegrid.kgc - 1:coarsegrid.kend,np.newaxis,np.newaxis]),(len_zhc,len_yhc,len_xc))))
 
         #Contribution turbulence
         res_tau_zw_turb = wc_wxyint ** 2
         
         #Contribution viscous forces
-        res_tau_zw_visc = - (mvisc_ref * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc-1:coarsegrid.khend - 1,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend,np.newaxis,np.newaxis] - coarsegrid['grid']['zh'][coarsegrid.kgc-1:coarsegrid.khend - 1,np.newaxis,np.newaxis]),(len_zc+1,len_yc,len_xc))))
+        res_tau_zw_visc = - (mvisc * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc-1:coarsegrid.khend - 1,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend,np.newaxis,np.newaxis] - coarsegrid['grid']['zh'][coarsegrid.kgc-1:coarsegrid.khend - 1,np.newaxis,np.newaxis]),(len_zc+1,len_yc,len_xc))))
 
         #Unresolved transport due to turbulence
         unres_tau_zu_turb = total_tau_zu_turb - res_tau_zu_turb
@@ -767,11 +711,8 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             #
             var_size_samples            = a.createVariable("size_samples","i",())
             var_cells_around_centercell = a.createVariable("cells_around_centercell","i",())
-            var_reynolds_number_tau     = a.createVariable("reynolds_number_tau","f8",())
             var_mvisc                   = a.createVariable("mvisc","f8",())
-            var_mvisc_ref               = a.createVariable("mvisc_ref","f8",())
             var_channel_half_width      = a.createVariable("channel_half_width","f8",())
-            var_utau_ref                = a.createVariable("utau_ref","f8",())
             
             #var_dist_midchannel = a.createVariable("dist_midchannel","f8",("zc",))
  
@@ -803,11 +744,8 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             #
             var_size_samples[:]            = size_samples
             var_cells_around_centercell[:] = cells_around_centercell
-            var_reynolds_number_tau[:]     = reynolds_number_tau
             var_mvisc[:]                   = mvisc
-            var_mvisc_ref[:]               = mvisc_ref
             var_channel_half_width[:]      = channel_half_width
-            var_utau_ref[:]                = utau_ref
             
             #var_dist_midchannel[:] = dist_midchannel[:]
  
@@ -815,7 +753,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             var_uc = a.createVariable("uc","f8",("time","zgc","ygc","xhgc"))
             var_vc = a.createVariable("vc","f8",("time","zgc","yhgc","xgc"))
             var_wc = a.createVariable("wc","f8",("time","zhgc","ygc","xgc"))
-            var_pc = a.createVariable("pc","f8",("time","zgc","ygc","xgc"))
  
             var_res_u_boxint      = a.createVariable("res_u_boxint","f8",("time","zc","yc","xc"))
             var_res_v_boxint      = a.createVariable("res_v_boxint","f8",("time","zc","yc","xc"))
@@ -907,7 +844,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         var_uc[t,:,:,:] = coarsegrid['output']['u']['variable']
         var_vc[t,:,:,:] = coarsegrid['output']['v']['variable']
         var_wc[t,:,:,:] = coarsegrid['output']['w']['variable']
-        var_pc[t,:,:,:] = coarsegrid['output']['p']['variable']
 
         var_res_u_boxint[t,:,:,:]      = uc_uyzint[:,:,1:]
         var_res_v_boxint[t,:,:,:]      = vc_vxzint[:,1:,:]

@@ -1,7 +1,5 @@
-#Script to downsample finegrid data to coarsegrid, which is needed for the generation of the training data for the NN.
-#Author: Robin Stoffer (robin.stoffer@wur.nl)
+#Script to downsample finegrid data to coarsegrid, which is needed for the generation of the training data for the MLP.
 
-#Developed for Python 3!
 import numpy as np
 import warnings
 
@@ -46,13 +44,6 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid
                 weights[i] = (cor_c_top - cor_points[i])/(cor_c_top - cor_c_bottom)
             else:
                 weights[i] = (cor_points[i+1] - cor_points[i])/(cor_c_top - cor_c_bottom)
-
-#    #Select two additional points just outside coarse grid cell, which are needed for interpolation (in the total transport calculation) but not for calculating representative velocities.
-#    #Consequently, the weights are set to 0.
-#    points_indices_cor = np.insert(points_indices_cor, 0, points_indices_cor[0] - 1)
-#    points_indices_cor = np.append(points_indices_cor, point_indices_cor[-1] + 1)
-#    weights = np.insert(weights, 0, 0)
-#    weights = np.append(weights, 0)
 
     return weights, points_indices_cor
 
@@ -205,15 +196,6 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
             else:
                 weights[i] = (cor_points[i] - cor_points[i-1])/(cor_c_top - cor_c_bottom)
 
-#    #Select one additional point just upstream/down of coarse grid cell, which is needed for interpolation (in the total transport calculation) but not for calculating representative velocities.
-#    #Consequently, the weight of this point set to 0. Note: interpolation not required at bottom boundary, since boundaries of coarse and fine grid exactly coincide there. Since no ghostcells are added in the vertical direction, this would be even impossible (i.e. giving an error message).
-#    if not (vert_flag and (cor_c_bottom == 0)):
-#        points_indices_cor = np.insert(points_indices_cor, 0, points_indices_cor[0] - 1)
-#        weights = np.insert(weights, 0, 0)
-#   # if not (vert_flag and (cor_c_top == size)):
-#   #     points_indices_cor = np.append(points_indices_cor, point_indices_cor[-1] + 1)
-#   #     weights = np.append(weights, 0)
-    
     return weights, points_indices_cor
 
 def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False, False, False), periodic_bc = (False, True, True), zero_w_topbottom = True):
@@ -285,16 +267,10 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
         raise TypeError('The zero_w_topbottom flag should be a boolean (True/False).')
 
     var_c = np.zeros((len(zcor_c), len(ycor_c), len(xcor_c)), dtype=float)
-    #weights_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=(object, object, object))
-    #points_indices_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=(object, object, object))
-
-    #Add needed ghostcells to finegrid object for the downsampling and calculation total transport
-    #finegrid = add_ghostcells_finegrid(finegrid, coarsegrid, variable_name, bool_edge_gridcell)
 
     #Loop over coordinates for downsampling
     izc = 0
     for zcor_c_middle in zcor_c:
-    #for izc in range(coarsegrid['grid']['ktot'])
         if bool_edge_gridcell[0]:
             weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid, periodic_bc = periodic_bc[0], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['zsize'])
             var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_edge:finegrid.khend, :, :]
@@ -332,15 +308,8 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
                 weights =  weights_x[np.newaxis,np.newaxis,:]*weights_y[np.newaxis,:,np.newaxis]*weights_z[:,np.newaxis,np.newaxis]
                 var_c[izc,iyc,ixc] = np.sum(np.multiply(weights, var_finezyx))
  
-                #weights_c[izc,iyc,ixc] = (weights_z,weights_y,weights_x)
-                #points_indices_c[izc,iyc,ixc] = (points_indices_z,points_indices_y,points_indices_x)
-
                 ixc += 1
             iyc += 1
         izc += 1
     
-#    #Store downsampled variable in coarsegrid object
-#    coarsegrid['output'][variable_name] = var_c
- 
-    return var_c
-    
+    return var_c 

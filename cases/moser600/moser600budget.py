@@ -7,7 +7,7 @@ import netCDF4
 import matplotlib as mpl
 mpl.use('Agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
-sys.path.append("/home/robinst/microhh/python")
+sys.path.append("../../python")
 from microhh_tools import *
 
 nx = 768
@@ -18,8 +18,8 @@ nz = 256
 #iterstep = 500
 #nt   = 7
 iter = 1200
-iterstep = 600
-nt = 11
+iterstep = 120
+nt = 15
 nbegin_nc = 20 #Don't take average over all time samples for variables from netCDF files (i.e. exclude spin-up period).
 nend_nc = 120
 

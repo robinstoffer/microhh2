@@ -75,6 +75,21 @@ def _find_namelist_file():
     else:
         return namelist_file[0]
 
+
+def _process_endian(endian):
+    if endian not in ['little', 'big']:
+        raise ValueError('endian has to be \"little\" or \"big\"!')
+    endian = '<' if endian == 'little' else '>'
+    return endian
+
+def _process_precision(precision):
+    if precision not in ['single', 'double']:
+        raise ValueError('precision has to be \"single\" or \"double\"!')
+    precision = 'float32' if precision == 'single' else 'float64'
+    return precision
+
+
+
 # -------------------------
 # Classes and functions to read and write MicroHH things
 # -------------------------
