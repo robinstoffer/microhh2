@@ -23,7 +23,7 @@ In order to compile MicroHH and use all the scripts related to the ANN SGS model
 * CUDA (Optional for GPU support; not used).
 * Python3 (Used: version 3.6.6) with the following libraries:
     * Tensorflow v1 (not version >=2.0; Used: version 1.12.0).
-    * Numpy (Used: version 1.15.4).
+    * Numpy (Used: version 1.19.0).
     * Scipy (Used: version 1.2.0).
     * Matplotlib (Used: version 3.0.2).
     * NetCDF4 (Used: version 1.14.2).
