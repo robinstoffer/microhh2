@@ -4,7 +4,7 @@ MicroHH (v2.0 with ANN SGS model from Stoffer et al. (2020))
 
 MicroHH (v2.0) is a computational fluid dynamics code made for Direct Numerical Simulation (DNS) and Large-Eddy Simulation of turbulent flows in the atmospheric boundary layer. The code is written in C++.
 
-The base code of MicroHH (v2.0) is hosted on GitHub (http://github.com/microhh2). Here, the latest version of the base code can be found, as well as all releases. A detailed description of the base code can be found on [Van Heerwaarden et al. (2017)](http://www.geosci-model-dev-discuss.net/gmd-2017-41/#discussion). In case you decide to use MicroHH for your own research, the developers of MicroHH would appreciate to be notified and kindly request to cite their reference paper. The version (1.0) described in the reference paper has been assigned a DOI via [Zenodo](https://zenodo.org).
+The base code of MicroHH (v2.0) is hosted on GitHub (http://github.com/microhh2). Here, the latest version of the base code can be found, as well as all releases. A detailed description of the base code can be found in [Van Heerwaarden et al. (2017)](http://www.geosci-model-dev-discuss.net/gmd-2017-41/#discussion). In case you decide to use MicroHH for your own research, the developers of MicroHH would appreciate to be notified and kindly request to cite their reference paper. The version (1.0) described in the reference paper has been assigned a DOI via [Zenodo](https://zenodo.org).
 
 [![DOI](https://zenodo.org/badge/14754940.svg)](https://zenodo.org/badge/latestdoi/14754940)
 
@@ -91,7 +91,7 @@ If everything works out properly, a series of files has been created. The model 
 
     ./microhh run moser600
 
-This will take, depending on the run settings in the file 'moser600.ini', quite some time. It is therefore recommended to run the case with MPI enabled on a number of nodes. For the Dutch national supercomputer Cartesius, the job script we used has been provided as an example ('job_moser600_MPI'). In case you want to use that one, please note that this job scripts requires the output `from the install_tensorflow_cpu_cartesius.sh` script.
+This will take, depending on the run settings in the file 'moser600.ini', quite some time. It is therefore recommended to run the case with MPI enabled on a number of nodes. For the Dutch national supercomputer Cartesius, the job script we used has been provided as an example ('job_moser600_MPI'). In case you want to use that one, please note that this job scripts requires the output from the `install_tensorflow_cpu_cartesius.sh` script.
 
 After the simulation is finished, a statistics file called `moser600.default.0000000.nc` is created. You can open this file with a plotting tool like `ncview`, or plot the results against the reference data of Moser et al. (1999) with the three scripts provided (`moser600budget.py`, `moser600spectra.py`, `moser600stats.py`).
 
