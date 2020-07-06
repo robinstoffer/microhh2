@@ -1,0 +1,97 @@
+#!/bin/bash
+####SBATCH -t 5:00
+####SBATCH -t 1:00:00
+#SBATCH -t 1-00:00:00
+#SBATCH -N 1
+####SBATCH -N 3 --ntasks-per-node=1 -c 24
+####SBATCH -p short
+
+#INFO: Job script (Cartesius) to train ANN 10 times with different number of hidden neurons
+#NOTE: This script should be run as an array job as follows: `sbatch --array=0-9 job_MLP_optimization_robinst`
+
+#Load modules
+module purge
+module load 2019
+module load intel/2018b
+module load netCDF/4.6.1-intel-2018b
+module load CMake/3.12.1-GCCcore-7.3.0
+module load FFTW/3.3.8-intel-2018b
+
+#Activate virtual environment created with `install_tensorflow_cpu_cartesius.sh`
+source ~/virtualenv/firstMLP_intel_CPU/bin/activate
+
+echo $SLURM_ARRAY_TASK_ID
+
+#Depending on task id of array job, set correctly the number of the MLP and the number of neurons in the hidden layer
+if [ $SLURM_ARRAY_TASK_ID == 0 ]
+then
+    export MLPNUM=1
+    export NHIDDEN=1
+fi
+if [ $SLURM_ARRAY_TASK_ID == 1 ]
+then
+    export MLPNUM=2
+    export NHIDDEN=2
+fi
+if [ $SLURM_ARRAY_TASK_ID == 2 ]
+then
+    export MLPNUM=3
+    export NHIDDEN=4
+fi
+if [ $SLURM_ARRAY_TASK_ID == 3 ]
+then
+    export MLPNUM=4
+    export NHIDDEN=8
+fi
+if [ $SLURM_ARRAY_TASK_ID == 4 ]
+then
+    export MLPNUM=5
+    export NHIDDEN=16
+fi
+if [ $SLURM_ARRAY_TASK_ID == 5 ]
+then
+    export MLPNUM=6
+    export NHIDDEN=32
+fi
+if [ $SLURM_ARRAY_TASK_ID == 6 ]
+then
+    export MLPNUM=7
+    export NHIDDEN=64
+fi
+if [ $SLURM_ARRAY_TASK_ID == 7 ]
+then
+    export MLPNUM=8
+    export NHIDDEN=128
+fi
+if [ $SLURM_ARRAY_TASK_ID == 8 ]
+then
+    export MLPNUM=9
+    export NHIDDEN=256
+fi
+if [ $SLURM_ARRAY_TASK_ID == 9 ]
+then
+    export MLPNUM=10
+    export NHIDDEN=512
+fi
+
+#Train ANN
+python3 -u MLP_tfestimator.py --input_dir '../cases/moser600/training_data/' --checkpoint_dir "./MLP$MLPNUM" --stored_means_stdevs_filepath '../cases/moser600/training_data/means_stdevs_allfields.nc' --training_filepath '../cases/moser600/training_data/training_data.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
+
+#Postprocessing for incorporation in MicroHH, only do this once and for the MLP to be selected
+if [ $SLURM_ARRAY_TASK_ID == 9 ]
+then
+
+    #Extract paramters from MLP and store them in txt-files
+    bash extract_weights_frozen_graph.sh #NOTE: currently selects MLP10 (with NHIDDEN=512) as MLP to extract the parameters from. This should be identical to the MLP selected in this job script to incoporate in MicroHH (see other lines in postprocessing part of this job script)!
+    
+    #Create directory for MLP to be selected, remove it first if it already exists
+    if [ -d "./MLP_selected" ]; then
+        rm -r ./MLP_selected
+    fi
+    
+    mkdir ./MLP_selected
+    
+    #Copy the txt-files, containing the paramters of the MLP selected for incorporation in MicroHH, to the directory needed to run MicroHH with the ANN SGS model. This is needed because the path containing the ANN parameters is hard-coded in MicroHH
+    cp ./MLP10/*.txt ./MLP_selected
+
+fi

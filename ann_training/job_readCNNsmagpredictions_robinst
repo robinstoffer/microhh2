@@ -1,0 +1,100 @@
+#!/bin/bash
+####SBATCH -t 10:00
+#SBATCH -t 1:00:00
+####SBATCH -t 3-00:00:00
+####SBATCH -t 10:00:00
+####SBATCH -N 1
+#SBATCH -N 1
+#SBATCH -p short
+####SBATCH -p gpu_short
+####SBATCH -p gpu
+
+# To make sure all folders and files within the project space are created with write permission for the group:
+umask g+w
+
+#Load modules new environment
+module purge
+module load 2019
+module load intel/2018b
+module load netCDF/4.6.1-intel-2018b
+module load netCDF-C++4/4.3.0-intel-2018b
+module load CMake/3.12.1-GCCcore-7.3.0
+module load cuDNN/7.6.3-CUDA-10.0.130
+module load FFTW/3.3.8-intel-2018b
+module load Doxygen/1.8.14-GCCcore-7.3.0
+
+#export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared Python libraries can be found
+
+source ~/virtualenv/firstCNN_intel_CPU/bin/activate
+
+echo $SLURM_ARRAY_TASK_ID
+
+#Depending on task id of array job, set correctly the number of the MLP and the number of neurons in the hidden layer
+if [ $SLURM_ARRAY_TASK_ID == 0 ]
+then
+    export MLPNUM=30
+    #export NHIDDEN=1
+fi
+if [ $SLURM_ARRAY_TASK_ID == 1 ]
+then
+    export MLPNUM=31
+    #export NHIDDEN=2
+fi
+if [ $SLURM_ARRAY_TASK_ID == 2 ]
+then
+    export MLPNUM=32
+    #export NHIDDEN=4
+fi
+if [ $SLURM_ARRAY_TASK_ID == 3 ]
+then
+    export MLPNUM=33
+    #export NHIDDEN=8
+fi
+if [ $SLURM_ARRAY_TASK_ID == 4 ]
+then
+    export MLPNUM=34
+    #export NHIDDEN=16
+fi
+if [ $SLURM_ARRAY_TASK_ID == 5 ]
+then
+    export MLPNUM=35
+    #export NHIDDEN=32
+fi
+if [ $SLURM_ARRAY_TASK_ID == 6 ]
+then
+    export MLPNUM=36
+    #export NHIDDEN=64
+fi
+if [ $SLURM_ARRAY_TASK_ID == 7 ]
+then
+    export MLPNUM=37
+    #export NHIDDEN=128
+fi
+if [ $SLURM_ARRAY_TASK_ID == 8 ]
+then
+    export MLPNUM=38
+    #export NHIDDEN=256
+fi
+if [ $SLURM_ARRAY_TASK_ID == 9 ]
+then
+    export MLPNUM=39
+    #export NHIDDEN=512
+fi
+
+#To run this script as an array job:
+##sbatch --array=0-9 job_readCNNsmagpredictions_robinst
+
+#mkdir /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP$MLPNUM
+#cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP$MLPNUM
+mkdir /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP53
+cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP53
+
+#Make CNN/Smag predictions and reconstruct fields
+#python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --make_table --reconstruct_fields --make_plots
+
+python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP53/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/means_stdevs_allfields.nc' --make_table --make_plots #--reconstruct_fields
+
+#ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
+#XDG_RUNTIME_DIR=""
+#tensorboard --logdir=/projects/1/flowsim/simulation1/CNN_checkpoints --port=$PORT
+##On LOCAL terminal: ssh -N -L40600:localhost:40600 robinst@int3-bb.cartesius.surfsara.nl.

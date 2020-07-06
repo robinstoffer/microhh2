@@ -1,0 +1,62 @@
+#!/bin/bash
+#SBATCH -t 1:00:00
+####SBATCH -t 1-12:00:00
+####SBATCH -t 10:00:00
+#SBATCH -N 1
+#SBATCH -p short
+
+cd ~/microhh/cases/moser600/git_repository/Neural\ Network/
+
+#Load modules new environment
+module purge
+module load 2019
+module load intel/2018b
+module load netCDF/4.6.1-intel-2018b
+module load netCDF-C++4/4.3.0-intel-2018b
+module load CMake/3.12.1-GCCcore-7.3.0
+module load cuDNN/7.6.3-CUDA-10.0.130
+module load FFTW/3.3.8-intel-2018b
+module load Doxygen/1.8.14-GCCcore-7.3.0
+
+##Load modules old environment
+#module purge
+##module load eb
+#module load surfsara
+#module load CMake/3.7.2-intel-2016b
+##module load cuDNN/7.0.5-CUDA-9.0.176
+#module load netCDF/4.4.1.1-intel-2016b
+#module load netCDF-C++4/4.3.0-intel-2016b
+#module load FFTW/3.3.5-intel-2016b
+#module load Doxygen/1.8.11-intel-2016b
+
+export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared libraries can be found
+
+source ~/virtualenv/firstCNN_intel_CPU/bin/activate
+
+export MLPNUM=53
+
+##Do inference
+##All fluxes, all heights
+#python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --calc_loss
+
+#Only zu_upstream, only log-layer
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss_loglayer_zu_upstream.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --only_zu_upstream --only_loglayer #--calc_loss
+#
+cd ~/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/
+python3 -u ../horcross_inference_permutation.py --permute_file /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu
+
+#Only zu_downstream, only log-layer
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss_loglayer_zu_downstream.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --only_zu_downstream --only_loglayer #--calc_loss
+#
+cd ~/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/
+python3 -u ../horcross_inference_permutation.py --permute_file /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu
+##Only zu_upstream, all heights
+#python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss_zu_upstream.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_zu_upstream.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --labels_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/reconstructed_fields.nc --only_zu_upstream #--calc_loss
+#
+##Only zu_downstream, all heights
+#python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss_zu_downstream.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_zu_downstream.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --labels_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/reconstructed_fields.nc --only_zu_downstream #--calc_loss
+#GO TO LISA WHEN USING TENSORRT FOR INFERENCE ON GPU, and execute commands below
+#convert-to-uff convert-to-uff ~/inference_firstMLP/frozen_graph/MLP1.pb -o uff/MLP1.uff -O outputs/BiasAdd
+#REMARKS BELOW ONLY FOR CNN:
+#Get remark DEBUG: convert reshape to flatten node
+#Get remark warning: No conversion function registered for layer: Conv3D yet. Converting conv1/Conv3D as custom op: Conv3D.
