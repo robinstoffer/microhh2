@@ -26,10 +26,13 @@ class Finegrid:
         
         -zero_w_topbottom: boolean specifying whether the vertical wind velocity is 0 at the bottom and top levels of the domain or not. This is used to define ghost cells in the vertical direction.
         
-        -normalisation_grid: boolean indicating if the specified height of the simulation should be used to normalize the coordinate axes (True), which is for the a turbulent channel flow equal to the half-channel width."""
+        -normalisation_grid: boolean indicating if the specified height of the simulation should be used to normalize the coordinate axes (True), which is for the a turbulent channel flow equal to the half-channel width.
+        
+        -spinup_time: integer specifying spinup time of the simulation in seconds. The spinup time is subsequently excluded from the calculations in func_generate_training.py. By default, the spinup time is set to 0 seconds.
+        """
         
 
-    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, normalisation_grid = False, **kwargs):
+    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, normalisation_grid = False, spinup_time = 0, **kwargs):
         
         # Test whether types of input variables are correct.
         if not isinstance(read_grid_flag, bool):
@@ -87,7 +90,7 @@ class Finegrid:
             self.read_grid_flag = True
             self.settings_filepath = kwargs.get('settings_filepath', None)
             self.grid_filepath = kwargs.get('grid_filepath', 'grid.0000000')
-            self.__read_settings(settings_filepath = self.settings_filepath, normalisation_grid = normalisation_grid)
+            self.__read_settings(settings_filepath = self.settings_filepath, normalisation_grid = normalisation_grid, spinup_time = spinup_time)
             self.__read_binary_grid(grid_filepath = self.grid_filepath, normalisation_grid = normalisation_grid)
             self.define_grid_flag = False
 
@@ -140,7 +143,7 @@ class Finegrid:
             #Store manually defined grid
             self.__define_grid(self.var['grid']['z'],self.var['grid']['y'],self.var['grid']['x'], self.var['grid']['zsize'], self.var['grid']['ysize'], self.var['grid']['xsize'])
 
-    def __read_settings(self, normalisation_grid, settings_filepath = None):
+    def __read_settings(self, normalisation_grid, spinup_time, settings_filepath = None):
         """ Read settings from specified file (default: .ini file in current directory). """
 
         if not self.read_grid_flag:
@@ -169,7 +172,7 @@ class Finegrid:
 
         self.var['fields']['visc'] = settings['fields']['visc']
 
-        self.var['time']['starttime'] = int(settings['time']['starttime'])
+        self.var['time']['starttime'] = int(settings['time']['starttime']) + spinup_time
         self.var['time']['endtime'] = int(settings['time']['endtime'])
         self.var['time']['savetime'] = int(settings['time']['savetime'])
         self.var['time']['timesteps'] = int((self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']) + 1

@@ -103,14 +103,14 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
         coordz = np.array([0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9,3.1,3.3,3.5,3.7,3.9,4.1,4.3,4.5,4.7,4.9,5.1,5.3,5.5,5.7])
         nz = len(coordz)
 
-        finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False)
+        finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False, spinup_time = 0)
             
         #Define values for scalars that the script below needs.
         finegrid['fields']['visc'] = 1e-5
         finegrid['grid']['channel_half_width'] = 1.
 
     else:
-        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH, normalize grid with channel half width
+        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False, spinup_time = 1200, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH, exclude first 1200s of simulation from the training data (spinup-time)
  
     #Define orientation on grid for all the variables (z,y,x). True means variable is located on the sides in that direction, false means it is located in the grid centers.
     bool_edge_gridcell_u = (False, False, True)
@@ -124,7 +124,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
 
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
-        #NOTE1: does not select the last time step stored ('endtime' in {case}.ini file, this would require timesteps + 1 iterations.
+        #NOTE1: selects also the last time step stored ('endtime' in {case}.ini file.
         #NOTE2: when testing, the # of timesteps should be set equal to 1.
     #for t in range(1): #FOR TESTING PURPOSES ONLY!
         ##Read or define fine-resolution DNS data ##

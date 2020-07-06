@@ -16,7 +16,7 @@ sampling_filepath = output_directory + 'samples_training.nc'
 means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
 
 #Generate training data
-generate_training_data((6,6,6), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+generate_training_data((64,48,96), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
 
 #Generate samples stored in tfrecord-files
 generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)

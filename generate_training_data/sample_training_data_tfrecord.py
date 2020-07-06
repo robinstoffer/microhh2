@@ -63,7 +63,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     xgc        = np.array(a['xgc'][:])
 
     #Define shapes of output arrays based on stored training data
-    nt = 30 #SHOULD CORRESPOND TO NUMER OF TRAINING FIELDS USED IN MLP TRAINING AND CREATED WITH FUNC_GENERATE_TRAINING.PY!
+    nt = a['unres_tau_xu_tot'].shape[0] # NOTE1: nt should be the same for all variables.
+    #nt = 30 #SHOULD CORRESPOND TO NUMER OF TRAINING FIELDS USED IN MLP TRAINING AND CREATED WITH FUNC_GENERATE_TRAINING.PY!
     nz = zc.shape[0]
     ny = yc.shape[0]
     nx = xc.shape[0]
@@ -257,7 +258,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                         yhloc_samples[sample_num] = yhc[index_y_noghost]
                         yloc_samples[sample_num]  = yc[index_y_noghost]
                         xhloc_samples[sample_num] = xhc[index_x_noghost]
-                        xloc_samples[sample_num]  = xc[index_x_nogt]
+                        xloc_samples[sample_num]  = xc[index_x_noghost]
 
                         #Set flags of bottom/top wall to one when the samples is located at the bottom/top.
                         if index_z == (kend-1):
