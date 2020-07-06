@@ -1,8 +1,7 @@
+#Script to generate profiles of mean velocity and reynolds stress from DNS moser600 case output and reference data
 import numpy
 import struct
 import netCDF4
-#import pdb
-#import tkinter
 import matplotlib as mpl
 mpl.use('Agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 mpl.rcParams.update({'figure.autolayout':True})
@@ -12,16 +11,13 @@ nx = 768
 ny = 384
 nz = 256
 
-#iter = 60000
-#iterstep = 500
-#nt   = 7
-iter = 1200
-iterstep = 600
-nt = 11
+iterstart = 1200
+iterstep = 60
+nt = 31
 
 # read Moser's data
-Mosermean = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590.means", skiprows=25)
-Moserrey  = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590.reystress", skiprows=25)
+Mosermean = numpy.loadtxt("reference_data/profiles/chan590.means", skiprows=25)
+Moserrey  = numpy.loadtxt("reference_data/profiles/chan590.reystress", skiprows=25)
 
 yplusMoser = Mosermean[:,1]
 uavgMoser  = Mosermean[:,2]
@@ -32,7 +28,7 @@ wvarMoser  = Moserrey[:,3]
 # read the grid data
 n = nx*ny*nz
 
-fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
+fin = open("grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -56,10 +52,10 @@ vvart = numpy.zeros((nt, nz))
 wvart = numpy.zeros((nt, nz))
 
 for t in range(nt):
-  prociter = iter + iterstep*t
+  prociter = iterstart + iterstep*t
   print("Processing iter = {:07d}".format(prociter))
 
-  fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(prociter),"rb")
+  fin = open("u.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -72,7 +68,7 @@ for t in range(nt):
     uvart[t,k] = numpy.var(u[k,:,:] - uavgt[t,k])
   del(u)
 
-  fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(prociter),"rb")
+  fin = open("v.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -85,7 +81,7 @@ for t in range(nt):
     vvart[t,k] = numpy.var(v[k,:,:] - vavgt[t,k])
   del(v)
 
-  fin = open("/projects/1/flowsim/simulation1/w.{:07d}".format(prociter),"rb")
+  fin = open("w.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)

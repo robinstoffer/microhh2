@@ -224,11 +224,12 @@ class Read_statistics:
         self.dimensions = {}
 
         # For each variable in the NetCDF file, read all the content and info
-        for var in f.variables:
-            self.data[var] = f.variables[var].__array__()
-            self.units[var] = f.variables[var].units
-            self.names[var] = f.variables[var].long_name
-            self.dimensions[var] = f.variables[var].dimensions
+        for group in f.groups:
+            for var in f[group].variables:
+                self.data[var] = f[group].variables[var].__array__()
+                self.units[var] = f[group].variables[var].units
+                self.names[var] = f[group].variables[var].long_name
+                self.dimensions[var] = f[group].variables[var].dimensions
 
         f.close()
 

@@ -1,3 +1,4 @@
+#Plot budget terms of DNS moser600 case output against reference data
 import sys
 import numpy
 import struct
@@ -14,20 +15,17 @@ nx = 768
 ny = 384
 nz = 256
 
-#iter = 60000
-#iterstep = 500
-#nt   = 7
-iter = 1200
-iterstep = 120
-nt = 15
+iterstart = 1200
+iterstep = 60
+nt = 31
 nbegin_nc = 20 #Don't take average over all time samples for variables from netCDF files (i.e. exclude spin-up period).
-nend_nc = 120
+nend_nc = 51
 
 # read Moser's data
-Moseruubal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.uubal", skiprows=25)
-Moservvbal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.wwbal", skiprows=25) #In Moser case v and w are switched
-Moserwwbal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.vvbal", skiprows=25)
-Moserkbal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.kbal", skiprows=25)
+Moseruubal = numpy.loadtxt("reference_data/balances/chan590.uubal", skiprows=25)
+Moservvbal = numpy.loadtxt("reference_data/balances/chan590.wwbal", skiprows=25) #In Moser case v and w are switched
+Moserwwbal = numpy.loadtxt("reference_data/balances/chan590.vvbal", skiprows=25)
+Moserkbal = numpy.loadtxt("reference_data/balances/chan590.kbal", skiprows=25)
 
 yplusMoser = Moseruubal[:,1] #Should be the same for u,v,w,TKE
 P_umoser = Moseruubal[:,4]
@@ -57,7 +55,7 @@ Tp_kmoser = Moserkbal[:,5]
 # read the grid data
 n = nx*ny*nz
 
-fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
+fin = open("grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -77,10 +75,10 @@ uavgt = numpy.zeros((nt, nz))
 vavgt = numpy.zeros((nt, nz))
 
 for t in range(nt):
-  prociter = iter + iterstep*t
+  prociter = iterstart + iterstep*t
   print("Processing iter = {:07d}".format(prociter))
 
-  fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(prociter),"rb")
+  fin = open("u.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -90,7 +88,7 @@ for t in range(nt):
 
   uavgt[t,:] = numpy.nanmean(numpy.nanmean(u,2),1)
 
-  fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(prociter),"rb")
+  fin = open("v.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -120,7 +118,7 @@ starty = 0
 endy   = int(z.size / 2)
 
 # read statistics file
-f = Read_statistics("/projects/1/flowsim/simulation1/moser600.default.0000000.nc")
+f = Read_statistics("moser600.default.0000000.nc")
 P_ut = numpy.array(f['u2_rdstr'][nbegin_nc:nend_nc,:])
 S_ut = numpy.array(f['u2_shear'][nbegin_nc:nend_nc,:])
 Tt_ut = numpy.array(f['u2_turb'][nbegin_nc:nend_nc,:])

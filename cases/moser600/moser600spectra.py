@@ -1,3 +1,4 @@
+#Script to generate spectra where DNS output from the moser600 case is compared to reference data
 import sys
 import numpy
 import struct
@@ -7,56 +8,44 @@ import netCDF4
 import matplotlib as mpl
 mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
-sys.path.append("/home/robinst/microhh/python")
-from microhh_tools_robinst import *
+sys.path.append("../../python")
+from microhh_tools import *
 
 nx = 768
 ny = 384
 nz = 256
 
-#nx = 96
-#ny = 48
-#nz = 64
-
-#iter = 60000
-#iterstep = 500
-#nt   = 7
-iter = 1200
-iterstep = 600
-nt = 11
-#nt = 1
+iterstart = 1200
+iterstep = 60
+nt = 31
 
 # read Moser's data
-Moserxspec_z5 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.xspec.5", skiprows=25)
-Moserzspec_z5 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.zspec.5", skiprows=25)
-Moserxspec_z99 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.xspec.99", skiprows=25)
-Moserzspec_z99 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.zspec.99", skiprows=25)
+Moserxspec_z5 = numpy.loadtxt("reference_data/spectra/chan590.xspec.5", skiprows=25)
+Moserzspec_z5 = numpy.loadtxt("reference_data/spectra/chan590.zspec.5", skiprows=25)
+Moserxspec_z99 = numpy.loadtxt("reference_data/spectra/chan590.xspec.99", skiprows=25)
+Moserzspec_z99 = numpy.loadtxt("reference_data/spectra/chan590.zspec.99", skiprows=25)
 
-kMoser = Moserxspec_z5[1:,0]  # +1; Should be the same for all spectra, +1 to get the actual wave number kappa
+kMoser = Moserxspec_z5[1:,0]  # Should be the same for all spectra, 1: to exclude 0th wavenumber
 Euu_xspec_z5_moser = Moserxspec_z5[1:,1]
 Evv_xspec_z5_moser = Moserxspec_z5[1:,3] #Note: v and w switched in Moser, here taken into account
 Eww_xspec_z5_moser = Moserxspec_z5[1:,2]
-Epp_xspec_z5_moser = Moserxspec_z5[1:,4] 
 
 Euu_zspec_z5_moser = Moserzspec_z5[1:,1]
 Evv_zspec_z5_moser = Moserzspec_z5[1:,3] #Note: v and w switched in Moser, here taken into account
 Eww_zspec_z5_moser = Moserzspec_z5[1:,2]
-Epp_zspec_z5_moser = Moserzspec_z5[1:,4]
 
 Euu_xspec_z99_moser = Moserxspec_z99[1:,1]
 Evv_xspec_z99_moser = Moserxspec_z99[1:,3] #Note: v and w switched in Moser, here taken into account
 Eww_xspec_z99_moser = Moserxspec_z99[1:,2]
-Epp_xspec_z99_moser = Moserxspec_z99[1:,4]
 
 Euu_zspec_z99_moser = Moserzspec_z99[1:,1]
 Evv_zspec_z99_moser = Moserzspec_z99[1:,3] #Note: v and w switched in Moser, here taken into account
 Eww_zspec_z99_moser = Moserzspec_z99[1:,2]
-Epp_zspec_z99_moser = Moserzspec_z99[1:,4]
 
 # read the grid data
 n = nx*ny*nz
 
-fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
+fin = open("grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -76,10 +65,10 @@ uavgt = numpy.zeros((nt, nz))
 vavgt = numpy.zeros((nt, nz))
 
 for t in range(nt):
-	prociter = iter + iterstep*t
+	prociter = iterstart + iterstep*t
 	print("Processing iter = {:07d}".format(prociter))
 	
-	fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(prociter),"rb")
+	fin = open("u.{:07d}".format(prociter),"rb")
 	raw = fin.read(n*8)
 	tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 	del(raw)
@@ -89,7 +78,7 @@ for t in range(nt):
 	
 	uavgt[t,:] = numpy.nanmean(numpy.nanmean(u,2),1)
 	
-	fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(prociter),"rb")
+	fin = open("v.{:07d}".format(prociter),"rb")
 	raw = fin.read(n*8)
 	tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 	del(raw)
@@ -119,15 +108,14 @@ starty = 0
 endy   = int(z.size / 2)
 
 # read cross-sections
-variables=["u","v","w","p"]
+variables=["u","v","w"]
 nwave_modes_x = int(nx * 0.5)
 nwave_modes_y = int(ny * 0.5)
-spectra_x5t = numpy.zeros((4,nt,nwave_modes_x))
-spectra_y5t = numpy.zeros((4,nt,nwave_modes_y))
-spectra_x99t = numpy.zeros((4,nt,nwave_modes_x))
-spectra_y99t = numpy.zeros((4,nt,nwave_modes_y))
+spectra_x5t = numpy.zeros((3,nt,nwave_modes_x))
+spectra_y5t = numpy.zeros((3,nt,nwave_modes_y))
+spectra_x99t = numpy.zeros((3,nt,nwave_modes_x))
+spectra_y99t = numpy.zeros((3,nt,nwave_modes_y))
 index_spectra = 0
-input_dir = '/projects/1/flowsim/simulation1/'
 for crossname in variables:
 
 	if(crossname == 'u'): loc = [1,0,0]
@@ -139,10 +127,10 @@ for crossname in variables:
 	locy = 'y' if loc[1] == 0 else 'yh'
 	locz = 'z' if loc[2] == 0 else 'zh'
 	
-	indexes_local = get_cross_indices(crossname, 'xy', filepath=input_dir)
+	indexes_local = get_cross_indices(crossname, 'xy')
 	stop = False
 	for t in range(nt):
-		prociter = iter + iterstep*t
+		prociter = iterstart + iterstep*t
 		print("Processing iter = {:07d}".format(prociter))
 		if (stop):
 			break
@@ -153,16 +141,14 @@ for crossname in variables:
 			zplus = yplus if locz=='z' else yplush
 			f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter)
 			try:
-				fin = open(input_dir + f_in, "rb")
+				fin = open(f_in, "rb")
 			except:
 				print('Stopping: cannot find file {}'.format(f_in))
-				crossfile.sync()
 				stop = True
 				break
 		
 			print("Processing %8s, time=%7i, index=%4i"%(crossname, prociter, index))
 
-			#fin = open("{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter), "rb")
 			raw = fin.read(nx*ny*8)
 			tmp = np.array(st.unpack('{0}{1}d'.format("<", nx*ny), raw))
 			del(raw)
@@ -218,17 +204,15 @@ spectra_y99 = numpy.nanmean(spectra_y99t,axis=1)
 k_streamwise = np.arange(1,nwave_modes_x+1)
 k_spanwise = np.arange(1,nwave_modes_y+1)
 
-#Plot balances
+#Plot spectra
 figure()
 loglog(k_streamwise[:], (spectra_x5[0,:] / ustar**2.), 'k-',linewidth=2.0)
 loglog(k_streamwise[:], (spectra_x5[1,:] / ustar**2.), 'r-',linewidth=2.0)
 loglog(k_streamwise[:], (spectra_x5[2,:] / ustar**2.), 'b-',linewidth=2.0)
-loglog(k_streamwise[:], (spectra_x5[3,:] / ustar**4.), 'g-',linewidth=2.0)
 
 loglog(kMoser[:],(Euu_xspec_z5_moser[:]), 'ko',label = r'$E_{uu}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Evv_xspec_z5_moser[:]), 'ro',label = r'$E_{vv}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Eww_xspec_z5_moser[:]), 'bo',label = r'$E_{ww}$',fillstyle = 'none',linewidth=2.0)
-loglog(kMoser[:],(Epp_xspec_z5_moser[:]), 'go',label = r'$E_{pp}$',fillstyle = 'none',linewidth=2.0)
 
 xlabel(r'$\kappa \ [-]$',fontsize = 20)
 ylabel(r'$E \ [-]$',fontsize = 20)
@@ -245,12 +229,10 @@ figure()
 loglog(k_spanwise[:], (spectra_y5[0,:] / ustar**2.), 'k-',linewidth=2.0)
 loglog(k_spanwise[:], (spectra_y5[1,:] / ustar**2.), 'r-',linewidth=2.0)
 loglog(k_spanwise[:], (spectra_y5[2,:] / ustar**2.), 'b-',linewidth=2.0)
-loglog(k_spanwise[:], (spectra_y5[3,:] / ustar**4.), 'g-',linewidth=2.0)
 
 loglog(kMoser[:],(Euu_zspec_z5_moser[:]), 'ko',label = r'$E_{uu}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Evv_zspec_z5_moser[:]), 'ro',label = r'$E_{vv}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Eww_zspec_z5_moser[:]), 'bo',label = r'$E_{ww}$',fillstyle = 'none',linewidth=2.0)
-loglog(kMoser[:],(Epp_zspec_z5_moser[:]), 'go',label = r'$E_{pp}$',fillstyle = 'none',linewidth=2.0)
 
 xlabel(r'$\kappa \ [-]$',fontsize = 20)
 ylabel(r'$E \ [-]$',fontsize = 20)
@@ -267,12 +249,10 @@ figure()
 loglog(k_streamwise[:], (spectra_x99[0,:] / ustar**2.), 'k-',linewidth=2.0)
 loglog(k_streamwise[:], (spectra_x99[1,:] / ustar**2.), 'r-',linewidth=2.0)
 loglog(k_streamwise[:], (spectra_x99[2,:] / ustar**2.), 'b-',linewidth=2.0)
-loglog(k_streamwise[:], (spectra_x99[3,:] / ustar**4.), 'g-',linewidth=2.0)
 
 loglog(kMoser[:],(Euu_xspec_z99_moser[:]), 'ko',label = r'$E_{uu}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Evv_xspec_z99_moser[:]), 'ro',label = r'$E_{vv}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Eww_xspec_z99_moser[:]), 'bo',label = r'$E_{ww}$',fillstyle = 'none',linewidth=2.0)
-loglog(kMoser[:],(Epp_xspec_z99_moser[:]), 'go',label = r'$E_{pp}$',fillstyle = 'none',linewidth=2.0)
 
 xlabel(r'$\kappa \ [-]$',fontsize = 20)
 ylabel(r'$E \ [-]$',fontsize = 20)
@@ -289,12 +269,10 @@ figure()
 loglog(k_spanwise[:], (spectra_y99[0,:] / ustar**2.), 'k-',linewidth=2.0)
 loglog(k_spanwise[:], (spectra_y99[1,:] / ustar**2.), 'r-',linewidth=2.0)
 loglog(k_spanwise[:], (spectra_y99[2,:] / ustar**2.), 'b-',linewidth=2.0)
-loglog(k_spanwise[:], (spectra_y99[3,:] / ustar**4.), 'g-',linewidth=2.0)
 
 loglog(kMoser[:],(Euu_zspec_z99_moser[:]), 'ko',label = r'$E_{uu}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Evv_zspec_z99_moser[:]), 'ro',label = r'$E_{vv}$',fillstyle = 'none',linewidth=2.0)
 loglog(kMoser[:],(Eww_zspec_z99_moser[:]), 'bo',label = r'$E_{ww}$',fillstyle = 'none',linewidth=2.0)
-loglog(kMoser[:],(Epp_zspec_z99_moser[:]), 'go',label = r'$E_{pp}$',fillstyle = 'none',linewidth=2.0)
 
 xlabel(r'$\kappa \ [-]$',fontsize = 20)
 ylabel(r'$E \ [-]$',fontsize = 20)
