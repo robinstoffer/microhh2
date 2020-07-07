@@ -1,13 +1,12 @@
 #!/bin/bash
 ####SBATCH -t 5:00
-####SBATCH -t 1:00:00
-#SBATCH -t 1-00:00:00
+#SBATCH -t 1:00:00
+####SBATCH -t 1-00:00:00
 #SBATCH -N 1
-####SBATCH -N 3 --ntasks-per-node=1 -c 24
-####SBATCH -p short
+#SBATCH -p short
 
 #INFO: Job script (Cartesius) to train ANN 10 times with different number of hidden neurons
-#NOTE: This script should be run as an array job as follows: `sbatch --array=0-9 job_MLP_optimization_robinst`
+#NOTE: This script should be run as an array job as follows: `sbatch --array=0-9 job_MLP_training`
 
 #Load modules
 module purge
@@ -75,7 +74,7 @@ then
 fi
 
 #Train ANN
-python3 -u MLP_tfestimator.py --input_dir '../cases/moser600/training_data/' --checkpoint_dir "./MLP$MLPNUM" --stored_means_stdevs_filepath '../cases/moser600/training_data/means_stdevs_allfields.nc' --training_filepath '../cases/moser600/training_data/training_data.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
+python3 -u MLP_tfestimator.py --input_dir '../cases/moser600/training_data/' --checkpoint_dir "./MLP$MLPNUM" --stored_means_stdevs_filepath '../cases/moser600/training_data/means_stdevs_allfields.nc' --training_filepath '../cases/moser600/training_data/training_data.nc' --n_hidden $NHIDDEN --num_steps 1000 --batch_size 1000 --profile_steps 10000 --summary_steps 100 --checkpoint_steps 10000
 
 #Postprocessing for incorporation in MicroHH, only do this once and for the MLP to be selected
 if [ $SLURM_ARRAY_TASK_ID == 9 ]
@@ -95,3 +94,9 @@ then
     cp ./MLP10/*.txt ./MLP_selected
 
 fi
+
+##After or during the running of the script, visualize in Tensorboard, on the inlog node, using the following commands:
+#export PORT=40600
+#tensorboard --logdir=./MLP$MLPNUM --port=$PORT
+##On LOCAL terminal: ssh -N -L40600:localhost:40600 robinst@int[1,2,3]-bb.cartesius.surfsara.nl
+#Local terminal: 
