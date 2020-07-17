@@ -161,8 +161,9 @@ def _parse_function(example_proto):
 #Define training input function
 def train_input_fn(filenames, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
+    dataset = dataset.shuffle(buffer_size=len(filenames)) #Reshuffle the tfrecord files every epoch, only possible when .cache() is commented out. NOTE:the (prior randomized) content of the files is not reshuffled, so it is not fully random from epoch to epoch.
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
-    dataset = dataset.cache() #Put samples from tfrecord files directly in memory
+    #dataset = dataset.cache() #Put samples from tfrecord files directly in memory
     #dataset = dataset.shuffle(buffer_size=10000) #NOTE: shuffling operation commented out, which causes the samples to be in the same order every epoch. The shuffling would require a large buffer size because of the relatively large batches chosen (1000), which would negatively impact the total involved computational effort (especially since each sample contains quite some data in our case). Instead, we 1) randomly shuffled the samples before storing them in tfrecord files (see sample_training_data_tfrecord.py), and 2) we randomized the order of the tfrecord-files before training (see below). Putting the shuffle in front of cache() results in memory saturation issues.
     dataset = dataset.batch(batch_size, drop_remainder=False)
     dataset = dataset.repeat()
@@ -174,7 +175,6 @@ def train_input_fn(filenames, batch_size):
 def eval_input_fn(filenames, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores)
-    dataset = dataset.cache()
     dataset = dataset.batch(batch_size, drop_remainder=False)
     dataset.prefetch(1)
 
@@ -318,6 +318,7 @@ def model_fn(features, labels, mode, params):
     #NOTE1: because of the staggered grid orientation (where for a certain grid cell w is located at a lower height than u, v), a similar procedure is not needed at the top wall. For the samples closest to the top wall, in the center grid cell w is not directly located at the top wall. To determine all needed transport components, it is at the top wall not necessary to consider samples where in the center grid cell w is directly located at the top wall.
     #NOTE2: zu/zv_upstream/downstream are not set to 0 at both the bottom and top wall desite their location directly at the walls: this is because we included the unresolved viscous flux, on top of the unresolved turbulent flux, in the labels. This means that these components are not 0 anymore, despite that the no-slip BCs are valid for the unresolved turbulent flux contribution.
     #NOTE3: in inference mode, the masking does not have to be applied: within MicroHH, the transport components set to 0 during training are discarded in the tendency calculations. Hence, the masking is removed during inference to reduce the total computational effort.
+    #NOTE4: zw_downstream is put to 0 at the bottom wall while it is located within the flow domain above the wall. To ensure symmetry in the predictions of tau_ww between the bottom and top wall, zw_downstream is in MicroHH NOT evaluated at the bottom wall. Instead, the zw_upstream from the second layer above the bottom wall is consistently used.
     if not mode == tf.estimator.ModeKeys.PREDICT:
         flag_bottomwall = tf.identity(features['flag_bottomwall_sample'], name = 'flag_bottomwall')
         with tf.name_scope("mask_creation"):

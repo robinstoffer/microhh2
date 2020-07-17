@@ -74,7 +74,7 @@ then
 fi
 
 #Train ANN
-python3 -u MLP_tfestimator.py --input_dir '../cases/moser600/training_data/' --checkpoint_dir "./MLP$MLPNUM" --stored_means_stdevs_filepath '../cases/moser600/training_data/means_stdevs_allfields.nc' --training_filepath '../cases/moser600/training_data/training_data.nc' --n_hidden $NHIDDEN --num_steps 1000 --batch_size 1000 --profile_steps 10000 --summary_steps 100 --checkpoint_steps 10000
+python3 -u MLP_tfestimator.py --input_dir '../cases/moser600/training_data/' --checkpoint_dir "./MLP$MLPNUM" --stored_means_stdevs_filepath '../cases/moser600/training_data/means_stdevs_allfields.nc' --training_filepath '../cases/moser600/training_data/training_data.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 100 --checkpoint_steps 10000
 
 #Postprocessing for incorporation in MicroHH, only do this once and for the MLP to be selected
 if [ $SLURM_ARRAY_TASK_ID == 9 ]
