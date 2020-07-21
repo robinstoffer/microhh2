@@ -81,7 +81,7 @@ if [ $SLURM_ARRAY_TASK_ID == 9 ]
 then
 
     #Extract paramters from MLP and store them in txt-files
-    bash extract_weights_frozen_graph.sh #NOTE: currently selects MLP10 (with NHIDDEN=512) as MLP to extract the parameters from. This should be identical to the MLP selected in this job script to incoporate in MicroHH (see other lines in postprocessing part of this job script)!
+    bash extract_weights_frozen_graph.sh #NOTE: currently selects MLP7 (with NHIDDEN=64) as MLP to extract the parameters from. This should be identical to the MLP selected in this job script to incoporate in MicroHH (see other lines in postprocessing part of this job script)!
     
     #Create directory for MLP to be selected, remove it first if it already exists
     if [ -d "./MLP_selected" ]; then
@@ -90,12 +90,13 @@ then
     
     mkdir ./MLP_selected
     
-    #Copy the txt-files, containing the paramters of the MLP selected for incorporation in MicroHH, to the directory needed to run MicroHH with the ANN SGS model. This is needed because the path containing the ANN parameters is hard-coded in MicroHH
-    cp ./MLP10/*.txt ./MLP_selected
+    #Copy the txt-files, containing the paramters of the MLP selected for incorporation in MicroHH, and the predictions nc-file to another directory. This is needed because the path containing the ANN parameters is hard-coded in MicroHH and in the job script job_readCNNsmagpredictions.
+    cp ./MLP7/*.txt ./MLP_selected
+    cp ./MLP7/*.nc  ./MLP_selected
 
 fi
 
-##After or during the running of the script, visualize in Tensorboard, on the inlog node, using the following commands:
+##After or during the running of the script, visualize in Tensorboard, on the login node, using the following commands:
 #export PORT=40600
 #tensorboard --logdir=./MLP$MLPNUM --port=$PORT
 ##On LOCAL terminal: ssh -N -L40600:localhost:40600 robinst@int[1,2,3]-bb.cartesius.surfsara.nl

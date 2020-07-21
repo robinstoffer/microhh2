@@ -116,10 +116,6 @@ void Diff_NN<TF>::calc_diff_flux_u(
     std::vector<float> result(N_output, 0.0f);
     std::vector<float> result_z(N_output_z, 0.0f);
     
-    ////Define random number generator
-    //std::random_device rd; //Creates a non-deterministic seed for the random engine below
-    //std::default_random_engine generator(rd());
-    
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
     for (int k = gd.kstart; k < gd.kend; ++k)
@@ -130,63 +126,6 @@ void Diff_NN<TF>::calc_diff_flux_u(
             int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
             for (int i = gd.istart+offset; i < gd.iend; i+=2)
             {
-                ////Sample Gaussian with mean and standard deviation calculated from training data
-                ////xu
-                //std::normal_distribution<TF> distribution_xu(m_xumean[k-gd.kstart],m_xustd[k-gd.kstart]);
-                //result[0] = distribution_xu(generator);
-                //result[1] = distribution_xu(generator);
-
-                ////yu
-                //std::normal_distribution<TF> distribution_yu(m_yumean[k-gd.kstart],m_yustd[k-gd.kstart]);
-                //result[2] = distribution_yu(generator);
-                //result[3] = distribution_yu(generator);
-
-                ////zu_upstream
-                //std::normal_distribution<TF> distribution_zuup(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
-                //result[4] = distribution_zuup(generator);
-
-                ////zu_downstream
-                //std::normal_distribution<TF> distribution_zudown(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
-                //result[5] = distribution_zudown(generator);
-                //
-                ////xv
-                //std::normal_distribution<TF> distribution_xv(m_xvmean[k-gd.kstart],m_xvstd[k-gd.kstart]);
-                //result[6] = distribution_xv(generator);
-                //result[7] = distribution_xv(generator);
-
-                ////yv
-                //std::normal_distribution<TF> distribution_yv(m_yvmean[k-gd.kstart],m_yvstd[k-gd.kstart]);
-                //result[8] = distribution_yv(generator);
-                //result[9] = distribution_yv(generator);
-
-                ////zv_upstream
-                //std::normal_distribution<TF> distribution_zvup(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
-                //result[10] = distribution_zvup(generator);
-
-                ////zv_downstream
-                //std::normal_distribution<TF> distribution_zvdown(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
-                //result[11] = distribution_zvdown(generator);
-                //
-                //if (k != gd.kstart) //Be consistent with tendency calculation below
-                //{
-                //    //xw
-                //    std::normal_distribution<TF> distribution_xw(m_xwmean[k-gd.kstart],m_xwstd[k-gd.kstart]);
-                //    result[12] = distribution_xw(generator);
-                //    result[13] = distribution_xw(generator);
-
-                //    //yw
-                //    std::normal_distribution<TF> distribution_yw(m_ywmean[k-gd.kstart],m_ywstd[k-gd.kstart]);
-                //    result[14] = distribution_yw(generator);
-                //    result[15] = distribution_yw(generator);
-
-                //    //zw_upstream
-                //    std::normal_distribution<TF> distribution_zwup(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
-                //    result[16] = distribution_zwup(generator);
-
-                //    //zw_downstream
-                //    std::normal_distribution<TF> distribution_zwdown(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
-                //    result[17] = distribution_zwdown(generator);
-                //}
  
                 //Extract grid box flow fields
                 select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
@@ -212,7 +151,6 @@ void Diff_NN<TF>::calc_diff_flux_u(
                     m_outputw_wgth.data(), m_outputw_bias.data(),
                     m_mean_input.data(), m_stdev_input.data(),
                     m_mean_label.data(), m_stdev_label.data(),
-                    m_utau_ref, m_output_denorm_utau2,
                     m_output.data(), result.data(), false
                     );
 
@@ -230,23 +168,22 @@ void Diff_NN<TF>::calc_diff_flux_u(
 
                 //Calculate damping factor for calculated transports
                 float fac=1;//Don't impose a damping factor
-                //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
                 //zu_upstream
-                uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] * fac; //- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                uflux[k*gd.ijcells + j * gd.icells + i]     =  result[4] * fac; - (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 
                 //zu_downstream
-                uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] * fac; //- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                uflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[5] * fac; - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 
-                //if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
-                //{
-                //    //xw_upstream
-                //    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[12] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
+                if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
+                {
+                    //xw_upstream
+                    uflux[k*gd.ijcells + j * gd.icells + i]     =  result[12] * fac - (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dxi);
 
-                //    //xw_downstream
-                //    uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
-                //}
+                    //xw_downstream
+                    uflux[k*gd.ijcells + j * gd.icells + i_downbound] =  result[13] * fac - (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dxi);
+                }
 
                 // Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
                 // the MLP for a second grid cell to calculate 'missing' zw-values.
@@ -263,37 +200,6 @@ void Diff_NN<TF>::calc_diff_flux_u(
                         i_2grid = i + 1;
                     }
                     
-                    ////Sample from Gaussian, similar as above
-                    //if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
-                    //{
-                    //    //zu_upstream
-                    //    std::normal_distribution<TF> distribution_zuup2(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
-                    //    result_z[0] = distribution_zuup2(generator);
-
-                    //    //zu_downstream
-                    //    std::normal_distribution<TF> distribution_zudown2(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
-                    //    result_z[1] = distribution_zudown2(generator);
-                    //}
-                    //if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
-                    //{
-                    //    //zv_upstream
-                    //    std::normal_distribution<TF> distribution_zvup2(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
-                    //    result_z[2] = distribution_zvup2(generator);
-
-                    //    //zv_downstream
-                    //    std::normal_distribution<TF> distribution_zvdown2(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
-                    //    result_z[3] = distribution_zvdown2(generator);
-                    //}
-                    //if (k != gd.kstart) //Be consistent with tendency calculation below
-                    //{
-                    //    //zw_upstream
-                    //    std::normal_distribution<TF> distribution_zwup2(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
-                    //    result_z[4] = distribution_zwup2(generator);
-
-                    //    //zw_downstream
-                    //    std::normal_distribution<TF> distribution_zwdown2(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
-                    //    result_z[5] = distribution_zwdown2(generator);
-                    //}
 
                     //Select second grid box
                     select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
@@ -319,7 +225,6 @@ void Diff_NN<TF>::calc_diff_flux_u(
                         m_outputw_wgth.data(), m_outputw_bias.data(),
                         m_mean_input.data(), m_stdev_input.data(),
                         m_mean_label.data(), m_stdev_label.data(),
-                        m_utau_ref, m_output_denorm_utau2,
                         m_output_z.data(), result_z.data(), true
                     );
                     
@@ -327,13 +232,13 @@ void Diff_NN<TF>::calc_diff_flux_u(
                     //zu_upstream
                     if (k == gd.kstart)
                     {
-                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[0] * fac; //- (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                        uflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[0] * fac - (fields.visc * (u[k*gd.ijcells+ j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
                     }
                     
                     //zu_downstream
                     else if (k == (gd.kend - 1))
                     {
-                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[1] * fac; //- (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                        uflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[1] * fac - (fields.visc * (u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
                     }
                 }
             }
@@ -355,10 +260,6 @@ void Diff_NN<TF>::calc_diff_flux_v(
     std::vector<float> result(N_output, 0.0f);
     std::vector<float> result_z(N_output_z, 0.0f);
     
-    ////Define random number generator
-    //std::random_device rd; //Creates a non-deterministic seed for the random engine below
-    //std::default_random_engine generator(rd());
-    
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
     for (int k = gd.kstart; k < gd.kend; ++k)
@@ -369,63 +270,6 @@ void Diff_NN<TF>::calc_diff_flux_v(
             int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
             for (int i = gd.istart+offset; i < gd.iend; i+=2)
             {
-                ////Sample Gaussian with mean and standard deviation calculated from training data
-                ////xu
-                //std::normal_distribution<TF> distribution_xu(m_xumean[k-gd.kstart],m_xustd[k-gd.kstart]);
-                //result[0] = distribution_xu(generator);
-                //result[1] = distribution_xu(generator);
-
-                ////yu
-                //std::normal_distribution<TF> distribution_yu(m_yumean[k-gd.kstart],m_yustd[k-gd.kstart]);
-                //result[2] = distribution_yu(generator);
-                //result[3] = distribution_yu(generator);
-
-                ////zu_upstream
-                //std::normal_distribution<TF> distribution_zuup(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
-                //result[4] = distribution_zuup(generator);
-
-                ////zu_downstream
-                //std::normal_distribution<TF> distribution_zudown(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
-                //result[5] = distribution_zudown(generator);
-                //
-                ////xv
-                //std::normal_distribution<TF> distribution_xv(m_xvmean[k-gd.kstart],m_xvstd[k-gd.kstart]);
-                //result[6] = distribution_xv(generator);
-                //result[7] = distribution_xv(generator);
-
-                ////yv
-                //std::normal_distribution<TF> distribution_yv(m_yvmean[k-gd.kstart],m_yvstd[k-gd.kstart]);
-                //result[8] = distribution_yv(generator);
-                //result[9] = distribution_yv(generator);
-
-                ////zv_upstream
-                //std::normal_distribution<TF> distribution_zvup(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
-                //result[10] = distribution_zvup(generator);
-
-                ////zv_downstream
-                //std::normal_distribution<TF> distribution_zvdown(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
-                //result[11] = distribution_zvdown(generator);
-                //
-                //if (k != gd.kstart) //Be consistent with tendency calculation below
-                //{
-                //    //xw
-                //    std::normal_distribution<TF> distribution_xw(m_xwmean[k-gd.kstart],m_xwstd[k-gd.kstart]);
-                //    result[12] = distribution_xw(generator);
-                //    result[13] = distribution_xw(generator);
-
-                //    //yw
-                //    std::normal_distribution<TF> distribution_yw(m_ywmean[k-gd.kstart],m_ywstd[k-gd.kstart]);
-                //    result[14] = distribution_yw(generator);
-                //    result[15] = distribution_yw(generator);
-
-                //    //zw_upstream
-                //    std::normal_distribution<TF> distribution_zwup(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
-                //    result[16] = distribution_zwup(generator);
-
-                //    //zw_downstream
-                //    std::normal_distribution<TF> distribution_zwdown(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
-                //    result[17] = distribution_zwdown(generator);
-                //}
                 
                 //Extract grid box flow fields
                 select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
@@ -451,7 +295,6 @@ void Diff_NN<TF>::calc_diff_flux_v(
                     m_outputw_wgth.data(), m_outputw_bias.data(),
                     m_mean_input.data(), m_stdev_input.data(),
                     m_mean_label.data(), m_stdev_label.data(),
-                    m_utau_ref, m_output_denorm_utau2,
                     m_output.data(), result.data(), false
                     );
 
@@ -469,23 +312,22 @@ void Diff_NN<TF>::calc_diff_flux_v(
 
                 //Calculate damping factor for calculated transports
                 float fac=1;//Don't impose a damping factor
-                //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
                 //zv_upstream
-                vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] * fac; //- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
+                vflux[k*gd.ijcells + j * gd.icells + i]     =  result[10] * fac - (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]);
                 
                 //zv_downstream
-                vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] * fac; //- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
+                vflux[(k+1)*gd.ijcells + j * gd.icells + i] =  result[11] * fac - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]);
 
-                //if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
-                //{
-                //    //yw_upstream
-                //    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[14] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dyi);
+                if (k != gd.kstart) //Don't adjust wt for bottom layer, should stay 0
+                {
+                    //yw_upstream
+                    vflux[k*gd.ijcells + j * gd.icells + i]     =  result[14] * fac - (fields.visc * (w[k*gd.ijcells+ j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * gd.dyi);
 
-                //    //yw_downstream
-                //    vflux[k*gd.ijcells + j_downbound * gd.icells + i] =  result[15] * fac ;//- (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dyi);
-                //}
+                    //yw_downstream
+                    vflux[k*gd.ijcells + j_downbound * gd.icells + i] =  result[15] * fac - (fields.visc * (w[k*gd.ijcells+ j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dyi);
+                }
 
                 // Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
                 // the MLP for a second grid cell to calculate 'missing' zw-values.
@@ -500,40 +342,7 @@ void Diff_NN<TF>::calc_diff_flux_v(
                     else
                     {
                         i_2grid = i + 1;
-                    }
-                    
-                    ////Sample from Gaussian, similar as above
-                    //if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
-                    //{
-                    //    //zu_upstream
-                    //    std::normal_distribution<TF> distribution_zuup2(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
-                    //    result_z[0] = distribution_zuup2(generator);
-
-                    //    //zu_downstream
-                    //    std::normal_distribution<TF> distribution_zudown2(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
-                    //    result_z[1] = distribution_zudown2(generator);
-                    //}
-                    //if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
-                    //{
-                    //    //zv_upstream
-                    //    std::normal_distribution<TF> distribution_zvup2(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
-                    //    result_z[2] = distribution_zvup2(generator);
-
-                    //    //zv_downstream
-                    //    std::normal_distribution<TF> distribution_zvdown2(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
-                    //    result_z[3] = distribution_zvdown2(generator);
-                    //}
-                    //if (k != gd.kstart) //Be consistent with tendency calculation below
-                    //{
-                    //    //zw_upstream
-                    //    std::normal_distribution<TF> distribution_zwup2(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
-                    //    result_z[4] = distribution_zwup2(generator);
-
-                    //    //zw_downstream
-                    //    std::normal_distribution<TF> distribution_zwdown2(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
-                    //    result_z[5] = distribution_zwdown2(generator);
-                    //}
-                    
+                    }                    
 
                     //Select second grid box
                     select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
@@ -559,7 +368,6 @@ void Diff_NN<TF>::calc_diff_flux_v(
                         m_outputw_wgth.data(), m_outputw_bias.data(),
                         m_mean_input.data(), m_stdev_input.data(),
                         m_mean_label.data(), m_stdev_label.data(),
-                        m_utau_ref, m_output_denorm_utau2,
                         m_output_z.data(), result_z.data(), true
                     );
                     
@@ -567,13 +375,13 @@ void Diff_NN<TF>::calc_diff_flux_v(
                     //zv_upstream
                     if (k == gd.kstart)
                     {
-                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[2] * fac; //- (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
+                        vflux[k*gd.ijcells + j * gd.icells + i_2grid]     =  result_z[2] * fac - (fields.visc * (v[k*gd.ijcells+ j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]);
                     }
                     
                     //zv_downstream
                     else if (k == (gd.kend - 1))
                     {
-                        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[3] * fac; //- (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
+                        vflux[(k+1)*gd.ijcells + j * gd.icells + i_2grid] =  result_z[3] * fac - (fields.visc * (v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]);
                     }
                 }
             }
@@ -623,40 +431,6 @@ void Diff_NN<TF>::select_box(
     }
 }
 
-//Function that creates Gaussian 2D kernel for smoothing of horizontal tendency fields
-template<typename TF>
-void Diff_NN<TF>::gkernelcreation(
-   TF* restrict const gkernel
-   )
-{
-    //Initialise standard deviation
-    TF sigma = 1.0;
-    TF r,s   = 2.0 * sigma * sigma;
-
-    //Sum for normalisation
-    TF sum = 0.0;
-
-    //Generating 5*5 kernel (assuming an equidistant horizontal grid!)
-    for (int j = -2; j < 3; ++j)
-    {
-        for (int i = -2; i <3; ++i)
-        {
-            r = pow((i*i+j*j),0.5);
-            gkernel[(j+2)*5 + (i+2)] = exp(-r*r/s)/(M_PI*s);
-            sum += gkernel[(j+2)*5 + (i+2)];
-        }
-    }
-
-    //Normalizing the 5*5 kernel
-    for (int j = 0; j < 5; ++j)
-    {
-        for (int i = 0; i < 5; ++i)
-        {
-            gkernel[j*5 + i] /= sum;
-        }
-    }
-}
-
 // Function that loops over the whole flow field, and calculates for each grid cell the tendencies
 template<typename TF>
 void Diff_NN<TF>::diff_U(
@@ -678,52 +452,6 @@ void Diff_NN<TF>::diff_U(
     const TF dxi = 1.f / gd.dx;
     const TF dyi = 1.f / gd.dy;
 
-    ////Define random number generator
-    //std::random_device rd; //Creates a non-deterministic seed for the random engine below
-    //std::default_random_engine generator(rd());
-
-    ////Set counters to track how many values are set to 0.
-    //int limit_count_xuup = 0;
-    //int limit_count_xudown = 0;
-    //int limit_count_yuup = 0;
-    //int limit_count_yudown = 0;
-    //int limit_count_zuup = 0;
-    //int limit_count_zudown = 0;
-    //int limit_count_xvup = 0;
-    //int limit_count_xvdown = 0;
-    //int limit_count_yvup = 0;
-    //int limit_count_yvdown = 0;
-    //int limit_count_zvup = 0;
-    //int limit_count_zvdown = 0;
-    //int limit_count_xwup = 0;
-    //int limit_count_xwdown = 0;
-    //int limit_count_ywup = 0;
-    //int limit_count_ywdown = 0;
-    //int limit_count_zwup = 0;
-    //int limit_count_zwdown = 0;
-
-    ////Calculate Gaussian 2D filter
-    //std::array<TF,25> gkernel;
-    //gkernelcreation(gkernel.data());
-
-    ////Loop over field to limit velocity fields
-    //for (int k = 0; k < gd.kcells; ++k)
-    //{
-    //    for (int j = 0; j < gd.jcells; ++j)
-    //    {
-    //        for (int i = 0; i < gd.icells; ++i)
-    //        {
-    //            //Limit high values
-    //            u[k*gd.ijcells + j * gd.icells + i] = std::min(u[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_ucmean[k] + 2*m_ucstd[k]));
-    //            v[k*gd.ijcells + j * gd.icells + i] = std::min(v[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_vcmean[k] + 2*m_vcstd[k]));
-    //            w[k*gd.ijcells + j * gd.icells + i] = std::min(w[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_wcmean[k] + 2*m_wcstd[k]));
-    //            //Limit low values
-    //            u[k*gd.ijcells + j * gd.icells + i] = std::max(u[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_ucmean[k] - 2*m_ucstd[k]));
-    //            v[k*gd.ijcells + j * gd.icells + i] = std::max(v[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_vcmean[k] - 2*m_vcstd[k]));
-    //            w[k*gd.ijcells + j * gd.icells + i] = std::max(w[k*gd.ijcells + j * gd.icells + i], static_cast<TF>(m_wcmean[k] - 2*m_wcstd[k]));
-    //        }
-    //    }
-    //}
 
     //Loop over field
     //NOTE1: offset factors included to ensure alternate sampling
@@ -735,64 +463,6 @@ void Diff_NN<TF>::diff_U(
             int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
             for (int i = gd.istart+offset; i < gd.iend; i+=2)
             {
-                ////Sample Gaussian with mean and standard deviation calculated from training data
-                ////xu
-                //std::normal_distribution<TF> distribution_xu(m_xumean[k-gd.kstart],m_xustd[k-gd.kstart]);
-                //result[0] = distribution_xu(generator);
-                //result[1] = distribution_xu(generator);
-
-                ////yu
-                //std::normal_distribution<TF> distribution_yu(m_yumean[k-gd.kstart],m_yustd[k-gd.kstart]);
-                //result[2] = distribution_yu(generator);
-                //result[3] = distribution_yu(generator);
-
-                ////zu_upstream
-                //std::normal_distribution<TF> distribution_zuup(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
-                //result[4] = distribution_zuup(generator);
-
-                ////zu_downstream
-                //std::normal_distribution<TF> distribution_zudown(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
-                //result[5] = distribution_zudown(generator);
-                //
-                ////xv
-                //std::normal_distribution<TF> distribution_xv(m_xvmean[k-gd.kstart],m_xvstd[k-gd.kstart]);
-                //result[6] = distribution_xv(generator);
-                //result[7] = distribution_xv(generator);
-
-                ////yv
-                //std::normal_distribution<TF> distribution_yv(m_yvmean[k-gd.kstart],m_yvstd[k-gd.kstart]);
-                //result[8] = distribution_yv(generator);
-                //result[9] = distribution_yv(generator);
-
-                ////zv_upstream
-                //std::normal_distribution<TF> distribution_zvup(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
-                //result[10] = distribution_zvup(generator);
-
-                ////zv_downstream
-                //std::normal_distribution<TF> distribution_zvdown(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
-                //result[11] = distribution_zvdown(generator);
-                //
-                //if (k != gd.kstart) //Be consistent with tendency calculation below
-                //{
-                //    //xw
-                //    std::normal_distribution<TF> distribution_xw(m_xwmean[k-gd.kstart],m_xwstd[k-gd.kstart]);
-                //    result[12] = distribution_xw(generator);
-                //    result[13] = distribution_xw(generator);
-
-                //    //yw
-                //    std::normal_distribution<TF> distribution_yw(m_ywmean[k-gd.kstart],m_ywstd[k-gd.kstart]);
-                //    result[14] = distribution_yw(generator);
-                //    result[15] = distribution_yw(generator);
-
-                //    //zw_upstream
-                //    std::normal_distribution<TF> distribution_zwup(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
-                //    result[16] = distribution_zwup(generator);
-
-                //    //zw_downstream
-                //    std::normal_distribution<TF> distribution_zwdown(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
-                //    result[17] = distribution_zwdown(generator);
-                //}
-
                 //Extract grid box flow fields
                 select_box(u, m_input_ctrlu_u.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
                 select_box(v, m_input_ctrlu_v.data(), k, j, i, boxsize, 0, 0, 1, 0, 0, 1);
@@ -803,74 +473,6 @@ void Diff_NN<TF>::diff_U(
                 select_box(u, m_input_ctrlw_u.data(), k, j, i, boxsize, 0, 1, 0, 0, 1, 0);
                 select_box(v, m_input_ctrlw_v.data(), k, j, i, boxsize, 0, 1, 1, 0, 0, 0);
                 select_box(w, m_input_ctrlw_w.data(), k, j, i, boxsize, 0, 0, 0, 0, 0, 0);
-                //
-                //////Implement limiter on inputs, 4 separate loops needed because of differences in dims
-                ////int b = boxsize / 2; // NOTE: on purpose fractional part dropped
-                ////int i_start = 0;
-                ////for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
-                ////{
-                ////    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize-1)); i_input+=1)
-                ////    {
-                ////        //Limit highest values
-                ////        m_input_ctrlu_v[i_input] = std::min(m_input_ctrlu_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
-                ////        m_input_ctrlv_u[i_input] = std::min(m_input_ctrlv_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
-
-                ////        //Limit lowest values
-                ////        m_input_ctrlu_v[i_input] = std::max(m_input_ctrlu_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
-                ////        m_input_ctrlv_u[i_input] = std::max(m_input_ctrlv_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
-                ////    }
-                ////    i_start += ((boxsize-1)*(boxsize-1));
-                ////}
-
-                ////i_start = 0;
-                ////for (int k_input = (k - b + 1); k_input < (k + b + 1); k_input+=1)
-                ////{
-                ////    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize-1)); i_input+=1)
-                ////    {
-                ////        //Limit highest values
-                ////        m_input_ctrlu_w[i_input] = std::min(m_input_ctrlu_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
-                ////        m_input_ctrlv_w[i_input] = std::min(m_input_ctrlv_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
-
-                ////        //Limit lowest values
-                ////        m_input_ctrlu_w[i_input] = std::max(m_input_ctrlu_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
-                ////        m_input_ctrlv_w[i_input] = std::max(m_input_ctrlv_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
-                ////    }
-                ////    i_start += ((boxsize-1)*(boxsize));
-                ////}
-
-                ////i_start = 0;
-                ////for (int k_input = (k - b); k_input < (k + b); k_input+=1)
-                ////{
-                ////    for (int i_input = i_start; i_input < (i_start+(boxsize-1)*(boxsize)); i_input+=1)
-                ////    {
-                ////        //Limit highest values
-                ////        m_input_ctrlw_u[i_input] = std::min(m_input_ctrlw_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
-                ////        m_input_ctrlw_v[i_input] = std::min(m_input_ctrlw_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
-                ////    
-                ////        //Limit lowest values
-                ////        m_input_ctrlw_u[i_input] = std::max(m_input_ctrlw_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
-                ////        m_input_ctrlw_v[i_input] = std::max(m_input_ctrlw_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
-                ////    }
-                ////    i_start += ((boxsize-1)*(boxsize));
-                ////}
-
-                ////i_start = 0;
-                ////for (int k_input = (k - b); k_input < (k + b + 1); k_input+=1)
-                ////{
-                ////    for (int i_input = i_start; i_input < (i_start+(boxsize)*(boxsize)); i_input+=1)
-                ////    {
-                ////        //Limit highest values
-                ////        m_input_ctrlu_u[i_input] = std::min(m_input_ctrlu_u[i_input], m_ucmean[k_input] + m_ucstd[k_input]);
-                ////        m_input_ctrlv_v[i_input] = std::min(m_input_ctrlv_v[i_input], m_vcmean[k_input] + m_vcstd[k_input]);
-                ////        m_input_ctrlw_w[i_input] = std::min(m_input_ctrlw_w[i_input], m_wcmean[k_input] + m_wcstd[k_input]);
-                ////        
-                ////        //Limit lowest values
-                ////        m_input_ctrlu_u[i_input] = std::max(m_input_ctrlu_u[i_input], m_ucmean[k_input] - m_ucstd[k_input]);
-                ////        m_input_ctrlv_v[i_input] = std::max(m_input_ctrlv_v[i_input], m_vcmean[k_input] - m_vcstd[k_input]);
-                ////        m_input_ctrlw_w[i_input] = std::max(m_input_ctrlw_w[i_input], m_wcmean[k_input] - m_wcstd[k_input]);
-                ////    }
-                ////    i_start += ((boxsize)*(boxsize));
-                ////}
                 //
                 //Execute MLP once for selected grid box
                 Inference(
@@ -885,183 +487,8 @@ void Diff_NN<TF>::diff_U(
                     m_outputw_wgth.data(), m_outputw_bias.data(),
                     m_mean_input.data(), m_stdev_input.data(),
                     m_mean_label.data(), m_stdev_label.data(),
-                    m_utau_ref, m_output_denorm_utau2,
                     m_output.data(), result.data(), false
                     );
-
-                //////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
-                //////NOTE: on some vertical levels fluxes are not set to zero, in correspondence with the if-statements applied in the tendency calculation below
-                ////
-                //////Introduce backscattering limiting factor, which determines how much backscattering remains (purpose: show LES can handle some backscattering, as long as the total dissipation is large enough to balance the production)
-                //////TF backscatter_limit_fac = 0.5; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
-                //////TF backscatter_limit_fac = 0.9; // Observed to introduce numerical instability in Moser case channel flow (friction Reynolds number = 590)
-                //////TF backscatter_limit_fac = 0.2; // Observed to achieve numerical stability (but with already some smaller indications of instability eventually) in Moser case channel flow (friction Reynolds number = 590)
-                ////TF backscatter_limit_fac = 0.; // Observed to achieve numerical stability in Moser case channel flow (friction Reynolds number = 590)
-
-                //////xu_upstream
-                ////if ((-result[0] * (u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) < 0.)
-                ////{
-                ////    result[0] = backscatter_limit_fac * result[0];
-                ////    limit_count_xuup += 1;
-                ////}
-                //////xu_downstream
-                ////if ((-result[1] * (u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + j * gd.icells + i]) * dxi) < 0.)
-                ////{
-                ////    result[1] = backscatter_limit_fac * result[1];
-                ////    limit_count_xudown += 1;
-                ////}
-                //////yu_upstream
-                ////if ((-result[2] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                ////{
-                ////    result[2] = backscatter_limit_fac * result[2];
-                ////    limit_count_yuup += 1;
-                ////}
-                //////yu_downstream
-                ////if ((-result[3] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + (j+1) * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + (j+1) * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
-                ////{
-                ////    result[3] = backscatter_limit_fac * result[3];
-                ////    limit_count_yudown += 1;
-                ////}
-                //////zu_upstream
-                ////if (-result[4] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi)) < 0.)
-                ////{
-                ////    result[4] = backscatter_limit_fac * result[4];
-                ////    limit_count_zuup += 1;
-                ////}
-                //////zu_downstream
-                ////if (-result[5] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + j * gd.icells + (i-1)]) * dxi)) < 0.)
-                ////{
-                ////    result[5] = backscatter_limit_fac * result[5];
-                ////    limit_count_zudown += 1;
-                ////}
-                ////
-                //////xv_upstream
-                ////if ((-result[6] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + i] - u[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                ////{
-                ////    result[6] = backscatter_limit_fac * result[6];
-                ////    limit_count_xvup += 1;
-                ////}
-                //////xv_downstream
-                ////if ((-result[7] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + (i+1)] - v[k*gd.ijcells + j * gd.icells + i]) * dxi) + ((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[k*gd.ijcells + (j-1) * gd.icells + (i+1)]) * dyi))) < 0.)
-                ////{
-                ////    result[7] = backscatter_limit_fac * result[7];
-                ////    limit_count_xvdown += 1;
-                ////}
-                ////
-                //////yv_upstream
-                ////if ((-result[8] * (v[k*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi) < 0.)
-                ////{
-                ////    result[8] = backscatter_limit_fac * result[8];
-                ////    limit_count_yvup += 1;
-                ////}
-                //////yv_downstream
-                ////if ((-result[9] * (v[k*gd.ijcells + (j+1) * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * dyi) < 0.)
-                ////{
-                ////    result[9] = backscatter_limit_fac * result[9];
-                ////    limit_count_yvdown += 1;
-                ////}
-                //////zv_upstream
-                ////if (-result[10] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi)) < 0.)
-                ////{
-                ////    result[10] = backscatter_limit_fac * result[10];
-                ////    limit_count_zvup += 1;
-                ////}
-                //////zv_downstream
-                ////if (-result[11] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i] - v[k*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i]) * dyi)) < 0.)
-                ////{
-                ////    result[11] = backscatter_limit_fac * result[11];
-                ////    limit_count_zvdown += 1;
-                ////}
-
-                ////if (k != gd.kstart)
-                ////{
-                ////    //xw_upstream
-                ////    if ((-result[12] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i] - u[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + (i-1)]) * dxi))) < 0.)
-                ////    {
-                ////        result[12] = backscatter_limit_fac * result[12];
-                ////        limit_count_xwup += 1;
-                ////    }
-                ////    //xw_downstream
-                ////    if ((-result[13] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + (i+1)] - u[(k-1)*gd.ijcells + j * gd.icells + (i+1)]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + (i+1)] - w[k*gd.ijcells + j * gd.icells + i]) * dxi))) < 0.)
-                ////    {
-                ////        result[13] = backscatter_limit_fac * result[13];
-                ////        limit_count_xwdown += 1;
-                ////    }
-                ////
-                ////    //yw_upstream
-                ////    if ((-result[14] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i] - v[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + (j-1) * gd.icells + i]) * dyi))) < 0.)
-                ////    {
-                ////        result[14] = backscatter_limit_fac * result[14];
-                ////        limit_count_ywup += 1;
-                ////    }
-                ////    //yw_downstream
-                ////    if ((-result[15] * 0.5 * (((v[k*gd.ijcells + (j+1) * gd.icells + i] - v[(k-1)*gd.ijcells + (j+1) * gd.icells + i]) * gd.dzhi[k]) + ((w[k*gd.ijcells + (j+1) * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * dyi))) < 0.)
-                ////    {
-                ////        result[15] = backscatter_limit_fac * result[15];
-                ////        limit_count_ywdown += 1;
-                ////    }
-                ////    //zw_upstream
-                ////    if ((-result[16] * (w[k*gd.ijcells + j * gd.icells + i] - w[(k-1)*gd.ijcells + j * gd.icells + i]) * gd.dzi[k-1]) < 0.)
-                ////    {
-                ////        result[16] = backscatter_limit_fac * result[16];
-                ////        limit_count_zwup += 1;
-                ////    }
-                ////    //zw_downstream
-                ////    if ((-result[17] * (w[(k+1)*gd.ijcells + j * gd.icells + i] - w[k*gd.ijcells + j * gd.icells + i]) * gd.dzi[k]) < 0.)
-                ////    {
-                ////        result[17] = backscatter_limit_fac * result[17];
-                ////        limit_count_zwdown += 1;
-                ////    } 
-                ////}
-
-                //////Implement limiter on outputs
-                ////
-                //////Limit highest values
-                ////result[0]  = std::min(result[0],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
-                ////result[1]  = std::min(result[1],  m_xumean[k-gd.kstart] + 1*m_xustd[k-gd.kstart]);
-                ////result[2]  = std::min(result[2],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
-                ////result[3]  = std::min(result[3],  m_yumean[k-gd.kstart] + 1*m_yustd[k-gd.kstart]);
-                ////result[4]  = std::min(result[4],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
-                ////result[5]  = std::min(result[5],  m_zumean[k-gd.kstart] + 1*m_zustd[k-gd.kstart]);
-                ////result[6]  = std::min(result[6],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
-                ////result[7]  = std::min(result[7],  m_xvmean[k-gd.kstart] + 1*m_xvstd[k-gd.kstart]);
-                ////result[8]  = std::min(result[8],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
-                ////result[9]  = std::min(result[9],  m_yvmean[k-gd.kstart] + 1*m_yvstd[k-gd.kstart]);
-                ////result[10] = std::min(result[10], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
-                ////result[11] = std::min(result[11], m_zvmean[k-gd.kstart] + 1*m_zvstd[k-gd.kstart]);
-                ////if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
-                ////{
-                ////    result[12] = std::min(result[12], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
-                ////    result[13] = std::min(result[13], m_xwmean[k-gd.kstart] + 1*m_xwstd[k-gd.kstart]);
-                ////    result[14] = std::min(result[14], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
-                ////    result[15] = std::min(result[15], m_ywmean[k-gd.kstart] + 1*m_ywstd[k-gd.kstart]);
-                ////    result[16] = std::min(result[16], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
-                ////    result[17] = std::min(result[17], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
-                ////}
-
-                //////Limit lowest values
-                ////result[0]  = std::max(result[0],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
-                ////result[1]  = std::max(result[1],  m_xumean[k-gd.kstart] - 1*m_xustd[k-gd.kstart]);
-                ////result[2]  = std::max(result[2],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
-                ////result[3]  = std::max(result[3],  m_yumean[k-gd.kstart] - 1*m_yustd[k-gd.kstart]);
-                ////result[4]  = std::max(result[4],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
-                ////result[5]  = std::max(result[5],  m_zumean[k-gd.kstart] - 1*m_zustd[k-gd.kstart]);
-                ////result[6]  = std::max(result[6],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
-                ////result[7]  = std::max(result[7],  m_xvmean[k-gd.kstart] - 1*m_xvstd[k-gd.kstart]);
-                ////result[8]  = std::max(result[8],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
-                ////result[9]  = std::max(result[9],  m_yvmean[k-gd.kstart] - 1*m_yvstd[k-gd.kstart]);
-                ////result[10] = std::max(result[10], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
-                ////result[11] = std::max(result[11], m_zvmean[k-gd.kstart] - 1*m_zvstd[k-gd.kstart]);
-                ////if (k != gd.kstart) //Transport on lowest grid cells are not evaluated, and thus do not need to be limited
-                ////{
-                ////    result[12] = std::max(result[12], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
-                ////    result[13] = std::max(result[13], m_xwmean[k-gd.kstart] - 1*m_xwstd[k-gd.kstart]);
-                ////    result[14] = std::max(result[14], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
-                ////    result[15] = std::max(result[15], m_ywmean[k-gd.kstart] - 1*m_ywstd[k-gd.kstart]);
-                ////    result[16] = std::max(result[16], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
-                ////    result[17] = std::max(result[17], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
-                ////}
-
 
                 //Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs.
                 int i_upbound = 0;
@@ -1105,7 +532,6 @@ void Diff_NN<TF>::diff_U(
 
                 //Calculate damping factor for calculated transports
                 float fac=1;//Don't impose a damping factor
-                //float fac=std::min(std::min((gd.zh[k]/(0.25*gd.zh[gd.kend]))+0.1,0.3),((gd.zh[gd.kend]-gd.zh[k])/(0.25*gd.zh[gd.kend])+0.1)); //Apply damping close to the surface
 
                 //Calculate tendencies using predictions from MLP
                 //xu_upstream
@@ -1228,38 +654,6 @@ void Diff_NN<TF>::diff_U(
                         i_2grid = i + 1;
                     }
 
-                    ////Sample from Gaussian, similar as above
-                    //if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
-                    //{
-                    //    //zu_upstream
-                    //    std::normal_distribution<TF> distribution_zuup2(m_zumean[k-gd.kstart],m_zustd[k-gd.kstart]);
-                    //    result_z[0] = distribution_zuup2(generator);
-
-                    //    //zu_downstream
-                    //    std::normal_distribution<TF> distribution_zudown2(m_zumean[k-gd.kstart+1],m_zustd[k-gd.kstart+1]);
-                    //    result_z[1] = distribution_zudown2(generator);
-                    //}
-                    //if (k != (gd.kstart+1)) //Be consistent with tendency calculation below
-                    //{
-                    //    //zv_upstream
-                    //    std::normal_distribution<TF> distribution_zvup2(m_zvmean[k-gd.kstart],m_zvstd[k-gd.kstart]);
-                    //    result_z[2] = distribution_zvup2(generator);
-
-                    //    //zv_downstream
-                    //    std::normal_distribution<TF> distribution_zvdown2(m_zvmean[k-gd.kstart+1],m_zvstd[k-gd.kstart+1]);
-                    //    result_z[3] = distribution_zvdown2(generator);
-                    //}
-                    //if (k != gd.kstart) //Be consistent with tendency calculation below
-                    //{
-                    //    //zw_upstream
-                    //    std::normal_distribution<TF> distribution_zwup2(m_zwmean[k-gd.kstart-1],m_zwstd[k-gd.kstart-1]);
-                    //    result_z[4] = distribution_zwup2(generator);
-
-                    //    //zw_downstream
-                    //    std::normal_distribution<TF> distribution_zwdown2(m_zwmean[k-gd.kstart],m_zwstd[k-gd.kstart]);
-                    //    result_z[5] = distribution_zwdown2(generator);
-                    //}
-                     
 
                     //Select second grid box
                     select_box(u, m_input_ctrlu_u.data(), k, j, i_2grid, boxsize, 0, 0, 0, 0, 0, 0);
@@ -1285,55 +679,8 @@ void Diff_NN<TF>::diff_U(
                         m_outputw_wgth.data(), m_outputw_bias.data(),
                         m_mean_input.data(), m_stdev_input.data(),
                         m_mean_label.data(), m_stdev_label.data(),
-                        m_utau_ref, m_output_denorm_utau2,
                         m_output_z.data(), result_z.data(), true
-                    );
-                    
-                    ////Implement backscatter limiter on predicted transports (i.e. -tau_ij * filtS_ij < 0)
-                    ////zu_upstream
-                    //if (-result_z[0] * 0.5 * (((u[k*gd.ijcells + j * gd.icells + i_2grid] - u[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + (i_2grid-1)]) * dxi)) < 0.)
-                    //{
-                    //    result_z[0] = backscatter_limit_fac * result_z[0];
-                    //    limit_count_zuup += 1;
-                    //}
-                    ////zu_downstream
-                    //if (-result_z[1] * 0.5 * (((u[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - u[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[(k+1)*gd.ijcells + j * gd.icells + (i_2grid-1)]) * dxi)) < 0.)
-                    //{
-                    //    result_z[1] = backscatter_limit_fac * result_z[1];
-                    //    limit_count_zudown += 1;
-                    //}
-                    ////zv_upstream
-                    //if (-result_z[2] * 0.5 * (((v[k*gd.ijcells + j * gd.icells + i_2grid] - v[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k]) + ((w[k*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + (j-1) * gd.icells + i_2grid]) * dyi)) < 0.)
-                    //{
-                    //    result_z[2] = backscatter_limit_fac * result_z[2];
-                    //    limit_count_zvup += 1;
-                    //}
-                    ////zv_downstream
-                    //if (-result_z[3] * 0.5 * (((v[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - v[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzhi[k+1]) + ((w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[(k+1)*gd.ijcells + (j-1) * gd.icells + i_2grid]) * dyi)) < 0.)
-                    //{
-                    //    result_z[3] = backscatter_limit_fac * result_z[3];
-                    //    limit_count_zvdown += 1;
-                    //}
-                    ////zw_upstream
-                    //if ((-result_z[4] * (w[k*gd.ijcells + j * gd.icells + i_2grid] - w[(k-1)*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k-1]) < 0.)
-                    //{
-                    //    result_z[4] = backscatter_limit_fac * result_z[4];
-                    //    limit_count_zwup += 1;
-                    //}
-                    ////zw_downstream
-                    //if ((-result_z[5] * (w[(k+1)*gd.ijcells + j * gd.icells + i_2grid] - w[k*gd.ijcells + j * gd.icells + i_2grid]) * gd.dzi[k]) < 0.)
-                    //{
-                    //    result_z[5] = backscatter_limit_fac * result_z[5];
-                    //    limit_count_zwdown += 1;
-                    //}
-
-                    ////Limit highest values
-                    //result_zw[0] = std::min(result_zw[0], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]);
-                    //result_zw[1] = std::min(result_zw[1], m_zwmean[k-gd.kstart-1] + 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
-
-                    ////Limit lowest values
-                    //result_zw[0] = std::max(result_zw[0], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]);
-                    //result_zw[1] = std::max(result_zw[1], m_zwmean[k-gd.kstart-1] - 1*m_zwstd[k-gd.kstart-1]); //NOTE: -1 is included in index to take into account the staggered grid orientation
+                    );                    
 
                     //Store calculated tendencies
                     //zu_upstream
@@ -1370,112 +717,6 @@ void Diff_NN<TF>::diff_U(
             }
         }
     }
-    //master.print_message("Start ANN iteration \n");
-    //master.print_message("Number of values removed by backscatter filter xuup: %d \n", limit_count_xuup);
-    //master.print_message("Number of values removed by backscatter filter xudown: %d \n", limit_count_xudown);
-    //master.print_message("Number of values removed by backscatter filter yuup: %d \n", limit_count_yuup);
-    //master.print_message("Number of values removed by backscatter filter yudown: %d \n", limit_count_yudown);
-    //master.print_message("Number of values removed by backscatter filter zuup: %d \n", limit_count_zuup);
-    //master.print_message("Number of values removed by backscatter filter zudown: %d \n", limit_count_zudown);
-    //master.print_message("Number of values removed by backscatter filter xvup: %d \n", limit_count_xvup);
-    //master.print_message("Number of values removed by backscatter filter xvdown: %d \n", limit_count_xvdown);
-    //master.print_message("Number of values removed by backscatter filter yvup: %d \n", limit_count_yvup);
-    //master.print_message("Number of values removed by backscatter filter yvdown: %d \n", limit_count_yvdown);
-    //master.print_message("Number of values removed by backscatter filter zvup: %d \n", limit_count_zvup);
-    //master.print_message("Number of values removed by backscatter filter zvdown: %d \n", limit_count_zvdown);
-    //master.print_message("Number of values removed by backscatter filter xwup: %d \n", limit_count_xwup);
-    //master.print_message("Number of values removed by backscatter filter xwdown: %d \n", limit_count_xwdown);
-    //master.print_message("Number of values removed by backscatter filter ywup: %d \n", limit_count_ywup);
-    //master.print_message("Number of values removed by backscatter filter ywdown: %d \n", limit_count_ywdown);
-    //master.print_message("Number of values removed by backscatter filter zwup: %d \n", limit_count_zwup);
-    //master.print_message("Number of values removed by backscatter filter zwdown: %d \n", limit_count_zwdown);
-    //master.print_message("Finish ANN iteration \n");
-
-    ////Loop over tendencies to apply Gaussian filter for smoothing
-
-    ////Define temporary variables for intermediate storage
-    //std::vector<TF> ut_temp_field(gd.ncells, 0.0f);
-    //std::vector<TF> vt_temp_field(gd.ncells, 0.0f);
-    //std::vector<TF> wt_temp_field(gd.ncells, 0.0f);
-    //TF ut_temp = 0.0;
-    //TF vt_temp = 0.0;
-    //TF wt_temp = 0.0;
-    //int j_filter_idx = 0;
-    //int i_filter_idx = 0;
-    //int j_filter = 0; //Initialize to 0
-    //int i_filter = 0; //Initialize to 0
-
-    //for (int k = gd.kstart; k < gd.kend; ++k)
-    //{
-    //    for (int j = gd.jstart; j < gd.jend; ++j)
-    //    {
-    //        for (int i = gd.istart; i < gd.iend; ++i)
-    //        {
-    //            //Loop and sum over local horizontal 5*5 kernel to get the tendency
-    //            //NOTE: make use of periodic BCs in horizontal directions
-    //            ut_temp = 0.0; //Initialize to 0
-    //            vt_temp = 0.0;
-    //            wt_temp = 0.0;
-    //    
-
-    //            for (int j_gkernel_idx = -2; j_gkernel_idx < 3; ++j_gkernel_idx)
-    //            {
-    //                j_filter = j + j_gkernel_idx;
-    //                if (j_filter < gd.jstart)
-    //                {
-    //                    j_filter_idx = gd.jend - (gd.jstart - j_filter);
-    //                }
-    //                else if (j_filter >= gd.jend)
-    //                {
-    //                    j_filter_idx = gd.jstart + (j_filter - gd.jend);
-    //                }
-    //                else
-    //                {
-    //                    j_filter_idx = j_filter;
-    //                }
-    //                for (int i_gkernel_idx = -2; i_gkernel_idx < 3; ++i_gkernel_idx)
-    //                {
-    //                    i_filter = i + i_gkernel_idx;
-    //                    if (i_filter < gd.istart)
-    //                    {
-    //                        i_filter_idx = gd.iend - (gd.istart - i_filter);
-    //                    }
-    //                    else if (i_filter >= gd.iend)
-    //                    {
-    //                        i_filter_idx = gd.istart + (i_filter - gd.iend);
-    //                    }
-    //                    else
-    //                    {
-    //                        i_filter_idx = i_filter;
-    //                    }
-
-    //                    ut_temp += ut[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[(j_gkernel_idx+2) * 5 + (i_gkernel_idx+2)];
-    //                    vt_temp += vt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[(j_gkernel_idx+2) * 5 + (i_gkernel_idx+2)];
-    //                    wt_temp += wt[k * gd.ijcells + j_filter_idx * gd.icells + i_filter_idx] * gkernel[(j_gkernel_idx+2) * 5 + (i_gkernel_idx+2)];        
-    //                }
-    //            }
-    //            
-    //            //Assign calculated smoothed tendencies to temporary fields
-    //            ut_temp_field[k*gd.ijcells + j * gd.icells + i] = ut_temp;
-    //            vt_temp_field[k*gd.ijcells + j * gd.icells + i] = vt_temp;
-    //            wt_temp_field[k*gd.ijcells + j * gd.icells + i] = wt_temp;
-    //        }
-    //    }
-    //}
-
-    ////Assign temporary fields to the actual tendency fields
-    //for (int k = gd.kstart; k < gd.kend; ++k)
-    //{
-    //    for (int j = gd.jstart; j < gd.jend; ++j)
-    //    {
-    //        for (int i = gd.istart; i < gd.iend; ++i)
-    //        {
-    //            ut[k*gd.ijcells + j * gd.icells + i] = ut_temp_field[k*gd.ijcells + j * gd.icells + i];
-    //            vt[k*gd.ijcells + j * gd.icells + i] = vt_temp_field[k*gd.ijcells + j * gd.icells + i];
-    //            wt[k*gd.ijcells + j * gd.icells + i] = wt_temp_field[k*gd.ijcells + j * gd.icells + i];
-    //        }
-    //    }
-    //}
 }
 template<typename TF>
 void Diff_NN<TF>::hidden_layer1(
@@ -1547,8 +788,6 @@ void Diff_NN<TF>::Inference(
     const float* restrict const stdev_input,
     const float* restrict const mean_label,
     const float* restrict const stdev_label,
-    const float utau_ref,
-    const float output_denorm_utau2,
     float* restrict const output,
     float* restrict const output_denorm,
     const bool z_flag)
@@ -1559,23 +798,23 @@ void Diff_NN<TF>::Inference(
     std::array<float, N_input_tot_adjusted> input_ctrlv;
     std::array<float, N_input_tot_adjusted> input_ctrlw;
 
-        // Normalize with mean, st. dev, and utau_ref.
+        // Normalize with mean, st. dev.
     constexpr int N_input_adjusted2 = 2 * N_input_adjusted;
     constexpr int N_input_comb2     = N_input_adjusted + N_input;
     for (int inpidx = 0; inpidx < N_input;++inpidx)
     {
-        input_ctrlu[inpidx]                     = (((input_ctrlu_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
-        input_ctrlv[N_input_adjusted + inpidx]  = (((input_ctrlv_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
-        input_ctrlw[N_input_adjusted2 + inpidx] = (((input_ctrlw_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
+        input_ctrlu[inpidx]                     = ((input_ctrlu_u[inpidx] - mean_input[0]) / stdev_input[0]);
+        input_ctrlv[N_input_adjusted + inpidx]  = ((input_ctrlv_v[inpidx] - mean_input[1]) / stdev_input[1]);
+        input_ctrlw[N_input_adjusted2 + inpidx] = ((input_ctrlw_w[inpidx] - mean_input[2]) / stdev_input[2]);
     }
-    for (int inpidx = 0; inpidx < N_input_adjusted; ++inpidx)
+    for (int inpidx = 0; inpidx < N_input_adjusted; +inpidx)
     {
-        input_ctrlu[N_input + inpidx]           = (((input_ctrlu_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
-        input_ctrlu[N_input_comb2 + inpidx]     = (((input_ctrlu_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
-        input_ctrlv[inpidx]                     = (((input_ctrlv_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
-        input_ctrlv[N_input_comb2 + inpidx]     = (((input_ctrlv_w[inpidx] / utau_ref) - mean_input[2]) / stdev_input[2]);
-        input_ctrlw[inpidx]                     = (((input_ctrlw_u[inpidx] / utau_ref) - mean_input[0]) / stdev_input[0]);
-        input_ctrlw[N_input_adjusted + inpidx]  = (((input_ctrlw_v[inpidx] / utau_ref) - mean_input[1]) / stdev_input[1]);
+        input_ctrlu[N_input + inpidx]           = ((input_ctrlu_v[inpidx] - mean_input[1]) / stdev_input[1]);
+        input_ctrlu[N_input_comb2 + inpidx]     = ((input_ctrlu_w[inpidx] - mean_input[2]) / stdev_input[2]);
+        input_ctrlv[inpidx]                     = ((input_ctrlv_u[inpidx] - mean_input[0]) / stdev_input[0]);
+        input_ctrlv[N_input_comb2 + inpidx]     = ((input_ctrlv_w[inpidx] - mean_input[2]) / stdev_input[2]);
+        input_ctrlw[inpidx]                     = ((input_ctrlw_u[inpidx] - mean_input[0]) / stdev_input[0]);
+        input_ctrlw[N_input_adjusted + inpidx]  = ((input_ctrlw_v[inpidx] - mean_input[1]) / stdev_input[1]);
     }
 
     //control volume u
@@ -1624,12 +863,12 @@ void Diff_NN<TF>::Inference(
         output[5] = outputw[5]; // zw_downstream
 
         //Denormalize
-        output_denorm[0] = ((output[0] * stdev_label[4]) + mean_label[4]) * output_denorm_utau2;
-        output_denorm[1] = ((output[1] * stdev_label[5]) + mean_label[5]) * output_denorm_utau2;
-        output_denorm[2] = ((output[2] * stdev_label[10]) + mean_label[10]) * output_denorm_utau2;
-        output_denorm[3] = ((output[3] * stdev_label[11]) + mean_label[11]) * output_denorm_utau2;
-        output_denorm[4] = ((output[4] * stdev_label[16]) + mean_label[16]) * output_denorm_utau2;
-        output_denorm[5] = ((output[5] * stdev_label[17]) + mean_label[17]) * output_denorm_utau2;
+        output_denorm[0] = ((output[0] * stdev_label[4]) + mean_label[4]);
+        output_denorm[1] = ((output[1] * stdev_label[5]) + mean_label[5]);
+        output_denorm[2] = ((output[2] * stdev_label[10]) + mean_label[10]);
+        output_denorm[3] = ((output[3] * stdev_label[11]) + mean_label[11]);
+        output_denorm[4] = ((output[4] * stdev_label[16]) + mean_label[16]);
+        output_denorm[5] = ((output[5] * stdev_label[17]) + mean_label[17]);
     }
     else
     {
@@ -1649,7 +888,7 @@ void Diff_NN<TF>::Inference(
         //Denormalize
         for (int outputidx = 0; outputidx < N_output; ++outputidx)
         {
-            output_denorm[outputidx] = ((output[outputidx] * stdev_label[outputidx]) + mean_label[outputidx]) * output_denorm_utau2;
+            output_denorm[outputidx] = ((output[outputidx] * stdev_label[outputidx]) + mean_label[outputidx]);
         }
     }
 }
@@ -1691,11 +930,8 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
       
     dnmax = inputin.get_item<TF>("diff", "dnmax", "", 0.4  );
 
-//   if (grid.get_spatial_order() != Grid_order::Second)
-//      throw std::runtime_error("Diff_NN only runs with second order grids");
-
-    //Hard-code file directory where variables MLP are stored
-    std::string var_filepath = "../../inferenceNN/Variables_MLP53/";
+    //Hard-code file directory where variables MLP are stored. This directory is in the other scripts explicitly used to store the MLP under consideration (with current settings the one with nhidden=64). If nhidden changes, change the hard-coded array sizes in diff_nn.h accordingly!
+    std::string var_filepath = "../ann_training/MLP_selected/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");
@@ -1718,9 +954,6 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     std::string mean_label_str(var_filepath + "means_labels.txt");
     std::string stdev_input_str(var_filepath + "stdevs_inputs.txt");
     std::string stdev_label_str(var_filepath + "stdevs_labels.txt");
-    
-    std::string utau_ref_str(var_filepath + "utau_ref.txt");
-    std::string output_denorm_utau2_str(var_filepath + "output_denorm_utau2.txt");
     
     // Initialize dynamically bias parameters, weights, means/stdevs, and other variables according to values stored in files specified with input strings.
     std::vector<float> hiddenu_wgth_notr(N_hidden*N_input_tot_adjusted); // Store tranposed variants of weights in class, see below. These matrices are temporary.
@@ -1748,8 +981,6 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     m_hiddenu_alpha = 0.f;
     m_hiddenv_alpha = 0.f;
     m_hiddenw_alpha = 0.f;
-    m_utau_ref = 0.f;
-    m_output_denorm_utau2 = 0.f;
     
     file_reader(hiddenu_wgth_notr.data(),hiddenu_wgth_str,N_hidden*N_input_tot_adjusted);
     file_reader(hiddenv_wgth_notr.data(),hiddenv_wgth_str,N_hidden*N_input_tot_adjusted);
@@ -1770,8 +1001,6 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     file_reader(&m_hiddenu_alpha,hiddenu_alpha_str,1);
     file_reader(&m_hiddenv_alpha,hiddenv_alpha_str,1);
     file_reader(&m_hiddenw_alpha,hiddenw_alpha_str,1);
-    file_reader(&m_utau_ref, utau_ref_str, 1);
-    file_reader(&m_output_denorm_utau2,output_denorm_utau2_str,1);
     
     // Take transpose of weights and store those in the class
     for (int hiddenidx = 0; hiddenidx < N_hidden; ++hiddenidx)
@@ -1810,286 +1039,6 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     m_output.resize(N_output,0.0f);
     m_output_z.resize(N_output_z,0.0f);
 
-    ////Read means+stdevs of training data for limiters in fluxes calculation or stochastic model
-    //std::string meansstd_filepath = "../../inferenceNN/Variables_MLP36/tavg_vert_prof.nc";
-
-    ////Read grid data needed to process means+stdevs
-    //auto& gd  = grid.get_grid_data();
-
-    ////Define IDs for netCDF-file needed for reading
-    //int retval = 0; //Status code for netCDF-function, needed for error handling
-    //int ncid_reading = 0;
-    //int varid_ucmean = 0;
-    //int varid_vcmean = 0;
-    //int varid_wcmean = 0;
-    //int varid_xumean = 0;
-    //int varid_yumean = 0;
-    //int varid_zumean = 0;
-    //int varid_xvmean = 0;
-    //int varid_yvmean = 0;
-    //int varid_zvmean = 0;
-    //int varid_xwmean = 0;
-    //int varid_ywmean = 0;
-    //int varid_zwmean = 0;
-    //int varid_ucstd  = 0;
-    //int varid_vcstd  = 0;
-    //int varid_wcstd  = 0;
-    //int varid_xustd  = 0;
-    //int varid_yustd  = 0;
-    //int varid_zustd  = 0;
-    //int varid_xvstd  = 0;
-    //int varid_yvstd  = 0;
-    //int varid_zvstd  = 0;
-    //int varid_xwstd  = 0;
-    //int varid_ywstd  = 0;
-    //int varid_zwstd  = 0;
-    //size_t count_zgc[1]  = {}; //initialize fixed arrays to 0
-    //size_t count_zhgc[1] = {};
-    //size_t count_z[1]  = {};
-    //size_t count_zh[1] = {};
-    //size_t start_z[1]  = {};
-
-    ////Resize dynamically allocated arrays means and stdevs
-    //int kcells = gd.ktot + 2*gd.kgc; //gd.kcells is for some reason undefined in this function, and needs to be calculated explicitly
-    //m_ucmean.resize(kcells);
-    //m_vcmean.resize(kcells);
-    //m_wcmean.resize(kcells+1);
-    //m_ucstd.resize(kcells);
-    //m_vcstd.resize(kcells);
-    //m_wcstd.resize(kcells+1);
-    //m_xumean.resize(gd.ktot);
-    //m_yumean.resize(gd.ktot);
-    //m_zumean.resize(gd.ktot+1);
-    //m_xvmean.resize(gd.ktot);
-    //m_yvmean.resize(gd.ktot);
-    //m_zvmean.resize(gd.ktot+1);
-    //m_xwmean.resize(gd.ktot+1);
-    //m_ywmean.resize(gd.ktot+1);
-    //m_zwmean.resize(gd.ktot);
-    //m_xustd.resize(gd.ktot);
-    //m_yustd.resize(gd.ktot);
-    //m_zustd.resize(gd.ktot+1);
-    //m_xvstd.resize(gd.ktot);
-    //m_yvstd.resize(gd.ktot);
-    //m_zvstd.resize(gd.ktot+1);
-    //m_xwstd.resize(gd.ktot+1);
-    //m_ywstd.resize(gd.ktot+1);
-    //m_zwstd.resize(gd.ktot);
-    //
-    //// Open nc-file  for reading
-    //if ((retval = nc_open(meansstd_filepath.c_str(), NC_NOWRITE, &ncid_reading)))
-    //{
-    //    nc_error_print(retval);
-    //}
-
-    //// Get the varids of the variables based on their names
-    //if ((retval = nc_inq_varid(ncid_reading, "ucavgfields", &varid_ucmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "vcavgfields", &varid_vcmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "wcavgfields", &varid_wcmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "ucstdfields", &varid_ucstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "vcstdfields", &varid_vcstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "wcstdfields", &varid_wcstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxuavgfields", &varid_xumean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyuavgfields", &varid_yumean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszuavgfields", &varid_zumean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxvavgfields", &varid_xvmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyvavgfields", &varid_yvmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszvavgfields", &varid_zvmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxwavgfields", &varid_xwmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresywavgfields", &varid_ywmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszwavgfields", &varid_zwmean)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxustdfields", &varid_xustd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyustdfields", &varid_yustd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszustdfields", &varid_zustd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxvstdfields", &varid_xvstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresyvstdfields", &varid_yvstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszvstdfields", &varid_zvstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresxwstdfields", &varid_xwstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unresywstdfields", &varid_ywstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_inq_varid(ncid_reading, "unreszwstdfields", &varid_zwstd)))
-    //{
-    //    nc_error_print(retval);
-    //}
-
-    //// Define settings such that the entire vertical profile is read from the nc-file
-    //count_zgc[0]  = kcells;
-    //count_zhgc[0] = kcells + 1;
-    //count_z[0]  = gd.ktot;
-    //count_zh[0] = gd.ktot + 1;
-    //start_z[0] = 0;
-
-    ////Extract vertical profiles from nc-file
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucmean, start_z, count_zgc, &m_ucmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcmean, start_z, count_zgc, &m_vcmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcmean, start_z, count_zhgc, &m_wcmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ucstd , start_z, count_zgc, &m_ucstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_vcstd , start_z, count_zgc, &m_vcstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_wcstd , start_z, count_zhgc, &m_wcstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xumean, start_z, count_z, &m_xumean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yumean, start_z, count_z, &m_yumean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zumean, start_z, count_zh, &m_zumean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvmean, start_z, count_z, &m_xvmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvmean, start_z, count_z, &m_yvmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvmean, start_z, count_zh, &m_zvmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwmean, start_z, count_zh, &m_xwmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywmean, start_z, count_zh, &m_ywmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwmean, start_z, count_z, &m_zwmean[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xustd, start_z, count_z, &m_xustd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yustd, start_z, count_z, &m_yustd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zustd, start_z, count_zh, &m_zustd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xvstd, start_z, count_z, &m_xvstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_yvstd, start_z, count_z, &m_yvstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zvstd, start_z, count_zh, &m_zvstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_xwstd, start_z, count_zh, &m_xwstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_ywstd, start_z, count_zh, &m_ywstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-    //if ((retval = nc_get_vara_float(ncid_reading, varid_zwstd, start_z, count_z, &m_zwstd[0])))
-    //{
-    //    nc_error_print(retval);
-    //}
-
-    ////Close opened nc-file
-    //if((retval = nc_close(ncid_reading)))
-    //{
-    //    nc_error_print(retval);
-    //}
 }
 
 template<typename TF>
@@ -2154,83 +1103,13 @@ void Diff_NN<TF>::exec(Stats<TF>& stats)
 {
     auto& gd  = grid.get_grid_data();
 
-    auto tmp_u = fields.get_tmp();
-    auto tmp_v = fields.get_tmp();
-    auto tmp_w = fields.get_tmp();
-
-    auto zero = [](std::vector<TF>& v) { std::fill(v.begin(), v.end(), TF(0.)); };
-
-    auto filter = [](
-            TF* restrict at, const TF* restrict a,
-            int istart, int iend, int jstart, int jend, int kstart, int kend,
-            int jj, int kk)
-    {
-        constexpr int ii = 1;
-
-        for (int k=kstart; k<kend; ++k)
-            for (int j=jstart; j<jend; ++j)
-                #pragma ivdep
-                for (int i=istart; i<iend; ++i)
-                {
-                    const int ijk = i + j*jj + k*kk;
-                    at[ijk] += TF(1./12.)*a[ijk-ii] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+ii]
-                             + TF(1./12.)*a[ijk-jj] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+jj]
-                             + TF(1./12.)*a[ijk-kk] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+kk];
-                    //at[ijk] = a[ijk];
-                }
-    };
-    
-    auto boundary_noslipbc = [](TF* restrict at, int kstart, int kend, int icells, int jcells, int jj, int kk)
-    {
-        for (int j=0; j<jcells; ++j)
-            #pragma ivdep
-            for (int i=0; i<icells; ++i)
-            {
-                const int ijk = i + j*jj + kstart*kk;
-                at[ijk-kk] = -at[ijk];
-            }
-        
-        for (int j=0; j<jcells; ++j)
-            #pragma ivdep
-            for (int i=0; i<icells; ++i)
-            {
-                const int ijk = i + j*jj + (kend-1)*kk;
-                at[ijk+kk] = -at[ijk];
-            }
-    };
-
-    zero(tmp_u->fld);
-    zero(tmp_v->fld);
-    zero(tmp_w->fld);
-
     diff_U(
         fields.mp.at("u")->fld.data(),
         fields.mp.at("v")->fld.data(),
         fields.mp.at("w")->fld.data(),
-        tmp_u->fld.data(),
-        tmp_v->fld.data(),
-        tmp_w->fld.data());
-
-    boundary_cyclic.exec(tmp_u->fld.data());
-    boundary_cyclic.exec(tmp_v->fld.data());
-    boundary_cyclic.exec(tmp_w->fld.data());
-
-    boundary_noslipbc(tmp_u->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
-    boundary_noslipbc(tmp_v->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
-    
-    filter( fields.mt.at("u")->fld.data(), tmp_u->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-            gd.icells, gd.ijcells);
-    filter( fields.mt.at("v")->fld.data(), tmp_v->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-            gd.icells, gd.ijcells);
-    filter( fields.mt.at("w")->fld.data(), tmp_w->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart+1, gd.kend,
-            gd.icells, gd.ijcells);
-
-    fields.release_tmp(tmp_u);
-    fields.release_tmp(tmp_v);
-    fields.release_tmp(tmp_w);
+        fields.mt.at("u")->fld.data(),
+        fields.mt.at("v")->fld.data(),
+        fields.mt.at("w")->fld.data());
 
     diff_c<TF>(fields.mt.at("u")->fld.data(), fields.mp.at("u")->fld.data(), fields.visc,
                gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend, gd.icells, gd.ijcells,
