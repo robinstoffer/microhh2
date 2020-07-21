@@ -807,7 +807,7 @@ void Diff_NN<TF>::Inference(
         input_ctrlv[N_input_adjusted + inpidx]  = ((input_ctrlv_v[inpidx] - mean_input[1]) / stdev_input[1]);
         input_ctrlw[N_input_adjusted2 + inpidx] = ((input_ctrlw_w[inpidx] - mean_input[2]) / stdev_input[2]);
     }
-    for (int inpidx = 0; inpidx < N_input_adjusted; +inpidx)
+    for (int inpidx = 0; inpidx < N_input_adjusted;++inpidx)
     {
         input_ctrlu[N_input + inpidx]           = ((input_ctrlu_v[inpidx] - mean_input[1]) / stdev_input[1]);
         input_ctrlu[N_input_comb2 + inpidx]     = ((input_ctrlu_w[inpidx] - mean_input[2]) / stdev_input[2]);
@@ -931,7 +931,7 @@ Diff_NN<TF>::Diff_NN(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, B
     dnmax = inputin.get_item<TF>("diff", "dnmax", "", 0.4  );
 
     //Hard-code file directory where variables MLP are stored. This directory is in the other scripts explicitly used to store the MLP under consideration (with current settings the one with nhidden=64). If nhidden changes, change the hard-coded array sizes in diff_nn.h accordingly!
-    std::string var_filepath = "../ann_training/MLP_selected/";
+    std::string var_filepath = "../../ann_training/MLP_selected/";
     
     // Define names of text files, which is ok assuming that ONLY the directory of the text files change and not the text file names themselves.
     std::string hiddenu_wgth_str(var_filepath + "MLPu_hidden_kernel.txt");

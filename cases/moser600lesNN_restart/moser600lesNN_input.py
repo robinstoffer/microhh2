@@ -12,13 +12,6 @@ z = numpy.zeros(kmax)
 u = numpy.zeros(kmax)
 s = numpy.zeros(kmax)
 
-## create non-equidistant grid
-#alpha = 0.967
-#for k in range(kmax):
-#  eta  = -1. + 2.*((k+1)-0.5) / kmax
-#  z[k] = zsize / (2.*alpha) * numpy.tanh(eta*0.5*(numpy.log(1.+alpha) - numpy.log(1.-alpha))) + 0.5*zsize
-#  s[k] = z[k]
-
 #create equidistant grid
 dz = zsize / kmax
 z = numpy.arange(dz/2., zsize, dz)

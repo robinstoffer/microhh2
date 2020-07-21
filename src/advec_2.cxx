@@ -31,8 +31,6 @@
 #include "constants.h"
 #include "finite_difference.h"
 
-#include "boundary_cyclic.h"
-
 namespace
 {
     using namespace Finite_difference::O2;
@@ -40,8 +38,7 @@ namespace
 
 template<typename TF>
 Advec_2<TF>::Advec_2(Master& masterin, Grid<TF>& gridin, Fields<TF>& fieldsin, Input& inputin) :
-    Advec<TF>(masterin, gridin, fieldsin, inputin),
-    boundary_cyclic(master, grid)
+    Advec<TF>(masterin, gridin, fieldsin, inputin)
 {
 }
 
@@ -258,8 +255,6 @@ namespace
 template<typename TF>
 void Advec_2<TF>::create(Stats<TF>& stats)
 {
-    boundary_cyclic.init();
-
     stats.add_tendency(*fields.mt.at("u"), "z", tend_name, tend_longname);
     stats.add_tendency(*fields.mt.at("v"), "z", tend_name, tend_longname);
     stats.add_tendency(*fields.mt.at("w"), "zh", tend_name, tend_longname);
@@ -303,89 +298,27 @@ template<typename TF>
 void Advec_2<TF>::exec(Stats<TF>& stats)
 {
     auto& gd = grid.get_grid_data();
-    auto tmp = fields.get_tmp();
-
-    auto zero = [](std::vector<TF>& v) { std::fill(v.begin(), v.end(), TF(0.)); };
-
-    auto filter = [](
-            TF* restrict at, const TF* restrict a,
-            int istart, int iend, int jstart, int jend, int kstart, int kend,
-            int jj, int kk)
-    {
-        constexpr int ii = 1;
-
-        for (int k=kstart; k<kend; ++k)
-            for (int j=jstart; j<jend; ++j)
-                #pragma ivdep
-                for (int i=istart; i<iend; ++i)
-                {
-                    const int ijk = i + j*jj + k*kk;
-                    at[ijk] += TF(1./12.)*a[ijk-ii] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+ii]
-                             + TF(1./12.)*a[ijk-jj] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+jj]
-                             + TF(1./12.)*a[ijk-kk] + TF(1./6.)*a[ijk] + TF(1./12.)*a[ijk+kk];
-                    //at[ijk] = a[ijk];
-                }
-    };
-
-    auto boundary_noslipbc = [](TF* restrict at, int kstart, int kend, int icells, int jcells, int jj, int kk)
-    {
-        for (int j=0; j<jcells; ++j)
-            #pragma ivdep
-            for (int i=0; i<icells; ++i)
-            {
-                const int ijk = i + j*jj + kstart*kk;
-                at[ijk-kk] = -at[ijk];
-            }
-        
-        for (int j=0; j<jcells; ++j)
-            #pragma ivdep
-            for (int i=0; i<icells; ++i)
-            {
-                const int ijk = i + j*jj + (kend-1)*kk;
-                at[ijk+kk] = -at[ijk];
-            }
-    };
-
-    zero(tmp->fld);
-    advec_u(tmp->fld.data(),
+    advec_u(fields.mt.at("u")->fld.data(),
             fields.mp.at("u")->fld.data(), fields.mp.at("v")->fld.data(), fields.mp.at("w")->fld.data(),
             gd.dzi.data(), gd.dx, gd.dy,
             fields.rhoref.data(), fields.rhorefh.data(),
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
-    boundary_cyclic.exec(tmp->fld.data());
-    boundary_noslipbc(tmp->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
-    filter( fields.mt.at("u")->fld.data(), tmp->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-            gd.icells, gd.ijcells);
 
-    zero(tmp->fld);
-    advec_v(tmp->fld.data(),
+    advec_v(fields.mt.at("v")->fld.data(),
             fields.mp.at("u")->fld.data(), fields.mp.at("v")->fld.data(), fields.mp.at("w")->fld.data(),
             gd.dzi.data(), gd.dx, gd.dy,
             fields.rhoref.data(), fields.rhorefh.data(),
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
-    boundary_cyclic.exec(tmp->fld.data());
-    boundary_noslipbc(tmp->fld.data(), gd.kstart, gd.kend, gd.icells, gd.jcells, gd.icells, gd.ijcells);
-    filter( fields.mt.at("v")->fld.data(), tmp->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
-            gd.icells, gd.ijcells);
 
-    zero(tmp->fld);
-    advec_w(tmp->fld.data(),
+    advec_w(fields.mt.at("w")->fld.data(),
             fields.mp.at("u")->fld.data(), fields.mp.at("v")->fld.data(), fields.mp.at("w")->fld.data(),
             gd.dzhi.data(), gd.dx, gd.dy,
             fields.rhoref.data(), fields.rhorefh.data(),
             gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart, gd.kend,
             gd.icells, gd.ijcells);
-    boundary_cyclic.exec(tmp->fld.data());
-    filter( fields.mt.at("w")->fld.data(), tmp->fld.data(),
-            gd.istart, gd.iend, gd.jstart, gd.jend, gd.kstart+1, gd.kend,
-            gd.icells, gd.ijcells);
-
-    fields.release_tmp(tmp);
-
+    
     for (auto& it : fields.st)
         advec_s(it.second->fld.data(), fields.sp.at(it.first)->fld.data(),
                 fields.mp.at("u")->fld.data(), fields.mp.at("v")->fld.data(), fields.mp.at("w")->fld.data(),
@@ -397,7 +330,6 @@ void Advec_2<TF>::exec(Stats<TF>& stats)
     stats.calc_tend(*fields.mt.at("u"), tend_name);
     stats.calc_tend(*fields.mt.at("v"), tend_name);
     stats.calc_tend(*fields.mt.at("w"), tend_name);
-
     for (auto it : fields.st)
         stats.calc_tend(*it.second, tend_name);
 }

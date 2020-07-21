@@ -1,7 +1,7 @@
 import numpy as np
 import netCDF4 as nc
 import matplotlib as mpl
-mpl.use('Agg')
+mpl.use('PDF')
 mpl.rcParams.update({'figure.autolayout':True})
 import matplotlib.pyplot as plt
 import argparse
@@ -88,15 +88,16 @@ for k in k_ind:
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=16)
     cbar.set_label('Permutation importance [-]',rotation=270,fontsize=20,labelpad=30)
-    plt.xlabel('i', fontsize=16)
-    plt.ylabel('j', fontsize=16)
+    plt.xlabel('l', fontsize=16)
+    plt.ylabel('m', fontsize=16)
     plt.xticks(i_ticks, fontsize=16, rotation=0)
     plt.yticks(j_ticks, fontsize=16, rotation=0)
-    plt.tight_layout()
+    fig = plt.gcf()
+    fig.set_tight_layout(True)
     if flag_upstream:
-        plt.savefig("u_fi_upstream_horcross_heightindex" + str(k)+ ".png", dpi=200)
+        plt.savefig("u_fi_upstream_horcross_heightindex" + str(k)+ ".pdf")
     elif flag_downstream:
-        plt.savefig("u_fi_downstream_horcross_heightindex" + str(k)+ ".png", dpi=200)
+        plt.savefig("u_fi_downstream_horcross_heightindex" + str(k)+ ".pdf")
     plt.close()
 
 #v-velocity
@@ -112,15 +113,16 @@ for k in k_ind:
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=16)
     cbar.set_label('Permutation importance [-]',rotation=270,fontsize=20,labelpad=30)
-    plt.xlabel('i', fontsize=16)
-    plt.ylabel('j', fontsize=16)
+    plt.xlabel('l', fontsize=16)
+    plt.ylabel('m', fontsize=16)
     plt.xticks(iv_ticks, fontsize=16, rotation=0)
     plt.yticks(jv_ticks, fontsize=16, rotation=0)
-    plt.tight_layout()
+    fig = plt.gcf()
+    fig.set_tight_layout(True)
     if flag_upstream:
-        plt.savefig("v_fi_upstream_horcross_heightindex" + str(k)+ ".png", dpi=200)
+        plt.savefig("v_fi_upstream_horcross_heightindex" + str(k)+ ".pdf")
     elif flag_downstream:
-        plt.savefig("v_fi_downstream_horcross_heightindex" + str(k)+ ".png", dpi=200)
+        plt.savefig("v_fi_downstream_horcross_heightindex" + str(k)+ ".pdf")
     plt.close()
 
 #w-velocity
@@ -139,13 +141,14 @@ for k in kw_ind:
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=16)
     cbar.set_label('Permutation importance [-]',rotation=270,fontsize=20,labelpad=30)
-    plt.xlabel('i', fontsize=16)
-    plt.ylabel('j', fontsize=16)
+    plt.xlabel('l', fontsize=16)
+    plt.ylabel('m', fontsize=16)
     plt.xticks(iw_ticks, fontsize=16, rotation=0)
     plt.yticks(j_ticks, fontsize=16, rotation=0)
-    plt.tight_layout()
+    fig = plt.gcf()
+    fig.set_tight_layout(True)
     if flag_upstream:
-        plt.savefig("w_fi_upstream_horcross_heightindex" + str(k)+ ".png", dpi=200)
+        plt.savefig("w_fi_upstream_horcross_heightindex" + str(k)+ ".pdf")
     elif flag_downstream:
-        plt.savefig("w_fi_downstream_horcross_heightindex" + str(k)+ ".png", dpi=200)
+        plt.savefig("w_fi_downstream_horcross_heightindex" + str(k)+ ".pdf")
     plt.close()

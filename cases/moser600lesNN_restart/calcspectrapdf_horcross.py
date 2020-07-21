@@ -1,53 +1,30 @@
+#Plot spectra and PDF as function of simulation time a posteriori
 import sys
 import numpy as np
 import struct as st
 import netCDF4 as nc
 import os
-#import pdb
-#import tkinter
 import matplotlib as mpl
-mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
+mpl.use('PDF')
+mpl.rc('text', usetex=True)
+mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]
+mpl.rcParams.update({'figure.autolayout':True})
 from matplotlib.pyplot import *
 sys.path.append("../../python")
 from microhh_tools import *
 
 
-#input_dir = './long_run_MLP53/'
-#input_dir = './long_run_MLP53_time01/'
-#input_dir = './long_run_MLP53_time001/'
-#input_dir = './long_run_lookuptable/'
-#input_dir = './long_run_MLP53_explicitfilt/'
-#input_dir = './long_run_MLP53_time01_explicitfilt/'
-input_dir = './long_run_MLP53_time001_explicitfilt/'
+input_dir = './'
 
-#stats_dir = './long_run_MLP53/long_run_MLP53.nc'
-#stats_dir = './long_run_MLP53_time01_explicitfilt/moser600lesNN_default_0000000.nc'
-stats_dir = './long_run_MLP53_time001_explicitfilt/moser600lesNN_default_0000000.nc'
-#stats_dir = './long_run_MLP53_time01/moser600lesNN_default_0000000.nc'
-#stats_dir = './long_run_MLP53_time001/moser600lesNN_default_0000000.nc'
-#stats_dir = './long_run_lookuptable/long_run_lookuptable.nc'
-#stats_dir = './long_run_lookuptable_explicitfilt.nc'
-#stats_dir = './long_run_MLP53_explicitfilt/long_run_MLP53_explicitfilt.nc'
-#stats_dir = './moser600lesNN_default_0000000.nc'
-#stats_dir = 'test.nc'
-
-#nx = 768
-#ny = 384
-#nz = 256
+stats_dir = './moser600lesNN.default.0000000.nc'
 
 nx = 96
 ny = 48
 nz = 64
 
-#iter = 60000
-#iterstep = 500
-#nt   = 7
-
 iter_begin = 0
-iterstep = 100
-nt = 11
-int_tstat = 10 #specify different value from 1 when stats are not stored every time step
-#int_tstat = 1
+iterstep = 3
+nt = 8
 
 # read the grid data
 n = nx*ny*nz
@@ -66,6 +43,10 @@ z   = np.array(st.unpack('<{}d'.format(nz), raw))
 raw = fin.read(nz*8)
 zh  = np.array(st.unpack('<{}d'.format(nz), raw))
 fin.close()
+
+domainsize_x = xh[-1]
+domainsize_z = zh[-1]
+delta = domainsize_z / 2.
 
 #Calculate friction velocity over selected time steps
 uavg = np.zeros((nt,nz))
@@ -181,7 +162,8 @@ for crossname in variables:
 
     index_spectra +=1
 
-k_streamwise = np.arange(1,nwave_modes_x+1)
+n_streamwise = np.arange(1,nwave_modes_x+1)
+k_streamwise = (n_streamwise / domainsize_x) * 2 * np.pi
 
 #Plot predicted transport components and calculated TKE as function of z for specified time range, chosen to be identical to time steps plotted before
 tstart = iter_begin
@@ -195,10 +177,8 @@ tke    = np.array(stats['budget']['tke'][tstart:tend,:])
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
 c=0
-#for t in range(tstart, tend, iterstep):
-for t in range(int(tstart/int_tstat), int(tend/int_tstat), int(iterstep/int_tstat)):
-    plot(zh[:], (tau_wu[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
-    #plot(zh[:8], (tau_wu[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t],linewidth=2.0, label=str(t))
+for t in range(tstart, tend, iterstep):
+    plot(zh[:]/delta, (tau_wu[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
     c+=1
 xlabel(r'$\frac{z}{\delta} \ [-]$',fontsize = 20)
 ylabel(r'$\frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize = 20)
@@ -207,18 +187,18 @@ xticks(fontsize = 16, rotation = 90)
 yticks(fontsize = 16, rotation = 0)
 grid()
 axis([0, 2, -2.0, 1.5])
-#axis([0, 0.25, -2.0, 0])
-tight_layout()
-savefig(input_dir + "tau_wu.png")
+fig = gcf()
+fig.set_tight_layout(True)
+savefig(input_dir + "tau_wu.pdf")
 close()
 #
 figure()
 colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
 c=0
-for t in range(int(tstart/int_tstat), int(tend/int_tstat), int(iterstep/int_tstat)):
+for t in range(tstart, tend, iterstep):
     plot(z[:], (tke[t,:] / ustar**2.), color=colors[c],linewidth=2.0, label=str(t))
-    #plot(z[:8], (tke[t,:8] / ustar**2.), marker='.', mew = 2, mec=colors[t], mfc=colors[t], color=colors[t], linewidth=2.0, label=str(t))
     c+=1
+
 xlabel(r'$\frac{z}{\delta} \ [-]$',fontsize = 20)
 ylabel(r'$\frac{TKE}{u_{\tau}^2} \ [-]$',fontsize = 20)
 #legend(loc=0, frameon=False,fontsize=16)
@@ -227,8 +207,9 @@ yticks(fontsize = 16, rotation = 0)
 grid()
 axis([0, 2, 0.5, 6.0])
 #axis([0, 0.25, 1.5, 4.5])
-tight_layout()
-savefig(input_dir + "tke.png")
+fig = gcf()
+fig.set_tight_layout(True)
+savefig(input_dir + "tke.pdf")
 close()
 
 #Determine bins for pdfs based only on first time step
@@ -251,49 +232,52 @@ for k in range(np.size(indexes_local)):
     figure()
     colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
     for t in range(nt):
-        loglog(k_streamwise[:], (spectra_x[0,t,k,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+        loglog(k_streamwise[:] * delta, (spectra_x[0,t,k,:] / (ustar**2. * delta)), color=colors[t],linewidth=2.0, label=str(t))
     
-    xlabel(r'$\kappa \ [-]$',fontsize = 20)
-    ylabel(r'$E \ [-]$',fontsize = 20)
+    xlabel(r'$\kappa \delta \ [-]$',fontsize = 20)
+    ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize = 20)
     #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 250, 0.00001, 3])
-    tight_layout()
-    savefig(input_dir + "spectrax_u_z_" + str(indexes_local[k]) + ".png")
+    axis([1, 250, 0.0005, 3])
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "spectrax_u_z_" + str(indexes_local[k]) + ".pdf")
     close()
     #
     figure()
     colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
     for t in range(nt):
-        loglog(k_streamwise[:], (spectra_x[1,t,k,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+        loglog(k_streamwise[:], (spectra_x[1,t,k,:] / (ustar**2. * delta)), color=colors[t],linewidth=2.0, label=str(t))
     
-    xlabel(r'$\kappa \ [-]$',fontsize = 20)
-    ylabel(r'$E \ [-]$',fontsize = 20)
+    xlabel(r'$\kappa \delta \ [-]$',fontsize = 20)
+    ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize = 20)
     #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
     axis([1, 250, 0.00001, 3])
-    tight_layout()
-    savefig(input_dir + "spectrax_v_z_" + str(indexes_local[k]) + ".png")
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "spectrax_v_z_" + str(indexes_local[k]) + ".pdf")
     close()
     #
     figure()
     colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
     for t in range(nt):
-        loglog(k_streamwise[:], (spectra_x[2,t,k,:] / ustar**2.), color=colors[t],linewidth=2.0, label=str(t))
+        loglog(k_streamwise[:], (spectra_x[2,t,k,:] / (ustar**2. * delta)), color=colors[t],linewidth=2.0, label=str(t))
     
-    xlabel(r'$\kappa \ [-]$',fontsize = 20)
-    ylabel(r'$E \ [-]$',fontsize = 20)
+    xlabel(r'$\kappa \delta \ [-]$',fontsize = 20)
+    ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize = 20)
     #legend(loc=0, frameon=False,fontsize=16)
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
     axis([1, 250, 0.00001, 3])
-    tight_layout()
-    savefig(input_dir + "spectrax_w_z_" + str(indexes_local[k]) + ".png")
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "spectrax_w_z_" + str(indexes_local[k]) + ".pdf")
     close()
     #
     figure()
@@ -308,8 +292,9 @@ for k in range(np.size(indexes_local)):
     yticks(fontsize = 16, rotation = 0)
     grid()
     axis([0, 0.16, 0, 100])
-    tight_layout()
-    savefig(input_dir + "pdf_u_z_" + str(indexes_local[k]) + ".png")
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "pdf_u_z_" + str(indexes_local[k]) + ".pdf")
     close()
     #
     figure()
@@ -324,8 +309,9 @@ for k in range(np.size(indexes_local)):
     yticks(fontsize = 16, rotation = 0)
     grid()
     axis([-0.04,0.04,0,100])
-    tight_layout()
-    savefig(input_dir + "pdf_v_z_" + str(indexes_local[k]) + ".png")
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "pdf_v_z_" + str(indexes_local[k]) + ".pdf")
     close()
     #
     figure()
@@ -340,6 +326,7 @@ for k in range(np.size(indexes_local)):
     yticks(fontsize = 16, rotation = 0)
     grid()
     axis([-0.03,0.03,0,100])
-    tight_layout()
-    savefig(input_dir + "pdf_w_z_" + str(indexes_local[k]) + ".png")
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "pdf_w_z_" + str(indexes_local[k]) + ".pdf")
     close()

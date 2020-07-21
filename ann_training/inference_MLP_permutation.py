@@ -1,13 +1,9 @@
 #Script to manually set-up a MLP, and subsequently do inference on flow snapshots stored in training file with possibly permutation errors introduced to assess the importance of individual features.
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
 import argparse
-#import tensorflow as tf
 import numpy as np
 import netCDF4 as nc
-import time
-from diff_manual_python import diff_U
 from joblib import Parallel, delayed
-#from diff_frozen_python import diff_U
 
 class MLP:
     '''Class to manually build MLP and subsequently do inference. NOTE: should be completely equivalent to MLP defined in MLP2_estimator.py!!!'''
@@ -37,14 +33,11 @@ class MLP:
         self.MLPw_hidden_alpha  = np.loadtxt(variables_filepath+'MLPw_hidden_alpha.txt')
         self.MLPw_output_kernel = np.loadtxt(variables_filepath+'MLPw_output_kernel.txt').transpose()
         self.MLPw_output_bias   = np.loadtxt(variables_filepath+'MLPw_output_bias.txt')
-        self.utau_ref           = np.loadtxt(variables_filepath+'utau_ref.txt')
-        self.output_denorm_utau2= np.loadtxt(variables_filepath+'output_denorm_utau2.txt')
 
 #        self.iteration=0
 
-    #Define private function to make input variables non-dimensionless and standardize them
-    def _standardization(self, input_variable, mean_variable, stdev_variable, scaling_factor):
-        input_variable = np.divide(input_variable, scaling_factor)
+    #Define private function to standardize input variables
+    def _standardization(self, input_variable, mean_variable, stdev_variable):
         input_variable = np.subtract(input_variable, mean_variable)
         input_variable = np.divide(input_variable, stdev_variable)
         return input_variable
@@ -84,9 +77,9 @@ class MLP:
     def predict(self, input_u, input_v, input_w): #if zw_flag is True, only determine zw-components
         
         #Standardize input variables
-        input_u_stand  = self._standardization(input_u, self.means_inputs[0], self.stdevs_inputs[0], self.utau_ref)
-        input_v_stand  = self._standardization(input_v, self.means_inputs[1], self.stdevs_inputs[1], self.utau_ref)
-        input_w_stand  = self._standardization(input_w, self.means_inputs[2], self.stdevs_inputs[2], self.utau_ref)
+        input_u_stand  = self._standardization(input_u, self.means_inputs[0], self.stdevs_inputs[0])
+        input_v_stand  = self._standardization(input_v, self.means_inputs[1], self.stdevs_inputs[1])
+        input_w_stand  = self._standardization(input_w, self.means_inputs[2], self.stdevs_inputs[2])
 
         #Execute three single MLPs
         output_layer_u = self._single_MLP([
@@ -118,8 +111,7 @@ class MLP:
 
         #Denormalize output layer
         output_stdevs = np.multiply(output_layer_tot, self.stdevs_labels)
-        output_means  = np.add(output_stdevs, self.means_labels)
-        output_denorm = np.multiply(output_means, self.output_denorm_utau2)
+        output_denorm = np.add(output_stdevs, self.means_labels)
         
         return output_denorm
 
@@ -339,26 +331,6 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_up
                     loss += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[16]) ** 2.
                     loss += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[17]) ** 2.
     
-                #unres_tau_xu_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[0]
-                #unres_tau_xu_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[1]
-                #unres_tau_yu_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[2]
-                #unres_tau_yu_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[3]
-                #unres_tau_zu_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[4]
-                #unres_tau_zu_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[5]
-                #unres_tau_xv_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[6]
-                #unres_tau_xv_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[7]
-                #unres_tau_yv_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[8]
-                #unres_tau_yv_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[9]
-                #unres_tau_zv_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[10]
-                #unres_tau_zv_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[11]
-                #unres_tau_xw_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[12]
-                #unres_tau_xw_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[13]
-                #unres_tau_yw_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[14]
-                #unres_tau_yw_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[15]
-                #unres_tau_zw_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[16]
-                #unres_tau_zw_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[17]
-
-
     #Return featue importances or loss
     if permute:
         return loss_permu, loss_permv, loss_permw
@@ -368,37 +340,6 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_up
 def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, flag_only_loglayer):
     #Makes currently use of global variables for the labels and storage of loss
     
-    ##Initialize fields for storage transport components
-    #unres_tau_xu_CNN_upstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
-    #unres_tau_xv_CNN_upstream = np.zeros((len(zc),len(yhcless),len(xhcless)), dtype = np.float64)
-    #unres_tau_xw_CNN_upstream = np.zeros((len(zhcless),len(yc),len(xhcless)), dtype = np.float64)
-    #unres_tau_yu_CNN_upstream = np.zeros((len(zc),len(yhcless),len(xhcless)), dtype = np.float64)
-    #unres_tau_yv_CNN_upstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
-    #unres_tau_yw_CNN_upstream = np.zeros((len(zhcless),len(yhcless),len(xc)), dtype = np.float64)
-    #unres_tau_zu_CNN_upstream = np.zeros((len(zhcless),len(yc),len(xhcless)), dtype = np.float64)
-    #unres_tau_zv_CNN_upstream = np.zeros((len(zhcless),len(yhcless),len(xc)), dtype = np.float64)
-    #unres_tau_zw_CNN_upstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
-    ##
-    #unres_tau_xu_CNN_downstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
-    #unres_tau_xv_CNN_downstream = np.zeros((len(zc),len(yhcless),len(xhcless)), dtype = np.float64)
-    #unres_tau_xw_CNN_downstream = np.zeros((len(zhcless),len(yc),len(xhcless)), dtype = np.float64)
-    #unres_tau_yu_CNN_downstream = np.zeros((len(zc),len(yhcless),len(xhcless)), dtype = np.float64)
-    #unres_tau_yv_CNN_downstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
-    #unres_tau_yw_CNN_downstream = np.zeros((len(zhcless),len(yhcless),len(xc)), dtype = np.float64)
-    #unres_tau_zu_CNN_downstream = np.zeros((len(zhcless),len(yc),len(xhcless)), dtype = np.float64)
-    #unres_tau_zv_CNN_downstream = np.zeros((len(zhcless),len(yhcless),len(xc)), dtype = np.float64)
-    #unres_tau_zw_CNN_downstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
-    
-    #Initialize empty arrays for temporary combined storage transport components
-    #unres_tau_xu_CNN = np.full((len(zc),len(yc),len(xgcextra)), np.nan, dtype=np.float32)
-    #unres_tau_xv_CNN = np.full((len(zc),len(yhcless),len(xhc)), np.nan, dtype=np.float32)
-    #unres_tau_xw_CNN = np.full((len(zhcless),len(yc),len(xhc)), np.nan, dtype=np.float32)
-    #unres_tau_yu_CNN = np.full((len(zc),len(yhc),len(xhcless)), np.nan, dtype=np.float32)
-    #unres_tau_yv_CNN = np.full((len(zc),len(ygcextra),len(xc)), np.nan, dtype=np.float32)
-    #unres_tau_yw_CNN = np.full((len(zhcless),len(yhc),len(xc)), np.nan, dtype=np.float32)
-    #unres_tau_zu_CNN = np.full((len(zhc),len(yc),len(xhcless)), np.nan, dtype=np.float32)
-    #unres_tau_zv_CNN = np.full((len(zhc),len(yhcless),len(xc)), np.nan, dtype=np.float32)
-    #unres_tau_zw_CNN = np.full((len(zc),len(yc),len(xc)),       np.nan, dtype=np.float32)
 
     #Reshape 1d arrays to 3d, which is much more convenient for the slicing below.
     u = np.reshape(u, (grid.kcells,  grid.jcells, grid.icells))
@@ -430,7 +371,6 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_
                         result = __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, k, ksample, jsample, isample)
                     else:
                         result = parallel(delayed(__grid_loop)(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, k, ksample, jsample, isample) for k in range(grid.kstart,grid.kend,1))
-                    #for k in range(grid.kstart,grid.kstart+1,1): #FOR TESTING PURPOSES ONLY!!!
                     
                     if permute:
                         if not flag_only_loglayer:
@@ -487,25 +427,6 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_
     else:
         return loss
 
-    #var_unres_tau_xu_CNN_upstream[time_step,:,:,:] =  unres_tau_xu_CNN_upstream[:,:,:] 
-    #var_unres_tau_yu_CNN_upstream[time_step,:,:,:] =  unres_tau_yu_CNN_upstream[:,:,:] 
-    #var_unres_tau_zu_CNN_upstream[time_step,:,:,:] =  unres_tau_zu_CNN_upstream[:,:,:] 
-    #var_unres_tau_xv_CNN_upstream[time_step,:,:,:] =  unres_tau_xv_CNN_upstream[:,:,:] 
-    #var_unres_tau_yv_CNN_upstream[time_step,:,:,:] =  unres_tau_yv_CNN_upstream[:,:,:] 
-    #var_unres_tau_zv_CNN_upstream[time_step,:,:,:] =  unres_tau_zv_CNN_upstream[:,:,:] 
-    #var_unres_tau_xw_CNN_upstream[time_step,:,:,:] =  unres_tau_xw_CNN_upstream[:,:,:] 
-    #var_unres_tau_yw_CNN_upstream[time_step,:,:,:] =  unres_tau_yw_CNN_upstream[:,:,:] 
-    #var_unres_tau_zw_CNN_upstream[time_step,:,:,:] =  unres_tau_zw_CNN_upstream[:,:,:] 
-    ##
-    #var_unres_tau_xu_CNN_downstream[time_step,:,:,:] =  unres_tau_xu_CNN_downstream[:,:,:] 
-    #var_unres_tau_yu_CNN_downstream[time_step,:,:,:] =  unres_tau_yu_CNN_downstream[:,:,:] 
-    #var_unres_tau_zu_CNN_downstream[time_step,:,:,:] =  unres_tau_zu_CNN_downstream[:,:,:] 
-    #var_unres_tau_xv_CNN_downstream[time_step,:,:,:] =  unres_tau_xv_CNN_downstream[:,:,:] 
-    #var_unres_tau_yv_CNN_downstream[time_step,:,:,:] =  unres_tau_yv_CNN_downstream[:,:,:] 
-    #var_unres_tau_zv_CNN_downstream[time_step,:,:,:] =  unres_tau_zv_CNN_downstream[:,:,:] 
-    #var_unres_tau_xw_CNN_downstream[time_step,:,:,:] =  unres_tau_xw_CNN_downstream[:,:,:] 
-    #var_unres_tau_yw_CNN_downstream[time_step,:,:,:] =  unres_tau_yw_CNN_downstream[:,:,:] 
-    #var_unres_tau_zw_CNN_downstream[time_step,:,:,:] =  unres_tau_zw_CNN_downstream[:,:,:] 
 
 if __name__ == '__main__':
     #Parse input
@@ -514,14 +435,11 @@ if __name__ == '__main__':
     parser.add_argument("--loss_filename", default="loss.nc")
     parser.add_argument("--inference_filename", default="inference_reconstructed_fields.nc")
     parser.add_argument("--variables_filepath", default="", help="filepath where extracted variables from the frozen graph are located.")
-    #parser.add_argument("--labels_filename", default="reconstructed_fields.nc", help="file where labels are stored")
     parser.add_argument("--only_zu_upstream", dest='only_zu_upstream', action = "store_true", help= "Specify when only zu_upstream component should be considered")
     parser.add_argument("--only_zu_downstream", dest='only_zu_downstream', action = "store_true", help= "Specify when only zu_downstream component should be considered")
     parser.add_argument("--only_loglayer", dest='only_loglayer', action = "store_true", help= "Specify when only log-layer should be considered")
     parser.add_argument("--calc_loss", dest='calc_loss', action = "store_true", help= "Specify when inference file does not yet contain the loss.")
-    #parser.add_argument("--batch_size", default=1000)
     args = parser.parse_args()
-    #batch_size = int(args.batch_size)
 
     #Determine flags
     if args.only_zu_upstream and args.only_zu_downstream:
@@ -541,39 +459,40 @@ if __name__ == '__main__':
     else:
         flag_only_loglayer = False
 
+    #Define number of random shufflings used for averaging of the permutatino feature importances
+    random_shufflings = 2
+
     ###Extract flow fields and from netCDF file###
-    #Specify time steps NOTE: SHOULD BE 27 TO 30 to access validation fields (30 to 99 for test fields), CHECK WHETHER THIS IS STILL CONSISTENT!
+    #Specify time steps NOTE: SHOULD BE 28 TO 31 to access testing field
     #NOTE: flow fields were normalized stored, UNDO first normalisation!
-    tstart = 30
-    tend   = 99
+    tstart = 28
+    tend   = 31
     tstep_unique = np.arange(tstart, tend)
     nt = tend - tstart
     #
     flowfields = nc.Dataset(args.training_filename)
-    #labels     = nc.Dataset(args.labels_filename)
-    utau_ref_channel = np.array(flowfields['utau_ref'][:],dtype='f4')
-    u = np.array(flowfields['uc'][tstart:tend,:,:,:]) * utau_ref_channel
-    v = np.array(flowfields['vc'][tstart:tend,:,:,:]) * utau_ref_channel
-    w = np.array(flowfields['wc'][tstart:tend,:,:,:]) * utau_ref_channel
+    u = np.array(flowfields['uc'][tstart:tend,:,:,:])
+    v = np.array(flowfields['vc'][tstart:tend,:,:,:])
+    w = np.array(flowfields['wc'][tstart:tend,:,:,:])
     #
-    unres_tau_xu_lbls_upstream = np.array(flowfields['unres_tau_xu_tot'][tstart:tend,:,:,:-1])   * (utau_ref_channel ** 2.) 
-    unres_tau_yu_lbls_upstream = np.array(flowfields['unres_tau_yu_tot'])[tstart:tend,:,:-1,:-1] * (utau_ref_channel ** 2.)
-    unres_tau_zu_lbls_upstream = np.array(flowfields['unres_tau_zu_tot'])[tstart:tend,:-1,:,:-1] * (utau_ref_channel ** 2.)
-    unres_tau_xv_lbls_upstream = np.array(flowfields['unres_tau_xv_tot'])[tstart:tend,:,:-1,:-1] * (utau_ref_channel ** 2.)
-    unres_tau_yv_lbls_upstream = np.array(flowfields['unres_tau_yv_tot'])[tstart:tend,:,:-1,:]   * (utau_ref_channel ** 2.)
-    unres_tau_zv_lbls_upstream = np.array(flowfields['unres_tau_zv_tot'])[tstart:tend,:-1,:-1,:] * (utau_ref_channel ** 2.)
-    unres_tau_xw_lbls_upstream = np.array(flowfields['unres_tau_xw_tot'])[tstart:tend,:-1,:,:-1] * (utau_ref_channel ** 2.)
-    unres_tau_yw_lbls_upstream = np.array(flowfields['unres_tau_yw_tot'])[tstart:tend,:-1,:-1,:] * (utau_ref_channel ** 2.)
-    unres_tau_zw_lbls_upstream = np.array(flowfields['unres_tau_zw_tot'])[tstart:tend,:-1,:,:]   * (utau_ref_channel ** 2.)
-    unres_tau_xu_lbls_downstream = np.array(flowfields['unres_tau_xu_tot'])[tstart:tend,:,:,1:]  * (utau_ref_channel ** 2.)
-    unres_tau_yu_lbls_downstream = np.array(flowfields['unres_tau_yu_tot'])[tstart:tend,:,1:,:-1]* (utau_ref_channel ** 2.)
-    unres_tau_zu_lbls_downstream = np.array(flowfields['unres_tau_zu_tot'])[tstart:tend,1:,:,:-1]* (utau_ref_channel ** 2.)
-    unres_tau_xv_lbls_downstream = np.array(flowfields['unres_tau_xv_tot'])[tstart:tend,:,:-1,1:]* (utau_ref_channel ** 2.)
-    unres_tau_yv_lbls_downstream = np.array(flowfields['unres_tau_yv_tot'])[tstart:tend,:,1:,:]  * (utau_ref_channel ** 2.)
-    unres_tau_zv_lbls_downstream = np.array(flowfields['unres_tau_zv_tot'])[tstart:tend,1:,:-1,:]* (utau_ref_channel ** 2.)
-    unres_tau_xw_lbls_downstream = np.array(flowfields['unres_tau_xw_tot'])[tstart:tend,:-1,:,1:]* (utau_ref_channel ** 2.)
-    unres_tau_yw_lbls_downstream = np.array(flowfields['unres_tau_yw_tot'])[tstart:tend,:-1,1:,:]* (utau_ref_channel ** 2.)
-    unres_tau_zw_lbls_downstream = np.array(flowfields['unres_tau_zw_tot'])[tstart:tend,1:,:,:]  * (utau_ref_channel ** 2.)
+    unres_tau_xu_lbls_upstream = np.array(flowfields['unres_tau_xu_tot'][tstart:tend,:,:,:-1])   
+    unres_tau_yu_lbls_upstream = np.array(flowfields['unres_tau_yu_tot'])[tstart:tend,:,:-1,:-1] 
+    unres_tau_zu_lbls_upstream = np.array(flowfields['unres_tau_zu_tot'])[tstart:tend,:-1,:,:-1] 
+    unres_tau_xv_lbls_upstream = np.array(flowfields['unres_tau_xv_tot'])[tstart:tend,:,:-1,:-1] 
+    unres_tau_yv_lbls_upstream = np.array(flowfields['unres_tau_yv_tot'])[tstart:tend,:,:-1,:]   
+    unres_tau_zv_lbls_upstream = np.array(flowfields['unres_tau_zv_tot'])[tstart:tend,:-1,:-1,:] 
+    unres_tau_xw_lbls_upstream = np.array(flowfields['unres_tau_xw_tot'])[tstart:tend,:-1,:,:-1] 
+    unres_tau_yw_lbls_upstream = np.array(flowfields['unres_tau_yw_tot'])[tstart:tend,:-1,:-1,:] 
+    unres_tau_zw_lbls_upstream = np.array(flowfields['unres_tau_zw_tot'])[tstart:tend,:-1,:,:]   
+    unres_tau_xu_lbls_downstream = np.array(flowfields['unres_tau_xu_tot'])[tstart:tend,:,:,1:]  
+    unres_tau_yu_lbls_downstream = np.array(flowfields['unres_tau_yu_tot'])[tstart:tend,:,1:,:-1]
+    unres_tau_zu_lbls_downstream = np.array(flowfields['unres_tau_zu_tot'])[tstart:tend,1:,:,:-1]
+    unres_tau_xv_lbls_downstream = np.array(flowfields['unres_tau_xv_tot'])[tstart:tend,:,:-1,1:]
+    unres_tau_yv_lbls_downstream = np.array(flowfields['unres_tau_yv_tot'])[tstart:tend,:,1:,:]  
+    unres_tau_zv_lbls_downstream = np.array(flowfields['unres_tau_zv_tot'])[tstart:tend,1:,:-1,:]
+    unres_tau_xw_lbls_downstream = np.array(flowfields['unres_tau_xw_tot'])[tstart:tend,:-1,:,1:]
+    unres_tau_yw_lbls_downstream = np.array(flowfields['unres_tau_yw_tot'])[tstart:tend,:-1,1:,:]
+    unres_tau_zw_lbls_downstream = np.array(flowfields['unres_tau_zw_tot'])[tstart:tend,1:,:,:]  
 
     #Extract coordinates, shape fields, and ghost cells
     zc       = np.array(flowfields['zc'][:])
@@ -625,6 +544,7 @@ if __name__ == '__main__':
         inference.createDimension("xhc",len(xhc))
         inference.createDimension("xhcless",len(xhcless))
         inference.createDimension("time",None)
+        inference.createDimension("random_shufflings",random_shufflings)
         inference.createDimension("k",5)
         inference.createDimension("j",5)
         inference.createDimension("i",5)
@@ -663,30 +583,12 @@ if __name__ == '__main__':
         var_i[:]             = np.arange(5)
         
         #Initialize variables for storage inference results
+        var_u_fi_shufflings           = inference.createVariable("u_fi_shufflings","f8",("time","random_shufflings","k","j","i"))
+        var_v_fi_shufflings           = inference.createVariable("v_fi_shufflings","f8",("time","random_shufflings","k","j","i"))
+        var_w_fi_shufflings           = inference.createVariable("w_fi_shufflings","f8",("time","random_shufflings","k","j","i"))
         var_u_fi                      = inference.createVariable("u_fi","f8",("time","k","j","i"))
         var_v_fi                      = inference.createVariable("v_fi","f8",("time","k","j","i"))
         var_w_fi                      = inference.createVariable("w_fi","f8",("time","k","j","i"))
-    ##
-    #var_unres_tau_xu_CNN_upstream = inference.createVariable("unres_tau_xu_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))      
-    #var_unres_tau_xv_CNN_upstream = inference.createVariable("unres_tau_xv_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))     
-    #var_unres_tau_xw_CNN_upstream = inference.createVariable("unres_tau_xw_CNN_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))     
-    #var_unres_tau_yu_CNN_upstream = inference.createVariable("unres_tau_yu_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
-    #var_unres_tau_yv_CNN_upstream = inference.createVariable("unres_tau_yv_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
-    #var_unres_tau_yw_CNN_upstream = inference.createVariable("unres_tau_yw_CNN_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    #var_unres_tau_zu_CNN_upstream = inference.createVariable("unres_tau_zu_CNN_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
-    #var_unres_tau_zv_CNN_upstream = inference.createVariable("unres_tau_zv_CNN_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    #var_unres_tau_zw_CNN_upstream = inference.createVariable("unres_tau_zw_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
-    ##
-    #var_unres_tau_xu_CNN_downstream = inference.createVariable("unres_tau_xu_CNN_downstream","f8",("tstep_unique","zc","yc","xc")) 
-    #var_unres_tau_xv_CNN_downstream = inference.createVariable("unres_tau_xv_CNN_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))     
-    #var_unres_tau_xw_CNN_downstream = inference.createVariable("unres_tau_xw_CNN_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))     
-    #var_unres_tau_yu_CNN_downstream = inference.createVariable("unres_tau_yu_CNN_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
-    #var_unres_tau_yv_CNN_downstream = inference.createVariable("unres_tau_yv_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
-    #var_unres_tau_yw_CNN_downstream = inference.createVariable("unres_tau_yw_CNN_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    #var_unres_tau_zu_CNN_downstream = inference.createVariable("unres_tau_zu_CNN_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
-    #var_unres_tau_zv_CNN_downstream = inference.createVariable("unres_tau_zv_CNN_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    #var_unres_tau_zw_CNN_downstream = inference.createVariable("unres_tau_zw_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
-    #
 
     #Store loss in separate file if specified
     if args.calc_loss:
@@ -702,40 +604,38 @@ if __name__ == '__main__':
         loss = np.array(loss_file['loss'])
 
     #Instantiate manual MLP class for making predictions
-    MLP = MLP(ndense = 512, variables_filepath = args.variables_filepath)
+    MLP = MLP(ndense = 64, variables_filepath = args.variables_filepath)
     
-    #Loop over flow fields, for each time step in tstep_unique (giving 4 loops in total).
-    #For each alternating grid cell, store transport components by calling the 'frozen' MLP within a tf.Session().
+    #Loop over flow fields, for each time step in tstep_unique (giving 3 loops in total).
     for t in range(nt):
-    #for t in range(1):
 
         #Select flow fields of time step
         u_singletimestep = u[t,:,:,:-1].flatten()#Flatten and remove ghost cells in horizontal staggered dimensions to make shape consistent to arrays in MicroHH
         v_singletimestep = v[t,:,:-1,:].flatten()
         w_singletimestep = w[t,:,:,:].flatten()
        
-        #Define loop indices
-        #ii = 1
-        #jj = icells
-        #kk = ijcells
+        #Define block size
         blocksize = 5 #size of block used as input for MLP
         b = blocksize // 2 
 
         #Determine normal or permuted loss
-        #NOTE: assignment of unresolved transports happens as a side-effect within the function below!
         if args.calc_loss:
             loss = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = False, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
             var_loss[t] = loss
             loss = 0.0 #Re-initialize for next time step
+
         else:
-            u_fi, v_fi, w_fi = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
-            var_u_fi[t,:,:,:] = u_fi
-            var_v_fi[t,:,:,:] = v_fi
-            var_w_fi[t,:,:,:] = w_fi
 
-        t1_end = time.perf_counter()
-
-        #Determine importance feature by permuting inputs 
+            for i in range(random_shufflings): #Perform permutation 10 times, allowing to average over 10 different random shufflings
+                u_fi, v_fi, w_fi = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
+                var_u_fi_shufflings[t,i,:,:,:] = u_fi
+                var_v_fi_shufflings[t,i,:,:,:] = v_fi
+                var_w_fi_shufflings[t,i,:,:,:] = w_fi
+            
+            #Average over random shufflings
+            var_u_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=1)
+            var_v_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=1)
+            var_w_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=1)
 
     #Close loss file
     loss_file.close()

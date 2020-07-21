@@ -58,8 +58,6 @@ class Advec_2 : public Advec<TF>
         using Advec<TF>::cflmax;
         using Advec<TF>::cflmin;
 
-        Boundary_cyclic<TF> boundary_cyclic;
-
         const std::string tend_name = "advec";
         const std::string tend_longname = "Advection";
 };

@@ -22,4 +22,4 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 cd ./MLP_selected #Ensure figures are stored in directory of MLP
 
-python3 -u ../read_CNNsmagpredictions.py --prediction_file "./MLP_predictions.nc" --training_file '../../cases/moser600/training_data/training_data.nc' --smagorinsky_file '../comparison_smag/smagorinsky_fluxes.nc' --stats_file '../../cases/moser600/training_data/means_stdevs_allfields.nc' --make_table --make_plots #--reconstruct_fields
+python3 -u ../read_CNNsmagpredictions.py --prediction_file "./MLP_predictions.nc" --training_file '../../cases/moser600/training_data/training_data.nc' --smagorinsky_file '../comparison_smag/smagorinsky_fluxes.nc' --stats_file '../../cases/moser600/training_data/means_stdevs_allfields.nc' --make_plots --make_table --reconstruct_fields
