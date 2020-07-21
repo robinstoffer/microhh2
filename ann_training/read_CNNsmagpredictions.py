@@ -3,8 +3,9 @@ import pandas as pd
 import netCDF4 as nc
 #import tensorflow as tf
 import matplotlib as mpl
-mpl.use('Agg')
-#from matplotlib import rcParams
+mpl.use('PDF')
+mpl.rc('text', usetex=True)
+mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]
 mpl.rcParams.update({'figure.autolayout':True})
 import matplotlib.pyplot as plt
 import argparse

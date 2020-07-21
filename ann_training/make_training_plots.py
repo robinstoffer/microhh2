@@ -8,8 +8,9 @@ import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 import matplotlib as mpl
-mpl.use('Agg') #Use 'Agg' backend, Tk backend not supported on cartesius
-mpl.rcParams.update({'figure.autolayout':True})
+mpl.use('PDF') #Use 'PDF' backend, Tk backend not supported on cartesius
+mpl.rc('text', usetex=True)
+mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 
@@ -64,10 +65,8 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
         print("Validation steps: ",validation_steps)
         #NOTE: step size of training loss will be changed to ensure only training steps stored at same iterations as validation errors, making the resulting plot less crowded.
         x_train           = np.arange(0,train_steps, int(train_steps / validation_steps), dtype='f') #NOTE: specified as floats to prevent rounding off issues
-        #x_train           = x_train / int(train_steps / validation_steps)
         x_validation      = np.arange(validation_steps, dtype='f') 
         y_train           = np.arange(0,train_steps, int(train_steps / validation_steps), dtype='f')
-        #y_train           = y_train / int(train_steps / validation_steps)
         y_validation_loss = np.arange(validation_steps, dtype='f')
         y_validation_rmse = np.arange(validation_steps, dtype='f')
         #
@@ -90,8 +89,8 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
 
         #Make plot for training/validation loss
         plt.figure(1)
-        plt.plot(x_train*(10**(-5)), y_train, color=colorspec[j], linestyle=':',  linewidth=1.0, marker='o')
-        plt.plot(x_validation*(10**(-5)), y_validation_loss, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2., marker='o')
+        plt.plot(x_train*(10**(-5)), y_train, color=colorspec[j], linestyle=':',  linewidth=1.0, marker='o', markersize=2.5)
+        plt.plot(x_validation*(10**(-5)), y_validation_loss, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2., marker='o',markersize=2.5)
         
         if first_iteration:
             plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
@@ -99,21 +98,24 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
             plt.xticks(fontsize = 16, rotation = 0)
             plt.yticks(fontsize = 16, rotation = 0)
         
-        elif last_iteration:
+        if last_iteration:
             leg = plt.legend(bbox_to_anchor=(1.04,1.0), loc='upper left', title=r'$\mathrm{n_{hidden}}$', fontsize=16, title_fontsize=20, frameon=True)
             #Set linewidth in legend (different than in plot)
             for line in leg.get_lines():
                 line.set_linewidth(2.)
             leg.get_frame().set_linewidth(1.0)
             leg.get_frame().set_edgecolor('k')
-            #plt.tight_layout(rect=[0,0,1.4,1.0])
+            
+            fig = plt.gcf()
+            fig.set_tight_layout(True) #set_tight_layout method required to prevent that the backend falls back to Agg
             ax = plt.gca()
-            plt.savefig(save_path + "/loss.png", bbox_extra_artists=(leg,ax), bbox_inches='tight')
+            ax.set_ylim([-0.4,0.4])
+            plt.savefig(save_path + "/loss.pdf", bbox_extra_artists=(leg,ax), bbox_inches='tight')
 
         #Make plot for RMSE
         plt.figure(2)
 
-        plt.plot(x_validation*(10**(-5)), y_validation_rmse, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2., marker='o')
+        plt.plot(x_validation*(10**(-5)), y_validation_rmse, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2., marker='o',markersize=2.5)
         
         if first_iteration:
             plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
@@ -122,28 +124,18 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
             plt.yticks(fontsize = 16, rotation = 0)
             first_iteration = False
         
-        elif last_iteration:
+        if last_iteration:
             leg = plt.legend(bbox_to_anchor=(1.04,1.0), loc='upper left', title=r'$\mathrm{n_{hidden}}$', fontsize=16, title_fontsize=20, frameon=True)
             #Set linewidth in legend (different than in plot)
             for line in leg.get_lines():
                 line.set_linewidth(2.)
             leg.get_frame().set_linewidth(1.0)
             leg.get_frame().set_edgecolor('k')
-            #plt.tight_layout(rect=[0,0,1.4,1.0])
+            
+            fig = plt.gcf()
+            fig.set_tight_layout(True) #set_tight_layout method required to prevent that the backend falls back to Agg
             ax = plt.gca()
-            plt.savefig(save_path + "/rmse.png", bbox_extra_artists=(leg,ax), bbox_inches='tight')
-
-        ##Make plot for RMSE
-        #plt.figure()
-        #plt.plot(x_validation*(10**(-5)), y_validation_rmse, 'b-', label='Validation', linewidth=2.)
-        #plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
-        #plt.ylabel(r'$RMSE [-]$', fontsize=20)
-        #plt.xticks(fontsize = 16, rotation = 0)
-        #plt.yticks(fontsize = 16, rotation = 0)
-        #leg = plt.legend(loc='upper right', fontsize=20, frameon=True)
-        #leg.get_frame().set_linewidth(1.0)
-        #leg.get_frame().set_edgecolor('k')
-        #plt.savefig(save_path + "/rmse.png")
+            plt.savefig(save_path + "/rmse.pdf", bbox_extra_artists=(leg,ax), bbox_inches='tight')
 
     #Close figures
     plt.close()
@@ -153,8 +145,8 @@ if __name__ == '__main__':
     log_files_validation = [];
     n_hidden_list = [1,2,4,8,16,32,64,128,256,512]; #Number of hidden neurons in each trained MLP, ordered according to the numbering of the MLPs
 
-    for i in range(0,10): #Ensure ordering of trained MLPs is according to their numbering, which should be consistent with n_hidden_list
-        log_files_training += glob.glob("../CNN_checkpoints/real_data_MLP3" + str(i) + "/*tfevents*")
-        log_files_validation += glob.glob("../CNN_checkpoints/real_data_MLP3" + str(i) + "/eval_MLP1/*tfevents*")
-    save_path = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP30"
+    for i in range(1,11): #Ensure ordering of trained MLPs is according to their numbering, which should be consistent with n_hidden_list
+        log_files_training += glob.glob("./MLP" + str(i) + "/*tfevents*")
+        log_files_validation += glob.glob("./MLP" + str(i) + "/eval_MLP1/*tfevents*")
+    save_path = "."
     plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list, save_path)
