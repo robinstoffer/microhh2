@@ -22,18 +22,18 @@ parser.add_argument('--training_file', default=None, \
         help='NetCDF file that contains the training data, including the actual unresolved transports.')
 parser.add_argument('--make_plots', dest='make_plots', default=None, \
         action='store_true', \
-        help='Make plots at each height for the predictions of the CNN, Smagorinsky, and the training data')
+        help='Make plots at each height for the predictions of the MLP, Smagorinsky, and the training data')
 parser.add_argument('--make_table', dest='make_table', default=None, \
         action='store_true', \
-        help='Make table with all correlation coefficients between the predictions of the CNN, Smagorinsky, and the training data')
+        help='Make table with all correlation coefficients between the predictions of the MLP, Smagorinsky, and the training data')
 parser.add_argument('--reconstruct_fields', dest='reconstruct_fields', default=None, \
         action='store_true', \
-        help="Reconstruct the corresponding transport fields for the predictions of the CNN, which includes denormalisation. If not specified, a netCDF file called 'reconstructed_fields.nc' should be present in the current directory.")
+        help="Reconstruct the corresponding transport fields for the predictions of the MLP, which includes denormalisation. If not specified, a netCDF file called 'reconstructed_fields.nc' should be present in the current directory.")
 parser.add_argument('--stats_file', default=None, \
         help='NetCDF file that contains the means and stdevs of the labels. Only needs to be specified when undo_normalisation is switched on.')
 args = parser.parse_args()
 
-###Fetch Smagorinsky fluxes, training fluxes, CNN predictions, and heights. Next, calculate isotropic part subgrid-scale stress and subtract it.###
+###Fetch Smagorinsky fluxes, training fluxes, MLP predictions, and heights. Next, calculate isotropic part subgrid-scale stress and subtract it.###
 a = nc.Dataset(args.prediction_file,'r')
 b = nc.Dataset(args.smagorinsky_file,'r')
 c = nc.Dataset(args.training_file,'r')
@@ -49,7 +49,7 @@ tstart = 28
 tend   = 31
 nt = tend - tstart
 
-#Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes.
+#Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), MLP fluxes.
 #NOTE1:remove previously added ghost cells in staggered directions
 #NOTE2: in staggered directions, ghost cells added previously are removed, except in the z-direction for the zu and zv components
 #NOTE3: In the isotropic directions the arrays in the training file contain one additional ghost cell, which we remove here.
@@ -324,35 +324,35 @@ if args.reconstruct_fields:
     print('nineth component done')
 
     #Create variables for storage reconstructed fields of predictions
-    var_unres_tau_xu_CNN = d.createVariable("unres_tau_xu_CNN","f8",("tstep_unique","zc","yc","xc"))                
-    var_unres_tau_xv_CNN = d.createVariable("unres_tau_xv_CNN","f8",("tstep_unique","zc","yhcless","xhcless"))     
-    var_unres_tau_xw_CNN = d.createVariable("unres_tau_xw_CNN","f8",("tstep_unique","zhcless","yc","xhcless"))     
-    var_unres_tau_yu_CNN = d.createVariable("unres_tau_yu_CNN","f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_unres_tau_yv_CNN = d.createVariable("unres_tau_yv_CNN","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_yw_CNN = d.createVariable("unres_tau_yw_CNN","f8",("tstep_unique","zhcless","yhcless","xc"))
-    var_unres_tau_zu_CNN = d.createVariable("unres_tau_zu_CNN","f8",("tstep_unique","zhc","yc","xhcless"))
-    var_unres_tau_zv_CNN = d.createVariable("unres_tau_zv_CNN","f8",("tstep_unique","zhc","yhcless","xc"))
-    var_unres_tau_zw_CNN = d.createVariable("unres_tau_zw_CNN","f8",("tstep_unique","zc","yc","xc")) 
+    var_unres_tau_xu_MLP = d.createVariable("unres_tau_xu_MLP","f8",("tstep_unique","zc","yc","xc"))                
+    var_unres_tau_xv_MLP = d.createVariable("unres_tau_xv_MLP","f8",("tstep_unique","zc","yhcless","xhcless"))     
+    var_unres_tau_xw_MLP = d.createVariable("unres_tau_xw_MLP","f8",("tstep_unique","zhcless","yc","xhcless"))     
+    var_unres_tau_yu_MLP = d.createVariable("unres_tau_yu_MLP","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_MLP = d.createVariable("unres_tau_yv_MLP","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_MLP = d.createVariable("unres_tau_yw_MLP","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_MLP = d.createVariable("unres_tau_zu_MLP","f8",("tstep_unique","zhc","yc","xhcless"))
+    var_unres_tau_zv_MLP = d.createVariable("unres_tau_zv_MLP","f8",("tstep_unique","zhc","yhcless","xc"))
+    var_unres_tau_zw_MLP = d.createVariable("unres_tau_zw_MLP","f8",("tstep_unique","zc","yc","xc")) 
     #
-    var_unres_tau_xu_CNN_upstream = d.createVariable("unres_tau_xu_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_xv_CNN_upstream = d.createVariable("unres_tau_xv_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_unres_tau_xw_CNN_upstream = d.createVariable("unres_tau_xw_CNN_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
-    var_unres_tau_yu_CNN_upstream = d.createVariable("unres_tau_yu_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_unres_tau_yv_CNN_upstream = d.createVariable("unres_tau_yv_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_yw_CNN_upstream = d.createVariable("unres_tau_yw_CNN_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    var_unres_tau_zu_CNN_upstream = d.createVariable("unres_tau_zu_CNN_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
-    var_unres_tau_zv_CNN_upstream = d.createVariable("unres_tau_zv_CNN_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    var_unres_tau_zw_CNN_upstream = d.createVariable("unres_tau_zw_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xu_MLP_upstream = d.createVariable("unres_tau_xu_MLP_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_MLP_upstream = d.createVariable("unres_tau_xv_MLP_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_xw_MLP_upstream = d.createVariable("unres_tau_xw_MLP_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_yu_MLP_upstream = d.createVariable("unres_tau_yu_MLP_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_MLP_upstream = d.createVariable("unres_tau_yv_MLP_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_MLP_upstream = d.createVariable("unres_tau_yw_MLP_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_MLP_upstream = d.createVariable("unres_tau_zu_MLP_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_zv_MLP_upstream = d.createVariable("unres_tau_zv_MLP_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zw_MLP_upstream = d.createVariable("unres_tau_zw_MLP_upstream","f8",("tstep_unique","zc","yc","xc"))
     #
-    var_unres_tau_xu_CNN_downstream = d.createVariable("unres_tau_xu_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_xv_CNN_downstream = d.createVariable("unres_tau_xv_CNN_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_unres_tau_xw_CNN_downstream = d.createVariable("unres_tau_xw_CNN_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
-    var_unres_tau_yu_CNN_downstream = d.createVariable("unres_tau_yu_CNN_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_unres_tau_yv_CNN_downstream = d.createVariable("unres_tau_yv_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_yw_CNN_downstream = d.createVariable("unres_tau_yw_CNN_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    var_unres_tau_zu_CNN_downstream = d.createVariable("unres_tau_zu_CNN_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
-    var_unres_tau_zv_CNN_downstream = d.createVariable("unres_tau_zv_CNN_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
-    var_unres_tau_zw_CNN_downstream = d.createVariable("unres_tau_zw_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xu_MLP_downstream = d.createVariable("unres_tau_xu_MLP_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_MLP_downstream = d.createVariable("unres_tau_xv_MLP_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_xw_MLP_downstream = d.createVariable("unres_tau_xw_MLP_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_yu_MLP_downstream = d.createVariable("unres_tau_yu_MLP_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_MLP_downstream = d.createVariable("unres_tau_yv_MLP_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_MLP_downstream = d.createVariable("unres_tau_yw_MLP_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_MLP_downstream = d.createVariable("unres_tau_zu_MLP_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_zv_MLP_downstream = d.createVariable("unres_tau_zv_MLP_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zw_MLP_downstream = d.createVariable("unres_tau_zw_MLP_downstream","f8",("tstep_unique","zc","yc","xc"))
     #
 
     #Call function to recontruct fields of predictions for all nine components
@@ -538,36 +538,36 @@ if args.reconstruct_fields:
     var_unres_tau_zv_lbls_downstream[:,:,:,:] = unres_tau_zv_lbls_downstream[:,:,:,:]
     var_unres_tau_zw_lbls_downstream[:,:,:,:] = unres_tau_zw_lbls_downstream[:,:,:,:]
     #Predictions
-    var_unres_tau_xu_CNN[:,:,:,:] = preds_values_xu[:,:,:,:]
-    var_unres_tau_xv_CNN[:,:,:,:] = preds_values_xv[:,:,:,:]
-    var_unres_tau_xw_CNN[:,:,:,:] = preds_values_xw[:,:,:,:]
-    var_unres_tau_yu_CNN[:,:,:,:] = preds_values_yu[:,:,:,:]
-    var_unres_tau_yv_CNN[:,:,:,:] = preds_values_yv[:,:,:,:]
-    var_unres_tau_yw_CNN[:,:,:,:] = preds_values_yw[:,:,:,:]
-    var_unres_tau_zu_CNN[:,:,:,:] = preds_values_zu[:,:,:,:]
-    var_unres_tau_zv_CNN[:,:,:,:] = preds_values_zv[:,:,:,:]
-    var_unres_tau_zw_CNN[:,:,:,:] = preds_values_zw[:,:,:,:]
+    var_unres_tau_xu_MLP[:,:,:,:] = preds_values_xu[:,:,:,:]
+    var_unres_tau_xv_MLP[:,:,:,:] = preds_values_xv[:,:,:,:]
+    var_unres_tau_xw_MLP[:,:,:,:] = preds_values_xw[:,:,:,:]
+    var_unres_tau_yu_MLP[:,:,:,:] = preds_values_yu[:,:,:,:]
+    var_unres_tau_yv_MLP[:,:,:,:] = preds_values_yv[:,:,:,:]
+    var_unres_tau_yw_MLP[:,:,:,:] = preds_values_yw[:,:,:,:]
+    var_unres_tau_zu_MLP[:,:,:,:] = preds_values_zu[:,:,:,:]
+    var_unres_tau_zv_MLP[:,:,:,:] = preds_values_zv[:,:,:,:]
+    var_unres_tau_zw_MLP[:,:,:,:] = preds_values_zw[:,:,:,:]
     #
-    var_unres_tau_xu_CNN_upstream[:,:,:,:] = preds_values_xu_upstream[:,:,:,:]
-    var_unres_tau_xv_CNN_upstream[:,:,:,:] = preds_values_xv_upstream[:,:,:,:]
-    var_unres_tau_xw_CNN_upstream[:,:,:,:] = preds_values_xw_upstream[:,:,:,:]
-    var_unres_tau_yu_CNN_upstream[:,:,:,:] = preds_values_yu_upstream[:,:,:,:]
-    var_unres_tau_yv_CNN_upstream[:,:,:,:] = preds_values_yv_upstream[:,:,:,:]
-    var_unres_tau_yw_CNN_upstream[:,:,:,:] = preds_values_yw_upstream[:,:,:,:]
-    var_unres_tau_zu_CNN_upstream[:,:,:,:] = preds_values_zu_upstream[:,:,:,:]
-    var_unres_tau_zv_CNN_upstream[:,:,:,:] = preds_values_zv_upstream[:,:,:,:]
-    var_unres_tau_zw_CNN_upstream[:,:,:,:] = preds_values_zw_upstream[:,:,:,:]
+    var_unres_tau_xu_MLP_upstream[:,:,:,:] = preds_values_xu_upstream[:,:,:,:]
+    var_unres_tau_xv_MLP_upstream[:,:,:,:] = preds_values_xv_upstream[:,:,:,:]
+    var_unres_tau_xw_MLP_upstream[:,:,:,:] = preds_values_xw_upstream[:,:,:,:]
+    var_unres_tau_yu_MLP_upstream[:,:,:,:] = preds_values_yu_upstream[:,:,:,:]
+    var_unres_tau_yv_MLP_upstream[:,:,:,:] = preds_values_yv_upstream[:,:,:,:]
+    var_unres_tau_yw_MLP_upstream[:,:,:,:] = preds_values_yw_upstream[:,:,:,:]
+    var_unres_tau_zu_MLP_upstream[:,:,:,:] = preds_values_zu_upstream[:,:,:,:]
+    var_unres_tau_zv_MLP_upstream[:,:,:,:] = preds_values_zv_upstream[:,:,:,:]
+    var_unres_tau_zw_MLP_upstream[:,:,:,:] = preds_values_zw_upstream[:,:,:,:]
     #
-    var_unres_tau_xu_CNN_downstream[:,:,:,:] = preds_values_xu_downstream[:,:,:,:]
-    var_unres_tau_xv_CNN_downstream[:,:,:,:] = preds_values_xv_downstream[:,:,:,:]
-    var_unres_tau_xw_CNN_downstream[:,:,:,:] = preds_values_xw_downstream[:,:,:,:]
-    var_unres_tau_yu_CNN_downstream[:,:,:,:] = preds_values_yu_downstream[:,:,:,:]
-    var_unres_tau_yv_CNN_downstream[:,:,:,:] = preds_values_yv_downstream[:,:,:,:]
-    var_unres_tau_yw_CNN_downstream[:,:,:,:] = preds_values_yw_downstream[:,:,:,:]
-    var_unres_tau_zu_CNN_downstream[:,:,:,:] = preds_values_zu_downstream[:,:,:,:]
-    var_unres_tau_zv_CNN_downstream[:,:,:,:] = preds_values_zv_downstream[:,:,:,:]
-    var_unres_tau_zw_CNN_downstream[:,:,:,:] = preds_values_zw_downstream[:,:,:,:]
-    var_unres_tau_zw_CNN_downstream[:,:,:,:] = preds_values_zw_downstream[:,:,:,:]
+    var_unres_tau_xu_MLP_downstream[:,:,:,:] = preds_values_xu_downstream[:,:,:,:]
+    var_unres_tau_xv_MLP_downstream[:,:,:,:] = preds_values_xv_downstream[:,:,:,:]
+    var_unres_tau_xw_MLP_downstream[:,:,:,:] = preds_values_xw_downstream[:,:,:,:]
+    var_unres_tau_yu_MLP_downstream[:,:,:,:] = preds_values_yu_downstream[:,:,:,:]
+    var_unres_tau_yv_MLP_downstream[:,:,:,:] = preds_values_yv_downstream[:,:,:,:]
+    var_unres_tau_yw_MLP_downstream[:,:,:,:] = preds_values_yw_downstream[:,:,:,:]
+    var_unres_tau_zu_MLP_downstream[:,:,:,:] = preds_values_zu_downstream[:,:,:,:]
+    var_unres_tau_zv_MLP_downstream[:,:,:,:] = preds_values_zv_downstream[:,:,:,:]
+    var_unres_tau_zw_MLP_downstream[:,:,:,:] = preds_values_zw_downstream[:,:,:,:]
+    var_unres_tau_zw_MLP_downstream[:,:,:,:] = preds_values_zw_downstream[:,:,:,:]
     
     
     #Create variables for storage unresolved, resolved, and total transports
@@ -622,17 +622,17 @@ if args.reconstruct_fields:
     var_tot_tau_zv_smag   = d.createVariable("tot_tau_zv_smag"  ,"f8",("tstep_unique","zhc","yhcless","xc"))
     var_tot_tau_zw_smag   = d.createVariable("tot_tau_zw_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
     #
-    var_tot_tau_xu_CNN   = d.createVariable("tot_tau_xu_CNN"  ,"f8",("tstep_unique","zc","yc","xc"))
-    var_tot_tau_xv_CNN   = d.createVariable("tot_tau_xv_CNN"  ,"f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_tot_tau_xw_CNN   = d.createVariable("tot_tau_xw_CNN"  ,"f8",("tstep_unique","zhcless","yc","xhcless"))
-    var_tot_tau_yu_CNN   = d.createVariable("tot_tau_yu_CNN"  ,"f8",("tstep_unique","zc","yhcless","xhcless"))
-    var_tot_tau_yv_CNN   = d.createVariable("tot_tau_yv_CNN"  ,"f8",("tstep_unique","zc","yc","xc"))
-    var_tot_tau_yw_CNN   = d.createVariable("tot_tau_yw_CNN"  ,"f8",("tstep_unique","zhcless","yhcless","xc"))
-    var_tot_tau_zu_CNN   = d.createVariable("tot_tau_zu_CNN"  ,"f8",("tstep_unique","zhc","yc","xhcless"))
-    var_tot_tau_zv_CNN   = d.createVariable("tot_tau_zv_CNN"  ,"f8",("tstep_unique","zhc","yhcless","xc"))
-    var_tot_tau_zw_CNN   = d.createVariable("tot_tau_zw_CNN"  ,"f8",("tstep_unique","zc","yc","xc"))
+    var_tot_tau_xu_MLP   = d.createVariable("tot_tau_xu_MLP"  ,"f8",("tstep_unique","zc","yc","xc"))
+    var_tot_tau_xv_MLP   = d.createVariable("tot_tau_xv_MLP"  ,"f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_tot_tau_xw_MLP   = d.createVariable("tot_tau_xw_MLP"  ,"f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_tot_tau_yu_MLP   = d.createVariable("tot_tau_yu_MLP"  ,"f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_tot_tau_yv_MLP   = d.createVariable("tot_tau_yv_MLP"  ,"f8",("tstep_unique","zc","yc","xc"))
+    var_tot_tau_yw_MLP   = d.createVariable("tot_tau_yw_MLP"  ,"f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_tot_tau_zu_MLP   = d.createVariable("tot_tau_zu_MLP"  ,"f8",("tstep_unique","zhc","yc","xhcless"))
+    var_tot_tau_zv_MLP   = d.createVariable("tot_tau_zv_MLP"  ,"f8",("tstep_unique","zhc","yhcless","xc"))
+    var_tot_tau_zw_MLP   = d.createVariable("tot_tau_zw_MLP"  ,"f8",("tstep_unique","zc","yc","xc"))
 
-    #Store values for unresolved, resolved, and total fluxes training data, Smagorinsky, and CNN
+    #Store values for unresolved, resolved, and total fluxes training data, Smagorinsky, and MLP
     var_unres_tau_xu_traceless[:,:,:,:] = unres_tau_xu_traceless
     var_unres_tau_yv_traceless[:,:,:,:] = unres_tau_yv_traceless
     var_unres_tau_zw_traceless[:,:,:,:] = unres_tau_zw_traceless
@@ -684,15 +684,15 @@ if args.reconstruct_fields:
     var_tot_tau_zu_smag[:,:,:,:]   = smag_tau_zu + res_tau_zu + res_tau_zu_visc
     var_tot_tau_zv_smag[:,:,:,:]   = smag_tau_zv + res_tau_zv + res_tau_zv_visc
     var_tot_tau_zw_smag[:,:,:,:]   = smag_tau_zw + res_tau_zw + res_tau_zw_visc
-    var_tot_tau_xu_CNN[:,:,:,:]    = preds_values_xu  + res_tau_xu + res_tau_xu_visc
-    var_tot_tau_xv_CNN[:,:,:,:]    = preds_values_xv  + res_tau_xv + res_tau_xv_visc
-    var_tot_tau_xw_CNN[:,:,:,:]    = preds_values_xw  + res_tau_xw + res_tau_xw_visc
-    var_tot_tau_yu_CNN[:,:,:,:]    = preds_values_yu  + res_tau_yu + res_tau_yu_visc
-    var_tot_tau_yv_CNN[:,:,:,:]    = preds_values_yv  + res_tau_yv + res_tau_yv_visc
-    var_tot_tau_yw_CNN[:,:,:,:]    = preds_values_yw  + res_tau_yw + res_tau_yw_visc
-    var_tot_tau_zu_CNN[:,:,:,:]    = preds_values_zu  + res_tau_zu + res_tau_zu_visc
-    var_tot_tau_zv_CNN[:,:,:,:]    = preds_values_zv  + res_tau_zv + res_tau_zv_visc
-    var_tot_tau_zw_CNN[:,:,:,:]    = preds_values_zw  + res_tau_zw + res_tau_zw_visc
+    var_tot_tau_xu_MLP[:,:,:,:]    = preds_values_xu  + res_tau_xu + res_tau_xu_visc
+    var_tot_tau_xv_MLP[:,:,:,:]    = preds_values_xv  + res_tau_xv + res_tau_xv_visc
+    var_tot_tau_xw_MLP[:,:,:,:]    = preds_values_xw  + res_tau_xw + res_tau_xw_visc
+    var_tot_tau_yu_MLP[:,:,:,:]    = preds_values_yu  + res_tau_yu + res_tau_yu_visc
+    var_tot_tau_yv_MLP[:,:,:,:]    = preds_values_yv  + res_tau_yv + res_tau_yv_visc
+    var_tot_tau_yw_MLP[:,:,:,:]    = preds_values_yw  + res_tau_yw + res_tau_yw_visc
+    var_tot_tau_zu_MLP[:,:,:,:]    = preds_values_zu  + res_tau_zu + res_tau_zu_visc
+    var_tot_tau_zv_MLP[:,:,:,:]    = preds_values_zv  + res_tau_zv + res_tau_zv_visc
+    var_tot_tau_zw_MLP[:,:,:,:]    = preds_values_zw  + res_tau_zw + res_tau_zw_visc
 
     #Create variables for storage horizontal averages
     var_unres_tau_xu_horavg = d.createVariable("unres_tau_xu_horavg","f8",("tstep_unique","zc"))
@@ -745,24 +745,24 @@ if args.reconstruct_fields:
     var_tot_tau_zv_smag_horavg   = d.createVariable("tot_tau_zv_smag_horavg","f8",  ("tstep_unique","zhc"))
     var_tot_tau_zw_smag_horavg   = d.createVariable("tot_tau_zw_smag_horavg","f8",  ("tstep_unique","zc"))
     #
-    var_unres_tau_xu_CNN_horavg = d.createVariable("unres_tau_xu_CNN_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_xv_CNN_horavg = d.createVariable("unres_tau_xv_CNN_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_xw_CNN_horavg = d.createVariable("unres_tau_xw_CNN_horavg","f8",("tstep_unique","zhcless"))
-    var_unres_tau_yu_CNN_horavg = d.createVariable("unres_tau_yu_CNN_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_yv_CNN_horavg = d.createVariable("unres_tau_yv_CNN_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_yw_CNN_horavg = d.createVariable("unres_tau_yw_CNN_horavg","f8",("tstep_unique","zhcless"))
-    var_unres_tau_zu_CNN_horavg = d.createVariable("unres_tau_zu_CNN_horavg","f8",("tstep_unique","zhc"))
-    var_unres_tau_zv_CNN_horavg = d.createVariable("unres_tau_zv_CNN_horavg","f8",("tstep_unique","zhc"))
-    var_unres_tau_zw_CNN_horavg = d.createVariable("unres_tau_zw_CNN_horavg","f8",("tstep_unique","zc"))
-    var_tot_tau_xu_CNN_horavg   = d.createVariable("tot_tau_xu_CNN_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_xv_CNN_horavg   = d.createVariable("tot_tau_xv_CNN_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_xw_CNN_horavg   = d.createVariable("tot_tau_xw_CNN_horavg","f8",  ("tstep_unique","zhcless"))
-    var_tot_tau_yu_CNN_horavg   = d.createVariable("tot_tau_yu_CNN_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_yv_CNN_horavg   = d.createVariable("tot_tau_yv_CNN_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_yw_CNN_horavg   = d.createVariable("tot_tau_yw_CNN_horavg","f8",  ("tstep_unique","zhcless"))
-    var_tot_tau_zu_CNN_horavg   = d.createVariable("tot_tau_zu_CNN_horavg","f8",  ("tstep_unique","zhc"))
-    var_tot_tau_zv_CNN_horavg   = d.createVariable("tot_tau_zv_CNN_horavg","f8",  ("tstep_unique","zhc"))
-    var_tot_tau_zw_CNN_horavg   = d.createVariable("tot_tau_zw_CNN_horavg","f8",  ("tstep_unique","zc"))
+    var_unres_tau_xu_MLP_horavg = d.createVariable("unres_tau_xu_MLP_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xv_MLP_horavg = d.createVariable("unres_tau_xv_MLP_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xw_MLP_horavg = d.createVariable("unres_tau_xw_MLP_horavg","f8",("tstep_unique","zhcless"))
+    var_unres_tau_yu_MLP_horavg = d.createVariable("unres_tau_yu_MLP_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yv_MLP_horavg = d.createVariable("unres_tau_yv_MLP_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yw_MLP_horavg = d.createVariable("unres_tau_yw_MLP_horavg","f8",("tstep_unique","zhcless"))
+    var_unres_tau_zu_MLP_horavg = d.createVariable("unres_tau_zu_MLP_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zv_MLP_horavg = d.createVariable("unres_tau_zv_MLP_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zw_MLP_horavg = d.createVariable("unres_tau_zw_MLP_horavg","f8",("tstep_unique","zc"))
+    var_tot_tau_xu_MLP_horavg   = d.createVariable("tot_tau_xu_MLP_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xv_MLP_horavg   = d.createVariable("tot_tau_xv_MLP_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xw_MLP_horavg   = d.createVariable("tot_tau_xw_MLP_horavg","f8",  ("tstep_unique","zhcless"))
+    var_tot_tau_yu_MLP_horavg   = d.createVariable("tot_tau_yu_MLP_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yv_MLP_horavg   = d.createVariable("tot_tau_yv_MLP_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yw_MLP_horavg   = d.createVariable("tot_tau_yw_MLP_horavg","f8",  ("tstep_unique","zhcless"))
+    var_tot_tau_zu_MLP_horavg   = d.createVariable("tot_tau_zu_MLP_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zv_MLP_horavg   = d.createVariable("tot_tau_zv_MLP_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zw_MLP_horavg   = d.createVariable("tot_tau_zw_MLP_horavg","f8",  ("tstep_unique","zc"))
  
     #Create variables for storage fractions sub-grid fluxes
     var_frac_unres_tau_xu = d.createVariable("frac_unres_tau_xu","f8",("tstep_unique","zc","yc","xc"))
@@ -791,9 +791,9 @@ if args.reconstruct_fields:
     var_res_tau_xu_horavg[:,:]            = np.mean(res_tau_xu,                   axis=(2,3), keepdims=False)
     var_tot_tau_xu_horavg[:,:]            = np.mean(tot_tau_xu,                   axis=(2,3), keepdims=False)
     var_unres_tau_xu_smag_horavg[:,:]     = np.mean(smag_tau_xu,                  axis=(2,3), keepdims=False)
-    var_unres_tau_xu_CNN_horavg[:,:]      = np.mean(preds_values_xu,              axis=(2,3), keepdims=False)
+    var_unres_tau_xu_MLP_horavg[:,:]      = np.mean(preds_values_xu,              axis=(2,3), keepdims=False)
     var_tot_tau_xu_smag_horavg[:,:]       = np.mean(smag_tau_xu + res_tau_xu,     axis=(2,3), keepdims=False)
-    var_tot_tau_xu_CNN_horavg[:,:]        = np.mean(preds_values_xu + res_tau_xu, axis=(2,3), keepdims=False)
+    var_tot_tau_xu_MLP_horavg[:,:]        = np.mean(preds_values_xu + res_tau_xu, axis=(2,3), keepdims=False)
     var_frac_unres_tau_xu[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_xu[:,:,:,:]) / np.array(var_res_tau_xu[:,:,:,:])),-10)
     var_frac_unres_tau_xu_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_xu_horavg[:,:]) / np.array(var_res_tau_xu_horavg[:,:])),-10)
     #
@@ -801,9 +801,9 @@ if args.reconstruct_fields:
     var_res_tau_xv_horavg[:,:]            = np.mean(res_tau_xv,                   axis=(2,3), keepdims=False)
     var_tot_tau_xv_horavg[:,:]            = np.mean(tot_tau_xv,                   axis=(2,3), keepdims=False)
     var_unres_tau_xv_smag_horavg[:,:]     = np.mean(smag_tau_xv,                  axis=(2,3), keepdims=False)
-    var_unres_tau_xv_CNN_horavg[:,:]      = np.mean(preds_values_xv,              axis=(2,3), keepdims=False)
+    var_unres_tau_xv_MLP_horavg[:,:]      = np.mean(preds_values_xv,              axis=(2,3), keepdims=False)
     var_tot_tau_xv_smag_horavg[:,:]       = np.mean(smag_tau_xv + res_tau_xv,     axis=(2,3), keepdims=False)
-    var_tot_tau_xv_CNN_horavg[:,:]        = np.mean(preds_values_xv + res_tau_xv, axis=(2,3), keepdims=False)
+    var_tot_tau_xv_MLP_horavg[:,:]        = np.mean(preds_values_xv + res_tau_xv, axis=(2,3), keepdims=False)
     var_frac_unres_tau_xv[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_xv[:,:,:,:]) / np.array(var_res_tau_xv[:,:,:,:])),-10)
     var_frac_unres_tau_xv_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_xv_horavg[:,:]) / np.array(var_res_tau_xv_horavg[:,:])),-10)
     #
@@ -811,9 +811,9 @@ if args.reconstruct_fields:
     var_res_tau_xw_horavg[:,:]            = np.mean(res_tau_xw,                   axis=(2,3), keepdims=False)
     var_tot_tau_xw_horavg[:,:]            = np.mean(tot_tau_xw,                   axis=(2,3), keepdims=False)
     var_unres_tau_xw_smag_horavg[:,:]     = np.mean(smag_tau_xw,                  axis=(2,3), keepdims=False)
-    var_unres_tau_xw_CNN_horavg[:,:]      = np.mean(preds_values_xw,              axis=(2,3), keepdims=False)
+    var_unres_tau_xw_MLP_horavg[:,:]      = np.mean(preds_values_xw,              axis=(2,3), keepdims=False)
     var_tot_tau_xw_smag_horavg[:,:]       = np.mean(smag_tau_xw + res_tau_xw,     axis=(2,3), keepdims=False)
-    var_tot_tau_xw_CNN_horavg[:,:]        = np.mean(preds_values_xw + res_tau_xw, axis=(2,3), keepdims=False)
+    var_tot_tau_xw_MLP_horavg[:,:]        = np.mean(preds_values_xw + res_tau_xw, axis=(2,3), keepdims=False)
     var_frac_unres_tau_xw[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_xw[:,:,:,:]) / np.array(var_res_tau_xw[:,:,:,:])),-10)
     var_frac_unres_tau_xw_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_xw_horavg[:,:]) / np.array(var_res_tau_xw_horavg[:,:])),-10)
     #
@@ -821,9 +821,9 @@ if args.reconstruct_fields:
     var_res_tau_yu_horavg[:,:]            = np.mean(res_tau_yu,                   axis=(2,3), keepdims=False)
     var_tot_tau_yu_horavg[:,:]            = np.mean(tot_tau_yu,                   axis=(2,3), keepdims=False)
     var_unres_tau_yu_smag_horavg[:,:]     = np.mean(smag_tau_yu,                  axis=(2,3), keepdims=False)
-    var_unres_tau_yu_CNN_horavg[:,:]      = np.mean(preds_values_yu,              axis=(2,3), keepdims=False)
+    var_unres_tau_yu_MLP_horavg[:,:]      = np.mean(preds_values_yu,              axis=(2,3), keepdims=False)
     var_tot_tau_yu_smag_horavg[:,:]       = np.mean(smag_tau_yu + res_tau_yu,     axis=(2,3), keepdims=False)
-    var_tot_tau_yu_CNN_horavg[:,:]        = np.mean(preds_values_yu + res_tau_yu, axis=(2,3), keepdims=False)
+    var_tot_tau_yu_MLP_horavg[:,:]        = np.mean(preds_values_yu + res_tau_yu, axis=(2,3), keepdims=False)
     var_frac_unres_tau_yu[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_yu[:,:,:,:]) / np.array(var_res_tau_yu[:,:,:,:])),-10)
     var_frac_unres_tau_yu_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_yu_horavg[:,:]) / np.array(var_res_tau_yu_horavg[:,:])),-10)
     #
@@ -832,9 +832,9 @@ if args.reconstruct_fields:
     var_res_tau_yv_horavg[:,:]            = np.mean(res_tau_yv,                   axis=(2,3), keepdims=False)
     var_tot_tau_yv_horavg[:,:]            = np.mean(tot_tau_yv,                   axis=(2,3), keepdims=False)
     var_unres_tau_yv_smag_horavg[:,:]     = np.mean(smag_tau_yv,                  axis=(2,3), keepdims=False)
-    var_unres_tau_yv_CNN_horavg[:,:]      = np.mean(preds_values_yv,              axis=(2,3), keepdims=False)
+    var_unres_tau_yv_MLP_horavg[:,:]      = np.mean(preds_values_yv,              axis=(2,3), keepdims=False)
     var_tot_tau_yv_smag_horavg[:,:]       = np.mean(smag_tau_yv + res_tau_yv,     axis=(2,3), keepdims=False)
-    var_tot_tau_yv_CNN_horavg[:,:]        = np.mean(preds_values_yv + res_tau_yv, axis=(2,3), keepdims=False)
+    var_tot_tau_yv_MLP_horavg[:,:]        = np.mean(preds_values_yv + res_tau_yv, axis=(2,3), keepdims=False)
     var_frac_unres_tau_yv[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_yv[:,:,:,:]) / np.array(var_res_tau_yv[:,:,:,:])),-10)
     var_frac_unres_tau_yv_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_yv_horavg[:,:]) / np.array(var_res_tau_yv_horavg[:,:])),-10)
     #
@@ -842,9 +842,9 @@ if args.reconstruct_fields:
     var_res_tau_yw_horavg[:,:]            = np.mean(res_tau_yw,                   axis=(2,3), keepdims=False)
     var_tot_tau_yw_horavg[:,:]            = np.mean(tot_tau_yw,                   axis=(2,3), keepdims=False)
     var_unres_tau_yw_smag_horavg[:,:]     = np.mean(smag_tau_yw,                  axis=(2,3), keepdims=False)
-    var_unres_tau_yw_CNN_horavg[:,:]      = np.mean(preds_values_yw,              axis=(2,3), keepdims=False)
+    var_unres_tau_yw_MLP_horavg[:,:]      = np.mean(preds_values_yw,              axis=(2,3), keepdims=False)
     var_tot_tau_yw_smag_horavg[:,:]       = np.mean(smag_tau_yw + res_tau_yw,     axis=(2,3), keepdims=False)
-    var_tot_tau_yw_CNN_horavg[:,:]        = np.mean(preds_values_yw + res_tau_yw, axis=(2,3), keepdims=False)
+    var_tot_tau_yw_MLP_horavg[:,:]        = np.mean(preds_values_yw + res_tau_yw, axis=(2,3), keepdims=False)
     var_frac_unres_tau_yw[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_yw[:,:,:,:]) / np.array(var_res_tau_yw[:,:,:,:])),-10)
     var_frac_unres_tau_yw_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_yw_horavg[:,:]) / np.array(var_res_tau_yw_horavg[:,:])),-10)
     #
@@ -852,9 +852,9 @@ if args.reconstruct_fields:
     var_res_tau_zu_horavg[:,:]            = np.mean(res_tau_zu,                   axis=(2,3), keepdims=False)
     var_tot_tau_zu_horavg[:,:]            = np.mean(tot_tau_zu,                   axis=(2,3), keepdims=False)
     var_unres_tau_zu_smag_horavg[:,:]     = np.mean(smag_tau_zu,                  axis=(2,3), keepdims=False)
-    var_unres_tau_zu_CNN_horavg[:,:]      = np.mean(preds_values_zu,              axis=(2,3), keepdims=False)
+    var_unres_tau_zu_MLP_horavg[:,:]      = np.mean(preds_values_zu,              axis=(2,3), keepdims=False)
     var_tot_tau_zu_smag_horavg[:,:]       = np.mean(smag_tau_zu + res_tau_zu,     axis=(2,3), keepdims=False)
-    var_tot_tau_zu_CNN_horavg[:,:]        = np.mean(preds_values_zu + res_tau_zu, axis=(2,3), keepdims=False)
+    var_tot_tau_zu_MLP_horavg[:,:]        = np.mean(preds_values_zu + res_tau_zu, axis=(2,3), keepdims=False)
     var_frac_unres_tau_zu[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_zu[:,:,:,:]) / np.array(var_res_tau_zu[:,:,:,:])),-10)
     var_frac_unres_tau_zu_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_zu_horavg[:,:]) / np.array(var_res_tau_zu_horavg[:,:])),-10)
     #
@@ -862,9 +862,9 @@ if args.reconstruct_fields:
     var_res_tau_zv_horavg[:,:]            = np.mean(res_tau_zv,                   axis=(2,3), keepdims=False)
     var_tot_tau_zv_horavg[:,:]            = np.mean(tot_tau_zv,                   axis=(2,3), keepdims=False)
     var_unres_tau_zv_smag_horavg[:,:]     = np.mean(smag_tau_zv,                  axis=(2,3), keepdims=False)
-    var_unres_tau_zv_CNN_horavg[:,:]      = np.mean(preds_values_zv,              axis=(2,3), keepdims=False)
+    var_unres_tau_zv_MLP_horavg[:,:]      = np.mean(preds_values_zv,              axis=(2,3), keepdims=False)
     var_tot_tau_zv_smag_horavg[:,:]       = np.mean(smag_tau_zv + res_tau_zv,     axis=(2,3), keepdims=False)
-    var_tot_tau_zv_CNN_horavg[:,:]        = np.mean(preds_values_zv + res_tau_zv, axis=(2,3), keepdims=False)
+    var_tot_tau_zv_MLP_horavg[:,:]        = np.mean(preds_values_zv + res_tau_zv, axis=(2,3), keepdims=False)
     var_frac_unres_tau_zv[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_zv[:,:,:,:]) / np.array(var_res_tau_zv[:,:,:,:])),-10)
     var_frac_unres_tau_zv_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_zv_horavg[:,:]) / np.array(var_res_tau_zv_horavg[:,:])),-10)
     #
@@ -873,41 +873,41 @@ if args.reconstruct_fields:
     var_res_tau_zw_horavg[:,:]            = np.mean(res_tau_zw,                   axis=(2,3), keepdims=False)
     var_tot_tau_zw_horavg[:,:]            = np.mean(tot_tau_zw,                   axis=(2,3), keepdims=False)
     var_unres_tau_zw_smag_horavg[:,:]     = np.mean(smag_tau_zw,                  axis=(2,3), keepdims=False)
-    var_unres_tau_zw_CNN_horavg[:,:]      = np.mean(preds_values_zw,              axis=(2,3), keepdims=False)
+    var_unres_tau_zw_MLP_horavg[:,:]      = np.mean(preds_values_zw,              axis=(2,3), keepdims=False)
     var_tot_tau_zw_smag_horavg[:,:]       = np.mean(smag_tau_zw + res_tau_zw,     axis=(2,3), keepdims=False)
-    var_tot_tau_zw_CNN_horavg[:,:]        = np.mean(preds_values_zw + res_tau_zw, axis=(2,3), keepdims=False)
+    var_tot_tau_zw_MLP_horavg[:,:]        = np.mean(preds_values_zw + res_tau_zw, axis=(2,3), keepdims=False)
     var_frac_unres_tau_zw[:,:,:,:]        = np.maximum(np.minimum(10,np.array(var_unres_tau_zw[:,:,:,:]) / np.array(var_res_tau_zw[:,:,:,:])),-10)
     var_frac_unres_tau_zw_horavg[:,:]     = np.maximum(np.minimum(10,np.array(var_unres_tau_zw_horavg[:,:]) / np.array(var_res_tau_zw_horavg[:,:])),-10)
 
     #Close netCDF-files
     d.close()
 
-###Loop over heights for all components considering the time steps specified below, and make scatterplots of labels vs fluxes (CNN and Smagorinsky) at each height for all specified time steps combined###
+###Loop over heights for all components considering the time steps specified below, and make scatterplots of labels vs fluxes (MLP and Smagorinsky) at each height for all specified time steps combined###
 if args.make_plots or args.make_table:
     print('Start reading variables needed to make plots and/or table.')
     #Fetch unresolved fluxes from netCDF-file
     fields = nc.Dataset("reconstructed_fields.nc", "r")
     
-    #Extract CNN fluxes
-    unres_tau_xu_CNN = np.array(fields['unres_tau_xu_CNN'][:,:,:,:])
-    unres_tau_xv_CNN = np.array(fields['unres_tau_xv_CNN'][:,:,:,:])
-    unres_tau_xw_CNN = np.array(fields['unres_tau_xw_CNN'][:,:,:,:])
-    unres_tau_yu_CNN = np.array(fields['unres_tau_yu_CNN'][:,:,:,:])
-    unres_tau_yv_CNN = np.array(fields['unres_tau_yv_CNN'][:,:,:,:])
-    unres_tau_yw_CNN = np.array(fields['unres_tau_yw_CNN'][:,:,:,:])
-    unres_tau_zu_CNN = np.array(fields['unres_tau_zu_CNN'][:,:,:,:])
-    unres_tau_zv_CNN = np.array(fields['unres_tau_zv_CNN'][:,:,:,:])
-    unres_tau_zw_CNN = np.array(fields['unres_tau_zw_CNN'][:,:,:,:])
+    #Extract MLP fluxes
+    unres_tau_xu_MLP = np.array(fields['unres_tau_xu_MLP'][:,:,:,:])
+    unres_tau_xv_MLP = np.array(fields['unres_tau_xv_MLP'][:,:,:,:])
+    unres_tau_xw_MLP = np.array(fields['unres_tau_xw_MLP'][:,:,:,:])
+    unres_tau_yu_MLP = np.array(fields['unres_tau_yu_MLP'][:,:,:,:])
+    unres_tau_yv_MLP = np.array(fields['unres_tau_yv_MLP'][:,:,:,:])
+    unres_tau_yw_MLP = np.array(fields['unres_tau_yw_MLP'][:,:,:,:])
+    unres_tau_zu_MLP = np.array(fields['unres_tau_zu_MLP'][:,:,:,:])
+    unres_tau_zv_MLP = np.array(fields['unres_tau_zv_MLP'][:,:,:,:])
+    unres_tau_zw_MLP = np.array(fields['unres_tau_zw_MLP'][:,:,:,:])
     #
-    unres_tau_xu_CNN_horavg = np.array(fields['unres_tau_xu_CNN_horavg'][:,:])
-    unres_tau_xv_CNN_horavg = np.array(fields['unres_tau_xv_CNN_horavg'][:,:])
-    unres_tau_xw_CNN_horavg = np.array(fields['unres_tau_xw_CNN_horavg'][:,:])
-    unres_tau_yu_CNN_horavg = np.array(fields['unres_tau_yu_CNN_horavg'][:,:])
-    unres_tau_yv_CNN_horavg = np.array(fields['unres_tau_yv_CNN_horavg'][:,:])
-    unres_tau_yw_CNN_horavg = np.array(fields['unres_tau_yw_CNN_horavg'][:,:])
-    unres_tau_zu_CNN_horavg = np.array(fields['unres_tau_zu_CNN_horavg'][:,:])
-    unres_tau_zv_CNN_horavg = np.array(fields['unres_tau_zv_CNN_horavg'][:,:])
-    unres_tau_zw_CNN_horavg = np.array(fields['unres_tau_zw_CNN_horavg'][:,:])
+    unres_tau_xu_MLP_horavg = np.array(fields['unres_tau_xu_MLP_horavg'][:,:])
+    unres_tau_xv_MLP_horavg = np.array(fields['unres_tau_xv_MLP_horavg'][:,:])
+    unres_tau_xw_MLP_horavg = np.array(fields['unres_tau_xw_MLP_horavg'][:,:])
+    unres_tau_yu_MLP_horavg = np.array(fields['unres_tau_yu_MLP_horavg'][:,:])
+    unres_tau_yv_MLP_horavg = np.array(fields['unres_tau_yv_MLP_horavg'][:,:])
+    unres_tau_yw_MLP_horavg = np.array(fields['unres_tau_yw_MLP_horavg'][:,:])
+    unres_tau_zu_MLP_horavg = np.array(fields['unres_tau_zu_MLP_horavg'][:,:])
+    unres_tau_zv_MLP_horavg = np.array(fields['unres_tau_zv_MLP_horavg'][:,:])
+    unres_tau_zw_MLP_horavg = np.array(fields['unres_tau_zw_MLP_horavg'][:,:])
     
     #Extract Smagorinsky fluxes
     unres_tau_xu_smag = np.array(fields['unres_tau_xu_smag'][:,:,:,:])
@@ -999,15 +999,15 @@ if args.make_table:
     corrcoef_zw_smag = np.zeros((nz+3,),dtype=np.float32)
 
     #Consider all heights over all time steps
-    corrcoef_xu[0] = np.round(np.corrcoef(unres_tau_xu_CNN.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yu[0] = np.round(np.corrcoef(unres_tau_yu_CNN.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zu[0] = np.round(np.corrcoef(unres_tau_zu_CNN.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_xv[0] = np.round(np.corrcoef(unres_tau_xv_CNN.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yv[0] = np.round(np.corrcoef(unres_tau_yv_CNN.flatten(), unres_tau_yv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zv[0] = np.round(np.corrcoef(unres_tau_zv_CNN.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_xw[0] = np.round(np.corrcoef(unres_tau_xw_CNN.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yw[0] = np.round(np.corrcoef(unres_tau_yw_CNN.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zw[0] = np.round(np.corrcoef(unres_tau_zw_CNN.flatten(), unres_tau_zw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xu[0] = np.round(np.corrcoef(unres_tau_xu_MLP.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yu[0] = np.round(np.corrcoef(unres_tau_yu_MLP.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zu[0] = np.round(np.corrcoef(unres_tau_zu_MLP.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xv[0] = np.round(np.corrcoef(unres_tau_xv_MLP.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yv[0] = np.round(np.corrcoef(unres_tau_yv_MLP.flatten(), unres_tau_yv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zv[0] = np.round(np.corrcoef(unres_tau_zv_MLP.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xw[0] = np.round(np.corrcoef(unres_tau_xw_MLP.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yw[0] = np.round(np.corrcoef(unres_tau_yw_MLP.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zw[0] = np.round(np.corrcoef(unres_tau_zw_MLP.flatten(), unres_tau_zw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_xu_smag[0] = np.round(np.corrcoef(unres_tau_xu_smag.flatten(), unres_tau_xu_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yu_smag[0] = np.round(np.corrcoef(unres_tau_yu_smag.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zu_smag[0] = np.round(np.corrcoef(unres_tau_zu_smag.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1019,15 +1019,15 @@ if args.make_table:
     corrcoef_zw_smag[0] = np.round(np.corrcoef(unres_tau_zw_smag.flatten(), unres_tau_zw_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
  
     #Consider all heights, horizontally averaged over all time steps
-    corrcoef_xu[1]      = np.round(np.corrcoef(unres_tau_xu_CNN_horavg.flatten(), unres_tau_xu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yu[1]      = np.round(np.corrcoef(unres_tau_yu_CNN_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zu[1]      = np.round(np.corrcoef(unres_tau_zu_CNN_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_xv[1]      = np.round(np.corrcoef(unres_tau_xv_CNN_horavg.flatten(), unres_tau_xv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yv[1]      = np.round(np.corrcoef(unres_tau_yv_CNN_horavg.flatten(), unres_tau_yv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zv[1]      = np.round(np.corrcoef(unres_tau_zv_CNN_horavg.flatten(), unres_tau_zv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_xw[1]      = np.round(np.corrcoef(unres_tau_xw_CNN_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yw[1]      = np.round(np.corrcoef(unres_tau_yw_CNN_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zw[1]      = np.round(np.corrcoef(unres_tau_zw_CNN_horavg.flatten(), unres_tau_zw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xu[1]      = np.round(np.corrcoef(unres_tau_xu_MLP_horavg.flatten(), unres_tau_xu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yu[1]      = np.round(np.corrcoef(unres_tau_yu_MLP_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zu[1]      = np.round(np.corrcoef(unres_tau_zu_MLP_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xv[1]      = np.round(np.corrcoef(unres_tau_xv_MLP_horavg.flatten(), unres_tau_xv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yv[1]      = np.round(np.corrcoef(unres_tau_yv_MLP_horavg.flatten(), unres_tau_yv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zv[1]      = np.round(np.corrcoef(unres_tau_zv_MLP_horavg.flatten(), unres_tau_zv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xw[1]      = np.round(np.corrcoef(unres_tau_xw_MLP_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yw[1]      = np.round(np.corrcoef(unres_tau_yw_MLP_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zw[1]      = np.round(np.corrcoef(unres_tau_zw_MLP_horavg.flatten(), unres_tau_zw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_xu_smag[1] = np.round(np.corrcoef(unres_tau_xu_smag_horavg.flatten(), unres_tau_xu_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yu_smag[1] = np.round(np.corrcoef(unres_tau_yu_smag_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zu_smag[1] = np.round(np.corrcoef(unres_tau_zu_smag_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1043,10 +1043,10 @@ if args.make_table:
         if k == nz: #Ensure only arrays with additional cell for top wall are accessed, put the others to NaN
             corrcoef_xu[k+2] = np.nan
             corrcoef_yu[k+2] = np.nan
-            corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_CNN[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_MLP[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xv[k+2] = np.nan
             corrcoef_yv[k+2] = np.nan
-            corrcoef_zv[k+2] = np.round(np.corrcoef(unres_tau_zv_CNN[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zv[k+2] = np.round(np.corrcoef(unres_tau_zv_MLP[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xw[k+2] = np.nan
             corrcoef_yw[k+2] = np.nan
             corrcoef_zw[k+2] = np.nan
@@ -1061,15 +1061,15 @@ if args.make_table:
             corrcoef_zw_smag[k+2] = np.nan
 
         else:
-            corrcoef_xu[k+2] = np.round(np.corrcoef(unres_tau_xu_CNN[:,k,:,:].flatten(), unres_tau_xu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yu[k+2] = np.round(np.corrcoef(unres_tau_yu_CNN[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_CNN[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xv[k+2] = np.round(np.corrcoef(unres_tau_xv_CNN[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yv[k+2] = np.round(np.corrcoef(unres_tau_yv_CNN[:,k,:,:].flatten(), unres_tau_yv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zv[k+2] = np.round(np.corrcoef(unres_tau_zv_CNN[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xw[k+2] = np.round(np.corrcoef(unres_tau_xw_CNN[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yw[k+2] = np.round(np.corrcoef(unres_tau_yw_CNN[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zw[k+2] = np.round(np.corrcoef(unres_tau_zw_CNN[:,k,:,:].flatten(), unres_tau_zw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_xu[k+2] = np.round(np.corrcoef(unres_tau_xu_MLP[:,k,:,:].flatten(), unres_tau_xu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_yu[k+2] = np.round(np.corrcoef(unres_tau_yu_MLP[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_MLP[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_xv[k+2] = np.round(np.corrcoef(unres_tau_xv_MLP[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_yv[k+2] = np.round(np.corrcoef(unres_tau_yv_MLP[:,k,:,:].flatten(), unres_tau_yv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zv[k+2] = np.round(np.corrcoef(unres_tau_zv_MLP[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_xw[k+2] = np.round(np.corrcoef(unres_tau_xw_MLP[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_yw[k+2] = np.round(np.corrcoef(unres_tau_yw_MLP[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zw[k+2] = np.round(np.corrcoef(unres_tau_zw_MLP[:,k,:,:].flatten(), unres_tau_zw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xu_smag[k+2] = np.round(np.corrcoef(unres_tau_xu_smag[:,k,:,:].flatten(), unres_tau_xu_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_yu_smag[k+2] = np.round(np.corrcoef(unres_tau_yu_smag[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_zu_smag[k+2] = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1158,9 +1158,9 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is
         ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize=16)
-        cbar.set_label(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',rotation=270,fontsize=20,labelpad=30)
-        plt.xlabel(r'$\rm \frac{x}{\delta} \ [-]$',fontsize=20)
-        plt.ylabel(r'$\rm \frac{y}{\delta} \ [-]$',fontsize=20)
+        cbar.set_label(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',rotation=270,fontsize=20,labelpad=30)
+        plt.xlabel(r'$ x \ \delta^{-1} \ [-]$',fontsize=20)
+        plt.ylabel(r'$ y \ \delta^{-1} \ [-]$',fontsize=20)
         #plt.xticks(fontsize=16, rotation=90)
         plt.xticks(fontsize=16, rotation=0)
         plt.yticks(fontsize=16, rotation=0)
@@ -1272,7 +1272,7 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
         ax = plt.gca()
         ax.set_yscale('log')
         ax.set_xscale('log')
-        plt.ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize=20)
+        plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
         plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
@@ -1289,7 +1289,7 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
         ax = plt.gca()
         ax.set_yscale('log')
         ax.set_xscale('log')
-        plt.ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize=20)
+        plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
         plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
@@ -1330,7 +1330,7 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_mo
         ax.set_ylim(bottom=0.008)
         ax.set_xlim(left=-10, right=10)
         plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=20)
-        plt.xlabel(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize=20)
+        plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
         plt.legend(loc='upper right')
@@ -1354,8 +1354,8 @@ def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref
     plt.plot(z / delta, values[time_step,:] / (utau_ref_moser ** 2.), label = 'ANN', marker = 'o', markersize = 2.0)
     plt.plot(z / delta, smag[time_step,:] / (utau_ref_moser ** 2.), label = 'Smagorinsky', marker = 'o', markersize = 2.0)
     plt.plot(z / delta, labels[time_step,:] / (utau_ref_moser ** 2.), label = 'DNS', marker = 'o', markersize = 2.0)
-    plt.ylabel(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize=20)
-    plt.xlabel(r'$\rm \frac{z}{\delta} \ [-]$',fontsize=20)
+    plt.ylabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
+    plt.xlabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=20)
     plt.xticks(fontsize=16, rotation=90)
     plt.yticks(fontsize=16, rotation=0)
     plt.legend(loc='upper left')
@@ -1400,11 +1400,11 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         axes = plt.gca()
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
-        plt.xlabel(r'$\rm \frac{\tau_{wu}^{DNS}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+        plt.xlabel(r'$ \tau_{wu,DNS} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
         if is_smag:
-            plt.ylabel(r'$\rm \frac{\tau_{wu}^{smag}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+            plt.ylabel(r'$ \tau_{wu,Smag} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
         else:
-            plt.ylabel(r'$\rm \frac{\tau_{wu}^{ANN}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+            plt.ylabel(r'$ \tau_{wu,ANN} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
         #plt.title("ρ = " + str(corrcoef),fontsize = 20)
         plt.axhline(c='black')
         plt.axvline(c='black')
@@ -1431,86 +1431,86 @@ if args.make_plots:
     print('start making plots')
     
     #Make spectra of labels and MLP predictions
-    make_spectra_heights(unres_tau_xu_CNN, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_yu_CNN, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_zu_CNN, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_xv_CNN, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_yv_CNN, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_zv_CNN, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_xw_CNN, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_yw_CNN, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_zw_CNN, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_xu_MLP, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_yu_MLP, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    make_spectra_heights(unres_tau_zu_MLP, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_xv_MLP, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_yv_MLP, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_zv_MLP, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_xw_MLP, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_yw_MLP, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #make_spectra_heights(unres_tau_zw_MLP, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
     
     #Plot vertical profiles
-    make_vertprof(unres_tau_xu_CNN_horavg, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,      'xu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_yu_CNN_horavg, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,      'yu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_zu_CNN_horavg, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc,     'zu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_xv_CNN_horavg, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,      'xv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_yv_CNN_horavg, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,      'yv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_zv_CNN_horavg, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc,     'zv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_xw_CNN_horavg, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_yw_CNN_horavg, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_zw_CNN_horavg, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,      'zw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_xu_MLP_horavg, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,      'xu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_yu_MLP_horavg, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,      'yu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    make_vertprof(unres_tau_zu_MLP_horavg, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc,     'zu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_xv_MLP_horavg, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,      'xv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_yv_MLP_horavg, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,      'yv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_zv_MLP_horavg, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc,     'zv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_xw_MLP_horavg, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_yw_MLP_horavg, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_vertprof(unres_tau_zw_MLP_horavg, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,      'zw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
 
     #Make PDFs of labels and MLP predictions
-    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_xu_MLP, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_yu_MLP, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, utau_ref_moser = utau_ref_moser)
+    make_pdfs_heights(unres_tau_zu_MLP, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_xv_MLP, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_yv_MLP, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_zv_MLP, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_xw_MLP, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_yw_MLP, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_pdfs_heights(unres_tau_zw_MLP, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, utau_ref_moser = utau_ref_moser)
     
     #Make horizontal cross-sections
-    make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     make_horcross_heights(unres_tau_zu, zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xu_CNN, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yu_CNN, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zu_CNN, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xv_CNN, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yv_CNN, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zv_CNN, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xu_smag, zhc, yhc, xhc,           'xu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yu_smag, zhc, ygcextra, xgcextra, 'yu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xu_MLP, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yu_MLP, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    make_horcross_heights(unres_tau_zu_MLP, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xv_MLP, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yv_MLP, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zv_MLP, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xw_MLP, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yw_MLP, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zw_MLP, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xu_smag, zhc, yhc, xhc,           'xu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yu_smag, zhc, ygcextra, xgcextra, 'yu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     make_horcross_heights(unres_tau_zu_smag, zgcextra, yhc, xgcextra, 'zu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xv_smag, zhc, ygcextra, xgcextra, 'xv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yv_smag, zhc, yhc, xhc,           'yv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zv_smag, zgcextra, ygcextra, xhc, 'zv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xw_smag, zgcextra, yhc, xgcextra, 'xw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yw_smag, zgcextra, ygcextra, xhc, 'yw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zw_smag, zhc, yhc, xhc,           'zw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xv_smag, zhc, ygcextra, xgcextra, 'xv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yv_smag, zhc, yhc, xhc,           'yv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zv_smag, zgcextra, ygcextra, xhc, 'zv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xw_smag, zgcextra, yhc, xgcextra, 'xw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yw_smag, zgcextra, ygcextra, xhc, 'yw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zw_smag, zhc, yhc, xhc,           'zw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     
     #Make scatterplots
-    make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    
-    make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xu_MLP, unres_tau_xu, unres_tau_xu_MLP_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yu_MLP, unres_tau_yu, unres_tau_yu_MLP_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    make_scatterplot_heights(unres_tau_zu_MLP, unres_tau_zu, unres_tau_zu_MLP_horavg, unres_tau_zu_horavg, zhc, 'zu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xv_MLP, unres_tau_xv, unres_tau_xv_MLP_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yv_MLP, unres_tau_yv, unres_tau_yv_MLP_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zv_MLP, unres_tau_zv, unres_tau_zv_MLP_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xw_MLP, unres_tau_xw, unres_tau_xw_MLP_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yw_MLP, unres_tau_yw, unres_tau_yw_MLP_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zw_MLP, unres_tau_zw, unres_tau_zw_MLP_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #
+    #make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
     make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
     
     print('Finished making plots')

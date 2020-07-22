@@ -145,7 +145,7 @@ loglog(k_streamwise_filt[:]    * delta, (spectra_x_filt[:]    / (utau_ref_moser*
 loglog(k_streamwise_filtint[:] * delta, (spectra_x_filtint[:] / (utau_ref_moser**2. * delta)), 'b-',linewidth=2.0, label='filtered+interpolated')
 
 xlabel(r'$\kappa \delta \ [-]$',fontsize = 20)
-ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize = 20)
+ylabel(r'$E \,\ u_{\tau}^{-2} \,\ \delta^{-1} \ [-]$',fontsize = 20)
 legend(loc=0, frameon=False,fontsize=16)
 xticks(fontsize = 16, rotation = 90)
 yticks(fontsize = 16, rotation = 0)
