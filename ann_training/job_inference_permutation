@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -t 1:00:00
+####SBATCH -t 1:00:00
 ####SBATCH -t 1-12:00:00
-####SBATCH -t 10:00:00
+#SBATCH -t 10:00:00
 #SBATCH -N 1
-#SBATCH -p short
+####SBATCH -p short
 
 #Load modules new environment
 module purge
@@ -22,20 +22,20 @@ source ~/virtualenv/firstMLP_intel_CPU/bin/activate
 #Only zu_upstream, only log-layer
 
 #Calculate loss without permutation
-#python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_upstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_upstream.nc --variables_filepath ./MLP_selected/ --only_zu_upstream --only_loglayer --calc_loss
+python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_upstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_upstream.nc --variables_filepath ./MLP_selected/ --only_zu_upstream --only_loglayer --calc_loss
 #Calculate increase loss with permutations
 python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_upstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_upstream.nc --variables_filepath ./MLP_selected/ --only_zu_upstream --only_loglayer #--calc_loss
-##Make horizontal cross-sections of calculated permutation importances
-#cd ./MLP_selected
-#python3 -u ../horcross_inference_permutation.py --permute_file ./MLP_selected/inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu
+#Make horizontal cross-sections of calculated permutation importances
+cd ./MLP_selected
+python3 -u ../horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu
 #
-##Only zu_downstream, only log-layer
-#
-##Calculate loss without permutation
-#python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_downstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --variables_filepath ./MLP_selected/ --only_zu_downstream --only_loglayer --calc_loss
-##Calculate increase loss with permutations
-#python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_downstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --variables_filepath ./MLP_selected/ --only_zu_downstream --only_loglayer #--calc_loss
-##Make horizontal cross-sections of calculated permutation importances
-#cd ./MLP_selected
-#python3 -u ../horcross_inference_permutation.py --permute_file ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu
+#Only zu_downstream, only log-layer
+cd ..
+#Calculate loss without permutation
+python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_downstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --variables_filepath ./MLP_selected/ --only_zu_downstream --only_loglayer --calc_loss
+#Calculate increase loss with permutations
+python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_downstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --variables_filepath ./MLP_selected/ --only_zu_downstream --only_loglayer #--calc_loss
+#Make horizontal cross-sections of calculated permutation importances
+cd ./MLP_selected
+python3 -u ../horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu
 echo 'finished'

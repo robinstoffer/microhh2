@@ -3,7 +3,7 @@
 import argparse
 import numpy as np
 import netCDF4 as nc
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed #Used to parallelize in permutation feature importance calculations either the 10 random shufflings (when only_loglayer=True) or the different heights in the channel (when only_loglayer=False)
 
 class MLP:
     '''Class to manually build MLP and subsequently do inference. NOTE: should be completely equivalent to MLP defined in MLP2_estimator.py!!!'''
@@ -338,9 +338,7 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_up
         return loss
 
 def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, flag_only_loglayer):
-    #Makes currently use of global variables for the labels and storage of loss
     
-
     #Reshape 1d arrays to 3d, which is much more convenient for the slicing below.
     u = np.reshape(u, (grid.kcells,  grid.jcells, grid.icells))
     v = np.reshape(v, (grid.kcells,  grid.jcells, grid.icells))
@@ -354,6 +352,7 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_
         u_fi = np.zeros((5,5,5), dtype = np.float64)
         v_fi = np.zeros((5,5,5), dtype = np.float64)
         w_fi = np.zeros((5,5,5), dtype = np.float64)
+        
         end_range = b*2+1
         #end_range = 1 #Testing purposes only!
     
@@ -460,7 +459,7 @@ if __name__ == '__main__':
         flag_only_loglayer = False
 
     #Define number of random shufflings used for averaging of the permutatino feature importances
-    random_shufflings = 2
+    random_shufflings = 10
 
     ###Extract flow fields and from netCDF file###
     #Specify time steps NOTE: SHOULD BE 28 TO 31 to access testing field
@@ -608,7 +607,7 @@ if __name__ == '__main__':
     
     #Loop over flow fields, for each time step in tstep_unique (giving 3 loops in total).
     for t in range(nt):
-
+        print('Start time loop')
         #Select flow fields of time step
         u_singletimestep = u[t,:,:,:-1].flatten()#Flatten and remove ghost cells in horizontal staggered dimensions to make shape consistent to arrays in MicroHH
         v_singletimestep = v[t,:,:-1,:].flatten()
@@ -620,22 +619,33 @@ if __name__ == '__main__':
 
         #Determine normal or permuted loss
         if args.calc_loss:
+            #Determine normal loss, no random shuffling needed
             loss = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = False, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
             var_loss[t] = loss
             loss = 0.0 #Re-initialize for next time step
 
         else:
-
-            for i in range(random_shufflings): #Perform permutation 10 times, allowing to average over 10 different random shufflings
-                u_fi, v_fi, w_fi = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
-                var_u_fi_shufflings[t,i,:,:,:] = u_fi
-                var_v_fi_shufflings[t,i,:,:,:] = v_fi
-                var_w_fi_shufflings[t,i,:,:,:] = w_fi
+            #Determine permuted loss, average over 10 random shufflings
+            if flag_only_loglayer:
+                result = Parallel(n_jobs=-1, verbose=10)(delayed(inference_MLP)(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) for n in range(random_shufflings))
+                u_fi, v_fi, w_fi = zip(*result)
+                var_u_fi_shufflings[t,:,:,:,:] = u_fi
+                var_v_fi_shufflings[t,:,:,:,:] = v_fi
+                var_w_fi_shufflings[t,:,:,:,:] = w_fi
+            
+            else:
+                for i in range(random_shufflings): #Perform permutation 10 times, allowing to average over 10 different random shufflings
+                    u_fi, v_fi, w_fi = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
+                    var_u_fi_shufflings[t,i,:,:,:] = u_fi
+                    var_v_fi_shufflings[t,i,:,:,:] = v_fi
+                    var_w_fi_shufflings[t,i,:,:,:] = w_fi
             
             #Average over random shufflings
-            var_u_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=1)
-            var_v_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=1)
-            var_w_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=1)
+            var_u_fi[t,:,:,:] = np.mean(var_u_fi_shufflings[t,:,:,:,:], axis=0)
+            var_v_fi[t,:,:,:] = np.mean(var_v_fi_shufflings[t,:,:,:,:], axis=0)
+            var_w_fi[t,:,:,:] = np.mean(var_w_fi_shufflings[t,:,:,:,:], axis=0)
+
+        print('Finished time loop')
 
     #Close loss file
     loss_file.close()
