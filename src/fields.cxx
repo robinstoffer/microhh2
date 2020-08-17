@@ -274,6 +274,9 @@ Fields<TF>::Fields(Master& masterin, Grid<TF>& gridin, Input& input) :
 
     init_diagnostic_field("p", "Pressure", "Pa", group_name, gd.sloc);
 
+    //Initialize interpolated velocity field for visualization
+    init_momentum_field("uint_wu", "U velocity interpolated for tau_wu", "m s-1", group_name, gd.uwloc);
+
     // Set a default of 4 temporary fields. Other classes can increase this number
     // before the init phase, where they are initialized in Fields::init()
     n_tmp_fields = 4;

@@ -43,6 +43,10 @@ def convert_to_nc(variables):
             dim['yh'] = dim.pop('y')
         if variable is 'w':
             dim['zh'] = dim.pop('z')
+        if variable is 'uint_wu':
+            dim['xh'] = dim.pop('x')
+            dim.pop('z')
+            dim['zh'] = range(ktot+1) #Add top wall
         try:
             ncfile = mht.Create_ncfile(
                 grid, filename, variable, dim, precision, compression)

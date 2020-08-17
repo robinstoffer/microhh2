@@ -341,6 +341,12 @@ class Create_ncfile():
                 dimensions['zh'] = dimensions.pop('z')
             except KeyError:
                 pass
+        if(varname == 'uint_wu'):
+            try:
+                dimensions['xh'] = dimensions.pop('x')
+                dimensions['zh'] = dimensions.pop('z')
+            except KeyError:
+                pass
         # create dimensions in netCDF file
         self.dim = {}
         self.dimvar = {}

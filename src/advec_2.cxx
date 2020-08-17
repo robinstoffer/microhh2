@@ -78,7 +78,7 @@ namespace
     }
 
     template<typename TF>
-    void advec_u(TF* const restrict ut,
+    void advec_u(TF* const restrict ut, TF* const restrict uint_wu,
             const TF* const restrict u, const TF* const restrict v, const TF* const restrict w,
             const TF* const restrict dzi, const TF dx, const TF dy,
             const TF* const restrict rhoref, const TF* const restrict rhorefh,
@@ -105,6 +105,7 @@ namespace
 
                              - ( rhorefh[k+1] * interp2(w[ijk-ii+kk], w[ijk+kk]) * interp2(u[ijk   ], u[ijk+kk])
                                - rhorefh[k  ] * interp2(w[ijk-ii   ], w[ijk   ]) * interp2(u[ijk-kk], u[ijk   ]) ) / rhoref[k] * dzi[k];
+                    uint_wu[ijk] = interp2(u[ijk-kk], u[ijk   ]);
                 }
     }
 
@@ -298,7 +299,7 @@ template<typename TF>
 void Advec_2<TF>::exec(Stats<TF>& stats)
 {
     auto& gd = grid.get_grid_data();
-    advec_u(fields.mt.at("u")->fld.data(),
+    advec_u(fields.mt.at("u")->fld.data(), fields.mp.at("uint_wu")->fld.data(),
             fields.mp.at("u")->fld.data(), fields.mp.at("v")->fld.data(), fields.mp.at("w")->fld.data(),
             gd.dzi.data(), gd.dx, gd.dy,
             fields.rhoref.data(), fields.rhorefh.data(),
