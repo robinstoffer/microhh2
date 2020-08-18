@@ -27,10 +27,14 @@ uc_singlefield = np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc:iend])
 vc_singlefield = np.array(a['vc'][t,kgc_center:kend,jgc:jend,igc:iend])
 wc_singlefield = np.array(a['wc'][t,kgc_edge:khend,jgc:jend,igc:iend])
 
+#Calculate initial interpolated flow field
+uint_uu_singlefield = (np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc:iend]) + np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc+1:iend+1])) / 2.0
+
 #Write flow fields to binary files
 uc_singlefield.tofile("u.restart")
 vc_singlefield.tofile("v.restart")
 wc_singlefield.tofile("w.restart")
+uint_uu_singlefield.tofile("uint_uu.restart")
 
 #Close nc-file
 a.close()

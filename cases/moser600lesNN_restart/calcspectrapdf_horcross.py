@@ -24,7 +24,7 @@ nz = 64
 
 iter_begin = 0
 iterstep = 3
-nt = 8
+nt = 10
 
 # read the grid data
 n = nx*ny*nz
@@ -93,7 +93,7 @@ starty = 0
 endy   = int(z.size / 2)
 
 # read cross-sections and calculate spectra
-variables=["u","v","w"]
+variables=["u","v","w","uint_uu"]
 nwave_modes_x = int(nx * 0.5)
 
 #Search for cross_indices, temporarily change search directory to input directory
@@ -105,50 +105,66 @@ os.chdir(work_dir)
 #
 
 num_idx = np.size(indexes_local)
-spectra_x  = np.zeros((3,nt,num_idx,nwave_modes_x))
-pdf_fields = np.zeros((3,nt,num_idx,ny,nx))
+spectra_x  = np.zeros((4,nt,num_idx,nwave_modes_x))
+pdf_fields = np.zeros((4,nt,num_idx,ny,nx))
 index_spectra = 0
+
+#Search for cross_indices, temporarily change search directory to input directory
+work_dir = os.getcwd()
+os.chdir(input_dir)
+indexes_local = get_cross_indices('u', 'xy') #NOTE: implicitly assumes cross indices are the same for all stored variables!
+os.chdir(work_dir)
+#
 
 for crossname in variables:
     
     if(crossname == 'u'): loc = [1,0,0]
     elif(crossname=='v'): loc = [0,1,0]
     elif(crossname=='w'): loc = [0,0,1]
+    elif(crossname=='uint_uu'): loc = [1,0,1]
     else:                 loc = [0,0,0]
     
     locx = 'x' if loc[0] == 0 else 'xh'
     locy = 'y' if loc[1] == 0 else 'yh'
     locz = 'z' if loc[2] == 0 else 'zh'
     
-    #Search for cross_indices, temporarily change search directory to input directory
-    work_dir = os.getcwd()
-    os.chdir(input_dir)
-    indexes_local = get_cross_indices(crossname, 'xy')
-    os.chdir(work_dir)
-    #
     stop = False
     for t in range(nt):
         iter = iter_begin + t*iterstep
+        
+        #Read flow field if interpolated velocity is selected; not stored as cross-sections
+        if crossname=='uint_uu':
+            fin = open(input_dir + "uint_uu.{:07d}".format(iter),"rb")
+
+            raw = fin.read(n*8)
+            tmp = np.array(st.unpack('<{}d'.format(n), raw))
+            del(raw)
+            uint_wu   = tmp.reshape((nz, ny, nx))
+            del(tmp)
+
         for k in range(num_idx):
             index = indexes_local[k]
-            zplus = yplus if locz=='z' else yplush
-            f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, iter)
-            try:
-                fin = open(input_dir + f_in, "rb")
-            except:
-                print('Stopping: cannot find file {}'.format(f_in))
-                crossfile.sync()
-                stop = True
-                break
+            if crossname=='uint_uu':
+                s = uint_wu[index,:,:]
+            else:
+                f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, iter)
+                try:
+                    fin = open(input_dir + f_in, "rb")
+                except:
+                    print('Stopping: cannot find file {}'.format(f_in))
+                    crossfile.sync()
+                    stop = True
+                    break
             
-            print("Processing %8s, time=%7i, index=%4i"%(crossname, iter, index))
+                print("Processing %8s, time=%7i, index=%4i"%(crossname, iter, index))
+                
+                #fin = open("{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter), "rb")
+                raw = fin.read(nx*ny*8)
+                tmp = np.array(st.unpack('{0}{1}d'.format("<", nx*ny), raw))
+                del(raw)
+                s = tmp.reshape((ny, nx))
+                del(tmp)
             
-            #fin = open("{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter), "rb")
-            raw = fin.read(nx*ny*8)
-            tmp = np.array(st.unpack('{0}{1}d'.format("<", nx*ny), raw))
-            del(raw)
-            s = tmp.reshape((ny, nx))
-            del(tmp)
             fftx = np.fft.rfft(s,axis=1)*(1/nx)
             Px = fftx[:,1:] * np.conjugate(fftx[:,1:])
             if int(nx % 2) == 0:
@@ -281,6 +297,24 @@ for k in range(np.size(indexes_local)):
     close()
     #
     figure()
+    colors = cm.Blues(np.linspace(0.4,1,nt)) #Start at 0.4 to leave out white range of colormap
+    for t in range(nt):
+        loglog(k_streamwise[:], (spectra_x[3,t,k,:] / (ustar**2. * delta)), color=colors[t],linewidth=2.0, label=str(t))
+    loglog(k_streamwise[:], (spectra_x[0,0,k,:] / (ustar**2. * delta)), color='r', linewidth=2.0, label='filtered DNS') #Add filtered DNS field as reference
+    
+    xlabel(r'$\kappa \delta \ [-]$',fontsize = 20)
+    ylabel(r'$\frac{E}{u_{\tau}^2 \delta} \ [-]$',fontsize = 20)
+    #legend(loc=0, frameon=False,fontsize=16)
+    xticks(fontsize = 16, rotation = 90)
+    yticks(fontsize = 16, rotation = 0)
+    grid()
+    axis([1, 250, 0.00001, 3])
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "spectrax_uint_uu_z_" + str(indexes_local[k]) + ".pdf")
+    close()
+    #
+    figure()
     grid()
     colors = cm.Blues(np.linspace(0.4,1,nt))
     for t in range(nt):
@@ -329,4 +363,21 @@ for k in range(np.size(indexes_local)):
     fig = gcf()
     fig.set_tight_layout(True)
     savefig(input_dir + "pdf_w_z_" + str(indexes_local[k]) + ".pdf")
+    close()
+    #
+    figure()
+    grid()
+    colors = cm.Blues(np.linspace(0.4,1,nt))
+    for t in range(nt):
+        hist(pdf_fields[3,t,k,:,:].flatten(), bins = bin_edges_w, color=colors[t], density = True, histtype = 'step', label =str(t))
+    ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
+    xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
+    #legend(loc=0, frameon=False,fontsize=16)
+    xticks(fontsize = 16, rotation = 90)
+    yticks(fontsize = 16, rotation = 0)
+    grid()
+    axis([-0.03,0.03,0,100])
+    fig = gcf()
+    fig.set_tight_layout(True)
+    savefig(input_dir + "pdf_uint_uu_z_" + str(indexes_local[k]) + ".pdf")
     close()
