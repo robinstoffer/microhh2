@@ -1,0 +1,53 @@
+#!/bin/bash
+###SBATCH -t 1-00:00:00
+#SBATCH -t 1:00:00
+#SBATCH -N 1
+#SBATCH -p short
+###SBATCH -p gpu_short
+###SBATCH -p gpu
+
+module purge
+module load 2019
+module load intel/2018b
+module load netCDF/4.6.1-intel-2018b
+module load netCDF-C++4/4.3.0-intel-2018b
+module load CMake/3.12.1-GCCcore-7.3.0
+module load FFTW/3.3.8-intel-2018b
+module load Doxygen/1.8.14-GCCcore-7.3.0
+
+source ~/virtualenv/firstMLP_intel_CPU/bin/activate #Note: to ensure consistent runs, actives virtual environment created with install_tensorflow_cpu_cartesius.sh.
+
+##Build MicroHH on CPU node where run is executed for optimal performance
+#cd ../../config
+#cp cartesius.cmake default.cmake
+#
+#cd ..
+#
+#if [ -d "build" ]; then
+#    rm -r build
+#fi
+#
+#mkdir build
+#
+#cd build
+#
+#cmake ..
+#make -j 4
+#
+#cd ../cases/moser600lesNN_restart
+#
+#
+#if [ ! -L "microhh" ]; then
+#    ln -s ../../build/microhh microhh
+#fi
+#
+##Generate input data
+#python3 moser600lesNN_input.py 
+#
+##Initialize and run MicroHH for specified case. To ensure initialization from a coarse-grained DNS flow field, the initial flow fields are overwritten with binary fields previously produced from the training data.
+#./microhh init moser600lesNN
+#cp restart_files/u.restart u.0000000
+#cp restart_files/v.restart v.0000000
+#cp restart_files/w.restart w.0000000
+#
+./microhh run moser600lesNN

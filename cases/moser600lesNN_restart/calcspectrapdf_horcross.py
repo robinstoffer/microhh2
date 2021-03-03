@@ -26,6 +26,10 @@ iter_begin = 0
 iterstep = 3
 nt = 10
 
+#iter_begin = 0
+#iterstep = 1
+#nt = 3
+
 # read the grid data
 n = nx*ny*nz
 

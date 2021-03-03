@@ -2,6 +2,7 @@
 import numpy   as np
 import netCDF4 as nc
 import scipy.interpolate
+import multiprocessing as mp
 from downsampling_training import generate_coarsecoord_centercell, generate_coarsecoord_edgecell
 from grid_objects_training import Finegrid, Coarsegrid
 import matplotlib as mpl
@@ -88,9 +89,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
        jgc = 1
        kgc = 1
      
-    #Define flag to ensure variables are only created once in netCDF file
-    create_variables = True
-    
     #Initialize finegrid object
     if testing:
         xsize = 10.0
@@ -121,6 +119,194 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
     #Extract molecular viscosity and channel half width from finegrid object
     mvisc = finegrid['fields']['visc']
     channel_half_width = finegrid['grid']['channel_half_width']
+    
+    #Create/open netCDF file
+    if create_file:
+        a = nc.Dataset(output_directory + name_output_file, 'w')
+        
+        #Initialize coarsegrid object to create correct variables nc-file
+        coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc, kgc = kgc)
+    
+        #Create variables
+        #Extract time variable from u-file (should be identical to the one from v-,w-,or p-file)
+        time = np.arange(finegrid['time']['timesteps'])
+ 
+        #Create new dimensions
+        a.createDimension("time",time)
+        a.createDimension("xhgc",coarsegrid['grid']['itot']+2*coarsegrid.igc+1)
+        a.createDimension("xgc",coarsegrid['grid']['itot']+2*coarsegrid.igc)
+        a.createDimension("yhgc",coarsegrid['grid']['jtot']+2*coarsegrid.jgc+1)
+        a.createDimension("ygc",coarsegrid['grid']['jtot']+2*coarsegrid.jgc)
+        a.createDimension("zhgc",coarsegrid['grid']['ktot']+2*coarsegrid.kgc+1)
+        a.createDimension("zgc",coarsegrid['grid']['ktot']+2*coarsegrid.kgc)
+        a.createDimension("xhc",coarsegrid['grid']['itot']+1)
+        a.createDimension("xc",coarsegrid['grid']['itot'])
+        a.createDimension("xgcextra",coarsegrid['grid']['itot']+1)
+        a.createDimension("yhc",coarsegrid['grid']['jtot']+1)
+        a.createDimension("yc",coarsegrid['grid']['jtot'])
+        a.createDimension("ygcextra",coarsegrid['grid']['jtot']+1)
+        a.createDimension("zhc",coarsegrid['grid']['ktot']+1)
+        a.createDimension("zc",coarsegrid['grid']['ktot'])
+        a.createDimension("zgcextra",coarsegrid['grid']['ktot']+1)
+ 
+        #Create coordinate variables and store values
+        var_xhgc        = a.createVariable("xhgc","f8",("xhgc",))
+        var_xgc         = a.createVariable("xgc","f8",("xgc",))
+        var_yhgc        = a.createVariable("yhgc","f8",("yhgc",))
+        var_ygc         = a.createVariable("ygc","f8",("ygc",))
+        var_zhgc        = a.createVariable("zhgc","f8",("zhgc",))
+        var_zgc         = a.createVariable("zgc","f8",("zgc",))
+        var_xhc         = a.createVariable("xhc","f8",("xhc",))
+        var_xc          = a.createVariable("xc","f8",("xc",))
+        var_xgcextra    = a.createVariable("xgcextra","f8",("xgcextra",))
+        var_yhc         = a.createVariable("yhc","f8",("yhc",))
+        var_yc          = a.createVariable("yc","f8",("yc",))
+        var_ygcextra    = a.createVariable("ygcextra","f8",("ygcextra",))
+        var_zhc         = a.createVariable("zhc","f8",("zhc",))
+        var_zc          = a.createVariable("zc","f8",("zc",))
+        var_zgcextra    = a.createVariable("zgcextra","f8",("zgcextra",))
+        var_igc         = a.createVariable("igc","i",())
+        var_jgc         = a.createVariable("jgc","i",())
+        var_kgc_center  = a.createVariable("kgc_center","i",())
+        var_kgc_edge    = a.createVariable("kgc_edge","i",())
+        var_iend        = a.createVariable("iend","i",())
+        var_ihend       = a.createVariable("ihend","i",())
+        var_jend        = a.createVariable("jend","i",())
+        var_jhend       = a.createVariable("jhend","i",())
+        var_kend        = a.createVariable("kend","i",())
+        var_khend       = a.createVariable("khend","i",())
+        #
+        var_size_samples            = a.createVariable("size_samples","i",())
+        var_cells_around_centercell = a.createVariable("cells_around_centercell","i",())
+        var_mvisc                   = a.createVariable("mvisc","f8",())
+        var_channel_half_width      = a.createVariable("channel_half_width","f8",())
+        
+        #var_dist_midchannel = a.createVariable("dist_midchannel","f8",("zc",))
+ 
+        var_xhgc[:]       = coarsegrid['grid']['xh']
+        var_xgc[:]        = coarsegrid['grid']['x']
+        var_yhgc[:]       = coarsegrid['grid']['yh']
+        var_ygc[:]        = coarsegrid['grid']['y']
+        var_zhgc[:]       = coarsegrid['grid']['zh']
+        var_zgc[:]        = coarsegrid['grid']['z']
+        var_xhc[:]        = coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]
+        var_xc[:]         = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]
+        var_xgcextra[:]   = coarsegrid['grid']['x'][coarsegrid.igc-1:coarsegrid.iend]
+        var_yhc[:]        = coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend]
+        var_yc[:]         = coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend]
+        var_ygcextra[:]   = coarsegrid['grid']['y'][coarsegrid.jgc-1:coarsegrid.jend]
+        var_zhc[:]        = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend]
+        var_zc[:]         = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]
+        var_zgcextra[:]   = coarsegrid['grid']['z'][coarsegrid.kgc-1:coarsegrid.kend]
+        var_igc[:]        = coarsegrid.igc
+        var_jgc[:]        = coarsegrid.jgc
+        var_kgc_center[:] = coarsegrid.kgc
+        var_kgc_edge[:]   = coarsegrid.kgc
+        var_iend[:]       = coarsegrid.iend
+        var_ihend[:]      = coarsegrid.ihend
+        var_jend[:]       = coarsegrid.jend
+        var_jhend[:]      = coarsegrid.jhend
+        var_kend[:]       = coarsegrid.kend
+        var_khend[:]      = coarsegrid.khend
+        #
+        var_size_samples[:]            = size_samples
+        var_cells_around_centercell[:] = cells_around_centercell
+        var_mvisc[:]                   = mvisc
+        var_channel_half_width[:]      = channel_half_width
+        
+        #var_dist_midchannel[:] = dist_midchannel[:]
+ 
+        #Create variables for coarse fields
+        var_uc = a.createVariable("uc","f8",("time","zgc","ygc","xhgc"))
+        var_vc = a.createVariable("vc","f8",("time","zgc","yhgc","xgc"))
+        var_wc = a.createVariable("wc","f8",("time","zhgc","ygc","xgc"))
+ 
+        var_res_u_boxint      = a.createVariable("res_u_boxint","f8",("time","zc","yc","xc"))
+        var_res_v_boxint      = a.createVariable("res_v_boxint","f8",("time","zc","yc","xc"))
+        var_res_w_boxint      = a.createVariable("res_w_boxint","f8",("time","zc","yc","xc"))
+        
+        var_unres_u_box       = a.createVariable("unres_u_box","f8",("time","zc","yc","xhc"))
+        var_unres_v_box       = a.createVariable("unres_v_box","f8",("time","zc","yhc","xc"))
+        var_unres_w_box       = a.createVariable("unres_w_box","f8",("time","zhc","yc","xc"))
+        
+        var_unres_u_boxint    = a.createVariable("unres_u_boxint","f8",("time","zc","yc","xc"))
+        var_unres_v_boxint    = a.createVariable("unres_v_boxint","f8",("time","zc","yc","xc"))
+        var_unres_w_boxint    = a.createVariable("unres_w_boxint","f8",("time","zc","yc","xc"))
+        
+        var_total_tau_xu_turb = a.createVariable("total_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
+        var_total_tau_xu_visc = a.createVariable("total_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
+        var_res_tau_xu_turb   = a.createVariable("res_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
+        var_res_tau_xu_visc   = a.createVariable("res_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
+        var_unres_tau_xu_tot  = a.createVariable("unres_tau_xu_tot","f8",("time","zc","yc","xgcextra"))
+        var_unres_tau_xu_turb = a.createVariable("unres_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
+        var_unres_tau_xu_visc = a.createVariable("unres_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
+
+        var_total_tau_xv_turb = a.createVariable("total_tau_xv_turb","f8",("time","zc","yhc","xhc"))
+        var_total_tau_xv_visc = a.createVariable("total_tau_xv_visc","f8",("time","zc","yhc","xhc"))
+        var_res_tau_xv_turb   = a.createVariable("res_tau_xv_turb","f8",("time","zc","yhc","xhc"))
+        var_res_tau_xv_visc   = a.createVariable("res_tau_xv_visc","f8",("time","zc","yhc","xhc"))
+        var_unres_tau_xv_tot  = a.createVariable("unres_tau_xv_tot","f8",("time","zc","yhc","xhc"))
+        var_unres_tau_xv_turb = a.createVariable("unres_tau_xv_turb","f8",("time","zc","yhc","xhc"))
+        var_unres_tau_xv_visc = a.createVariable("unres_tau_xv_visc","f8",("time","zc","yhc","xhc"))
+
+        var_total_tau_xw_turb = a.createVariable("total_tau_xw_turb","f8",("time","zhc","yc","xhc"))
+        var_total_tau_xw_visc = a.createVariable("total_tau_xw_visc","f8",("time","zhc","yc","xhc"))
+        var_res_tau_xw_turb   = a.createVariable("res_tau_xw_turb","f8",("time","zhc","yc","xhc"))
+        var_res_tau_xw_visc   = a.createVariable("res_tau_xw_visc","f8",("time","zhc","yc","xhc"))
+        var_unres_tau_xw_tot  = a.createVariable("unres_tau_xw_tot","f8",("time","zhc","yc","xhc"))
+        var_unres_tau_xw_turb = a.createVariable("unres_tau_xw_turb","f8",("time","zhc","yc","xhc"))
+        var_unres_tau_xw_visc = a.createVariable("unres_tau_xw_visc","f8",("time","zhc","yc","xhc"))
+ 
+        var_total_tau_yu_turb = a.createVariable("total_tau_yu_turb","f8",("time","zc","yhc","xhc"))
+        var_total_tau_yu_visc = a.createVariable("total_tau_yu_visc","f8",("time","zc","yhc","xhc"))
+        var_res_tau_yu_turb   = a.createVariable("res_tau_yu_turb","f8",("time","zc","yhc","xhc"))
+        var_res_tau_yu_visc   = a.createVariable("res_tau_yu_visc","f8",("time","zc","yhc","xhc"))
+        var_unres_tau_yu_tot  = a.createVariable("unres_tau_yu_tot","f8",("time","zc","yhc","xhc"))
+        var_unres_tau_yu_turb = a.createVariable("unres_tau_yu_turb","f8",("time","zc","yhc","xhc"))
+        var_unres_tau_yu_visc = a.createVariable("unres_tau_yu_visc","f8",("time","zc","yhc","xhc"))
+ 
+        var_total_tau_yv_turb = a.createVariable("total_tau_yv_turb","f8",("time","zc","ygcextra","xc"))
+        var_total_tau_yv_visc = a.createVariable("total_tau_yv_visc","f8",("time","zc","ygcextra","xc"))
+        var_res_tau_yv_turb   = a.createVariable("res_tau_yv_turb","f8",("time","zc","ygcextra","xc"))
+        var_res_tau_yv_visc   = a.createVariable("res_tau_yv_visc","f8",("time","zc","ygcextra","xc"))
+        var_unres_tau_yv_tot  = a.createVariable("unres_tau_yv_tot","f8",("time","zc","ygcextra","xc"))
+        var_unres_tau_yv_turb = a.createVariable("unres_tau_yv_turb","f8",("time","zc","ygcextra","xc"))
+        var_unres_tau_yv_visc = a.createVariable("unres_tau_yv_visc","f8",("time","zc","ygcextra","xc"))
+
+        var_total_tau_yw_turb = a.createVariable("total_tau_yw_turb","f8",("time","zhc","yhc","xc"))
+        var_total_tau_yw_visc = a.createVariable("total_tau_yw_visc","f8",("time","zhc","yhc","xc"))
+        var_res_tau_yw_turb   = a.createVariable("res_tau_yw_turb","f8",("time","zhc","yhc","xc"))
+        var_res_tau_yw_visc   = a.createVariable("res_tau_yw_visc","f8",("time","zhc","yhc","xc"))
+        var_unres_tau_yw_tot  = a.createVariable("unres_tau_yw_tot","f8",("time","zhc","yhc","xc"))
+        var_unres_tau_yw_turb = a.createVariable("unres_tau_yw_turb","f8",("time","zhc","yhc","xc"))
+        var_unres_tau_yw_visc = a.createVariable("unres_tau_yw_visc","f8",("time","zhc","yhc","xc"))
+ 
+        var_total_tau_zu_turb = a.createVariable("total_tau_zu_turb","f8",("time","zhc","yc","xhc"))
+        var_total_tau_zu_visc = a.createVariable("total_tau_zu_visc","f8",("time","zhc","yc","xhc"))
+        var_res_tau_zu_turb   = a.createVariable("res_tau_zu_turb","f8",("time","zhc","yc","xhc"))
+        var_res_tau_zu_visc   = a.createVariable("res_tau_zu_visc","f8",("time","zhc","yc","xhc"))
+        var_unres_tau_zu_tot  = a.createVariable("unres_tau_zu_tot","f8",("time","zhc","yc","xhc"))
+        var_unres_tau_zu_turb = a.createVariable("unres_tau_zu_turb","f8",("time","zhc","yc","xhc"))
+        var_unres_tau_zu_visc = a.createVariable("unres_tau_zu_visc","f8",("time","zhc","yc","xhc"))
+ 
+        var_total_tau_zv_turb = a.createVariable("total_tau_zv_turb","f8",("time","zhc","yhc","xc"))
+        var_total_tau_zv_visc = a.createVariable("total_tau_zv_visc","f8",("time","zhc","yhc","xc"))
+        var_res_tau_zv_turb   = a.createVariable("res_tau_zv_turb","f8",("time","zhc","yhc","xc"))
+        var_res_tau_zv_visc   = a.createVariable("res_tau_zv_visc","f8",("time","zhc","yhc","xc"))
+        var_unres_tau_zv_tot  = a.createVariable("unres_tau_zv_tot","f8",("time","zhc","yhc","xc"))
+        var_unres_tau_zv_turb = a.createVariable("unres_tau_zv_turb","f8",("time","zhc","yhc","xc"))
+        var_unres_tau_zv_visc = a.createVariable("unres_tau_zv_visc","f8",("time","zhc","yhc","xc"))
+
+        var_total_tau_zw_turb = a.createVariable("total_tau_zw_turb","f8",("time","zgcextra","yc","xc"))
+        var_total_tau_zw_visc = a.createVariable("total_tau_zw_visc","f8",("time","zgcextra","yc","xc"))
+        var_res_tau_zw_turb   = a.createVariable("res_tau_zw_turb","f8",("time","zgcextra","yc","xc"))
+        var_res_tau_zw_visc   = a.createVariable("res_tau_zw_visc","f8",("time","zgcextra","yc","xc"))
+        var_unres_tau_zw_tot  = a.createVariable("unres_tau_zw_tot","f8",("time","zgcextra","yc","xc"))
+        var_unres_tau_zw_turb = a.createVariable("unres_tau_zw_turb","f8",("time","zgcextra","yc","xc"))
+        var_unres_tau_zw_visc = a.createVariable("unres_tau_zw_visc","f8",("time","zgcextra","yc","xc"))
+
+        #Close file
+        a.close()
 
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
@@ -631,7 +817,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
         #Unresolved transport due to viscous forces
         unres_tau_zu_visc = total_tau_zu_visc - res_tau_zu_visc
         unres_tau_zv_visc = total_tau_zv_visc - res_tau_zv_visc
-        unres_tau_zw_visc = total_tau_zw_visc - res_tau_zw_visc
+        unres_tau_zw_visc = total_tau_zw_visc - res_tau_zw_vGisc
        
         #Total unresolved transport
         unres_tau_zu_tot = unres_tau_zu_turb + unres_tau_zu_visc
@@ -640,7 +826,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
         
         #For each  wind velocity, calculate the unresolved part both with and without contribution from the interpolation error
         #NOTE1: this is not needed to calculate the unresolved transport, and is only required to calculate spectra of the isotropic unresolved transport components (which requires u'!)
-        #Only box filter
+        #Only box filterg
         unres_u_box = utot_box_stag - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend]
         unres_v_box = vtot_box_stag - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend]
         unres_w_box = wtot_box_stag - coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]
@@ -652,282 +838,97 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
 
         ##Store flow fields coarse grid and total/resolved/unresolved transports in netCDF-file ##
         ##########################################################################################
- 
-        #Create/open netCDF file
         if create_file:
-            a = nc.Dataset(output_directory + name_output_file, 'w')
-            create_file = False
-        else:
             a = nc.Dataset(output_directory + name_output_file, 'r+')
  
-        if create_variables:
-            ##Extract time variable from u-file (should be identical to the one from v-,w-,or p-file)
-            #time = np.array(f.variables['time'])
- 
-            #Create new dimensions
-            a.createDimension("time",None)
-            a.createDimension("xhgc",coarsegrid['grid']['itot']+2*coarsegrid.igc+1)
-            a.createDimension("xgc",coarsegrid['grid']['itot']+2*coarsegrid.igc)
-            a.createDimension("yhgc",coarsegrid['grid']['jtot']+2*coarsegrid.jgc+1)
-            a.createDimension("ygc",coarsegrid['grid']['jtot']+2*coarsegrid.jgc)
-            a.createDimension("zhgc",coarsegrid['grid']['ktot']+2*coarsegrid.kgc+1)
-            a.createDimension("zgc",coarsegrid['grid']['ktot']+2*coarsegrid.kgc)
-            a.createDimension("xhc",coarsegrid['grid']['itot']+1)
-            a.createDimension("xc",coarsegrid['grid']['itot'])
-            a.createDimension("xgcextra",coarsegrid['grid']['itot']+1)
-            a.createDimension("yhc",coarsegrid['grid']['jtot']+1)
-            a.createDimension("yc",coarsegrid['grid']['jtot'])
-            a.createDimension("ygcextra",coarsegrid['grid']['jtot']+1)
-            a.createDimension("zhc",coarsegrid['grid']['ktot']+1)
-            a.createDimension("zc",coarsegrid['grid']['ktot'])
-            a.createDimension("zgcextra",coarsegrid['grid']['ktot']+1)
- 
-            #Create coordinate variables and store values
-            var_xhgc        = a.createVariable("xhgc","f8",("xhgc",))
-            var_xgc         = a.createVariable("xgc","f8",("xgc",))
-            var_yhgc        = a.createVariable("yhgc","f8",("yhgc",))
-            var_ygc         = a.createVariable("ygc","f8",("ygc",))
-            var_zhgc        = a.createVariable("zhgc","f8",("zhgc",))
-            var_zgc         = a.createVariable("zgc","f8",("zgc",))
-            var_xhc         = a.createVariable("xhc","f8",("xhc",))
-            var_xc          = a.createVariable("xc","f8",("xc",))
-            var_xgcextra    = a.createVariable("xgcextra","f8",("xgcextra",))
-            var_yhc         = a.createVariable("yhc","f8",("yhc",))
-            var_yc          = a.createVariable("yc","f8",("yc",))
-            var_ygcextra    = a.createVariable("ygcextra","f8",("ygcextra",))
-            var_zhc         = a.createVariable("zhc","f8",("zhc",))
-            var_zc          = a.createVariable("zc","f8",("zc",))
-            var_zgcextra    = a.createVariable("zgcextra","f8",("zgcextra",))
-            var_igc         = a.createVariable("igc","i",())
-            var_jgc         = a.createVariable("jgc","i",())
-            var_kgc_center  = a.createVariable("kgc_center","i",())
-            var_kgc_edge    = a.createVariable("kgc_edge","i",())
-            var_iend        = a.createVariable("iend","i",())
-            var_ihend       = a.createVariable("ihend","i",())
-            var_jend        = a.createVariable("jend","i",())
-            var_jhend       = a.createVariable("jhend","i",())
-            var_kend        = a.createVariable("kend","i",())
-            var_khend       = a.createVariable("khend","i",())
-            #
-            var_size_samples            = a.createVariable("size_samples","i",())
-            var_cells_around_centercell = a.createVariable("cells_around_centercell","i",())
-            var_mvisc                   = a.createVariable("mvisc","f8",())
-            var_channel_half_width      = a.createVariable("channel_half_width","f8",())
-            
-            #var_dist_midchannel = a.createVariable("dist_midchannel","f8",("zc",))
- 
-            var_xhgc[:]       = coarsegrid['grid']['xh']
-            var_xgc[:]        = coarsegrid['grid']['x']
-            var_yhgc[:]       = coarsegrid['grid']['yh']
-            var_ygc[:]        = coarsegrid['grid']['y']
-            var_zhgc[:]       = coarsegrid['grid']['zh']
-            var_zgc[:]        = coarsegrid['grid']['z']
-            var_xhc[:]        = coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]
-            var_xc[:]         = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]
-            var_xgcextra[:]   = coarsegrid['grid']['x'][coarsegrid.igc-1:coarsegrid.iend]
-            var_yhc[:]        = coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend]
-            var_yc[:]         = coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend]
-            var_ygcextra[:]   = coarsegrid['grid']['y'][coarsegrid.jgc-1:coarsegrid.jend]
-            var_zhc[:]        = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend]
-            var_zc[:]         = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]
-            var_zgcextra[:]   = coarsegrid['grid']['z'][coarsegrid.kgc-1:coarsegrid.kend]
-            var_igc[:]        = coarsegrid.igc
-            var_jgc[:]        = coarsegrid.jgc
-            var_kgc_center[:] = coarsegrid.kgc
-            var_kgc_edge[:]   = coarsegrid.kgc
-            var_iend[:]       = coarsegrid.iend
-            var_ihend[:]      = coarsegrid.ihend
-            var_jend[:]       = coarsegrid.jend
-            var_jhend[:]      = coarsegrid.jhend
-            var_kend[:]       = coarsegrid.kend
-            var_khend[:]      = coarsegrid.khend
-            #
-            var_size_samples[:]            = size_samples
-            var_cells_around_centercell[:] = cells_around_centercell
-            var_mvisc[:]                   = mvisc
-            var_channel_half_width[:]      = channel_half_width
-            
-            #var_dist_midchannel[:] = dist_midchannel[:]
- 
-            #Create variables for coarse fields
-            var_uc = a.createVariable("uc","f8",("time","zgc","ygc","xhgc"))
-            var_vc = a.createVariable("vc","f8",("time","zgc","yhgc","xgc"))
-            var_wc = a.createVariable("wc","f8",("time","zhgc","ygc","xgc"))
- 
-            var_res_u_boxint      = a.createVariable("res_u_boxint","f8",("time","zc","yc","xc"))
-            var_res_v_boxint      = a.createVariable("res_v_boxint","f8",("time","zc","yc","xc"))
-            var_res_w_boxint      = a.createVariable("res_w_boxint","f8",("time","zc","yc","xc"))
-            
-            var_unres_u_box       = a.createVariable("unres_u_box","f8",("time","zc","yc","xhc"))
-            var_unres_v_box       = a.createVariable("unres_v_box","f8",("time","zc","yhc","xc"))
-            var_unres_w_box       = a.createVariable("unres_w_box","f8",("time","zhc","yc","xc"))
-            
-            var_unres_u_boxint    = a.createVariable("unres_u_boxint","f8",("time","zc","yc","xc"))
-            var_unres_v_boxint    = a.createVariable("unres_v_boxint","f8",("time","zc","yc","xc"))
-            var_unres_w_boxint    = a.createVariable("unres_w_boxint","f8",("time","zc","yc","xc"))
-            
-            var_total_tau_xu_turb = a.createVariable("total_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
-            var_total_tau_xu_visc = a.createVariable("total_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
-            var_res_tau_xu_turb   = a.createVariable("res_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
-            var_res_tau_xu_visc   = a.createVariable("res_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
-            var_unres_tau_xu_tot  = a.createVariable("unres_tau_xu_tot","f8",("time","zc","yc","xgcextra"))
-            var_unres_tau_xu_turb = a.createVariable("unres_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
-            var_unres_tau_xu_visc = a.createVariable("unres_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
+            #Store values coarse fields
+            var_uc[t,:,:,:] = coarsegrid['output']['u']['variable']
+            var_vc[t,:,:,:] = coarsegrid['output']['v']['variable']
+            var_wc[t,:,:,:] = coarsegrid['output']['w']['variable']
 
-            var_total_tau_xv_turb = a.createVariable("total_tau_xv_turb","f8",("time","zc","yhc","xhc"))
-            var_total_tau_xv_visc = a.createVariable("total_tau_xv_visc","f8",("time","zc","yhc","xhc"))
-            var_res_tau_xv_turb   = a.createVariable("res_tau_xv_turb","f8",("time","zc","yhc","xhc"))
-            var_res_tau_xv_visc   = a.createVariable("res_tau_xv_visc","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_xv_tot  = a.createVariable("unres_tau_xv_tot","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_xv_turb = a.createVariable("unres_tau_xv_turb","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_xv_visc = a.createVariable("unres_tau_xv_visc","f8",("time","zc","yhc","xhc"))
-
-            var_total_tau_xw_turb = a.createVariable("total_tau_xw_turb","f8",("time","zhc","yc","xhc"))
-            var_total_tau_xw_visc = a.createVariable("total_tau_xw_visc","f8",("time","zhc","yc","xhc"))
-            var_res_tau_xw_turb   = a.createVariable("res_tau_xw_turb","f8",("time","zhc","yc","xhc"))
-            var_res_tau_xw_visc   = a.createVariable("res_tau_xw_visc","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_xw_tot  = a.createVariable("unres_tau_xw_tot","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_xw_turb = a.createVariable("unres_tau_xw_turb","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_xw_visc = a.createVariable("unres_tau_xw_visc","f8",("time","zhc","yc","xhc"))
+            var_res_u_boxint[t,:,:,:]      = uc_uyzint[:,:,1:]
+            var_res_v_boxint[t,:,:,:]      = vc_vxzint[:,1:,:]
+            var_res_w_boxint[t,:,:,:]      = wc_wxyint[1:,:,:]
+            
+            var_unres_u_box[t,:,:,:]       = unres_u_box[:,:,:]
+            var_unres_v_box[t,:,:,:]       = unres_v_box[:,:,:]
+            var_unres_w_box[t,:,:,:]       = unres_w_box[:,:,:]
+            
+            var_unres_u_boxint[t,:,:,:]    = unres_u_boxint[:,:,:]
+            var_unres_v_boxint[t,:,:,:]    = unres_v_boxint[:,:,:]
+            var_unres_w_boxint[t,:,:,:]    = unres_w_boxint[:,:,:]
  
-            var_total_tau_yu_turb = a.createVariable("total_tau_yu_turb","f8",("time","zc","yhc","xhc"))
-            var_total_tau_yu_visc = a.createVariable("total_tau_yu_visc","f8",("time","zc","yhc","xhc"))
-            var_res_tau_yu_turb   = a.createVariable("res_tau_yu_turb","f8",("time","zc","yhc","xhc"))
-            var_res_tau_yu_visc   = a.createVariable("res_tau_yu_visc","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_yu_tot  = a.createVariable("unres_tau_yu_tot","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_yu_turb = a.createVariable("unres_tau_yu_turb","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_yu_visc = a.createVariable("unres_tau_yu_visc","f8",("time","zc","yhc","xhc"))
+            var_total_tau_xu_turb[t,:,:,:] = total_tau_xu_turb[:,:,:]
+            var_total_tau_xu_visc[t,:,:,:] = total_tau_xu_visc[:,:,:]
+            var_res_tau_xu_turb[t,:,:,:]   = res_tau_xu_turb[:,:,:]
+            var_res_tau_xu_visc[t,:,:,:]   = res_tau_xu_visc[:,:,:]
+            var_unres_tau_xu_tot[t,:,:,:]  = unres_tau_xu_tot[:,:,:]
+            var_unres_tau_xu_turb[t,:,:,:] = unres_tau_xu_turb[:,:,:]
+            var_unres_tau_xu_visc[t,:,:,:] = unres_tau_xu_visc[:,:,:]
  
-            var_total_tau_yv_turb = a.createVariable("total_tau_yv_turb","f8",("time","zc","ygcextra","xc"))
-            var_total_tau_yv_visc = a.createVariable("total_tau_yv_visc","f8",("time","zc","ygcextra","xc"))
-            var_res_tau_yv_turb   = a.createVariable("res_tau_yv_turb","f8",("time","zc","ygcextra","xc"))
-            var_res_tau_yv_visc   = a.createVariable("res_tau_yv_visc","f8",("time","zc","ygcextra","xc"))
-            var_unres_tau_yv_tot  = a.createVariable("unres_tau_yv_tot","f8",("time","zc","ygcextra","xc"))
-            var_unres_tau_yv_turb = a.createVariable("unres_tau_yv_turb","f8",("time","zc","ygcextra","xc"))
-            var_unres_tau_yv_visc = a.createVariable("unres_tau_yv_visc","f8",("time","zc","ygcextra","xc"))
-
-            var_total_tau_yw_turb = a.createVariable("total_tau_yw_turb","f8",("time","zhc","yhc","xc"))
-            var_total_tau_yw_visc = a.createVariable("total_tau_yw_visc","f8",("time","zhc","yhc","xc"))
-            var_res_tau_yw_turb   = a.createVariable("res_tau_yw_turb","f8",("time","zhc","yhc","xc"))
-            var_res_tau_yw_visc   = a.createVariable("res_tau_yw_visc","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_yw_tot  = a.createVariable("unres_tau_yw_tot","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_yw_turb = a.createVariable("unres_tau_yw_turb","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_yw_visc = a.createVariable("unres_tau_yw_visc","f8",("time","zhc","yhc","xc"))
- 
-            var_total_tau_zu_turb = a.createVariable("total_tau_zu_turb","f8",("time","zhc","yc","xhc"))
-            var_total_tau_zu_visc = a.createVariable("total_tau_zu_visc","f8",("time","zhc","yc","xhc"))
-            var_res_tau_zu_turb   = a.createVariable("res_tau_zu_turb","f8",("time","zhc","yc","xhc"))
-            var_res_tau_zu_visc   = a.createVariable("res_tau_zu_visc","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_zu_tot  = a.createVariable("unres_tau_zu_tot","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_zu_turb = a.createVariable("unres_tau_zu_turb","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_zu_visc = a.createVariable("unres_tau_zu_visc","f8",("time","zhc","yc","xhc"))
- 
-            var_total_tau_zv_turb = a.createVariable("total_tau_zv_turb","f8",("time","zhc","yhc","xc"))
-            var_total_tau_zv_visc = a.createVariable("total_tau_zv_visc","f8",("time","zhc","yhc","xc"))
-            var_res_tau_zv_turb   = a.createVariable("res_tau_zv_turb","f8",("time","zhc","yhc","xc"))
-            var_res_tau_zv_visc   = a.createVariable("res_tau_zv_visc","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_zv_tot  = a.createVariable("unres_tau_zv_tot","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_zv_turb = a.createVariable("unres_tau_zv_turb","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_zv_visc = a.createVariable("unres_tau_zv_visc","f8",("time","zhc","yhc","xc"))
-
-            var_total_tau_zw_turb = a.createVariable("total_tau_zw_turb","f8",("time","zgcextra","yc","xc"))
-            var_total_tau_zw_visc = a.createVariable("total_tau_zw_visc","f8",("time","zgcextra","yc","xc"))
-            var_res_tau_zw_turb   = a.createVariable("res_tau_zw_turb","f8",("time","zgcextra","yc","xc"))
-            var_res_tau_zw_visc   = a.createVariable("res_tau_zw_visc","f8",("time","zgcextra","yc","xc"))
-            var_unres_tau_zw_tot  = a.createVariable("unres_tau_zw_tot","f8",("time","zgcextra","yc","xc"))
-            var_unres_tau_zw_turb = a.createVariable("unres_tau_zw_turb","f8",("time","zgcextra","yc","xc"))
-            var_unres_tau_zw_visc = a.createVariable("unres_tau_zw_visc","f8",("time","zgcextra","yc","xc"))
- 
-        create_variables = False #Make sure variables are only created once.
- 
-        #Store values coarse fields
-        var_uc[t,:,:,:] = coarsegrid['output']['u']['variable']
-        var_vc[t,:,:,:] = coarsegrid['output']['v']['variable']
-        var_wc[t,:,:,:] = coarsegrid['output']['w']['variable']
-
-        var_res_u_boxint[t,:,:,:]      = uc_uyzint[:,:,1:]
-        var_res_v_boxint[t,:,:,:]      = vc_vxzint[:,1:,:]
-        var_res_w_boxint[t,:,:,:]      = wc_wxyint[1:,:,:]
-        
-        var_unres_u_box[t,:,:,:]       = unres_u_box[:,:,:]
-        var_unres_v_box[t,:,:,:]       = unres_v_box[:,:,:]
-        var_unres_w_box[t,:,:,:]       = unres_w_box[:,:,:]
-        
-        var_unres_u_boxint[t,:,:,:]    = unres_u_boxint[:,:,:]
-        var_unres_v_boxint[t,:,:,:]    = unres_v_boxint[:,:,:]
-        var_unres_w_boxint[t,:,:,:]    = unres_w_boxint[:,:,:]
- 
-        var_total_tau_xu_turb[t,:,:,:] = total_tau_xu_turb[:,:,:]
-        var_total_tau_xu_visc[t,:,:,:] = total_tau_xu_visc[:,:,:]
-        var_res_tau_xu_turb[t,:,:,:]   = res_tau_xu_turb[:,:,:]
-        var_res_tau_xu_visc[t,:,:,:]   = res_tau_xu_visc[:,:,:]
-        var_unres_tau_xu_tot[t,:,:,:]  = unres_tau_xu_tot[:,:,:]
-        var_unres_tau_xu_turb[t,:,:,:] = unres_tau_xu_turb[:,:,:]
-        var_unres_tau_xu_visc[t,:,:,:] = unres_tau_xu_visc[:,:,:]
- 
-        var_total_tau_xv_turb[t,:,:,:] = total_tau_xv_turb[:,:,:]
-        var_total_tau_xv_visc[t,:,:,:] = total_tau_xv_visc[:,:,:]
-        var_res_tau_xv_turb[t,:,:,:]   = res_tau_xv_turb[:,:,:]
-        var_res_tau_xv_visc[t,:,:,:]   = res_tau_xv_visc[:,:,:]
-        var_unres_tau_xv_tot[t,:,:,:]  = unres_tau_xv_tot[:,:,:]
-        var_unres_tau_xv_turb[t,:,:,:] = unres_tau_xv_turb[:,:,:]
-        var_unres_tau_xv_visc[t,:,:,:] = unres_tau_xv_visc[:,:,:]
+            var_total_tau_xv_turb[t,:,:,:] = total_tau_xv_turb[:,:,:]
+            var_total_tau_xv_visc[t,:,:,:] = total_tau_xv_visc[:,:,:]
+            var_res_tau_xv_turb[t,:,:,:]   = res_tau_xv_turb[:,:,:]
+            var_res_tau_xv_visc[t,:,:,:]   = res_tau_xv_visc[:,:,:]
+            var_unres_tau_xv_tot[t,:,:,:]  = unres_tau_xv_tot[:,:,:]
+            var_unres_tau_xv_turb[t,:,:,:] = unres_tau_xv_turb[:,:,:]
+            var_unres_tau_xv_visc[t,:,:,:] = unres_tau_xv_visc[:,:,:]
        
-        var_total_tau_xw_turb[t,:,:,:] = total_tau_xw_turb[:,:,:]
-        var_total_tau_xw_visc[t,:,:,:] = total_tau_xw_visc[:,:,:]
-        var_res_tau_xw_turb[t,:,:,:]   = res_tau_xw_turb[:,:,:]
-        var_res_tau_xw_visc[t,:,:,:]   = res_tau_xw_visc[:,:,:]
-        var_unres_tau_xw_tot[t,:,:,:]  = unres_tau_xw_tot[:,:,:]
-        var_unres_tau_xw_turb[t,:,:,:] = unres_tau_xw_turb[:,:,:]
-        var_unres_tau_xw_visc[t,:,:,:] = unres_tau_xw_visc[:,:,:]
+            var_total_tau_xw_turb[t,:,:,:] = total_tau_xw_turb[:,:,:]
+            var_total_tau_xw_visc[t,:,:,:] = total_tau_xw_visc[:,:,:]
+            var_res_tau_xw_turb[t,:,:,:]   = res_tau_xw_turb[:,:,:]
+            var_res_tau_xw_visc[t,:,:,:]   = res_tau_xw_visc[:,:,:]
+            var_unres_tau_xw_tot[t,:,:,:]  = unres_tau_xw_tot[:,:,:]
+            var_unres_tau_xw_turb[t,:,:,:] = unres_tau_xw_turb[:,:,:]
+            var_unres_tau_xw_visc[t,:,:,:] = unres_tau_xw_visc[:,:,:]
 
-        var_total_tau_yu_turb[t,:,:,:] = total_tau_yu_turb[:,:,:]
-        var_total_tau_yu_visc[t,:,:,:] = total_tau_yu_visc[:,:,:]
-        var_res_tau_yu_turb[t,:,:,:]   = res_tau_yu_turb[:,:,:]
-        var_res_tau_yu_visc[t,:,:,:]   = res_tau_yu_visc[:,:,:]
-        var_unres_tau_yu_tot[t,:,:,:]  = unres_tau_yu_tot[:,:,:]
-        var_unres_tau_yu_turb[t,:,:,:] = unres_tau_yu_turb[:,:,:]
-        var_unres_tau_yu_visc[t,:,:,:] = unres_tau_yu_visc[:,:,:]
+            var_total_tau_yu_turb[t,:,:,:] = total_tau_yu_turb[:,:,:]
+            var_total_tau_yu_visc[t,:,:,:] = total_tau_yu_visc[:,:,:]
+            var_res_tau_yu_turb[t,:,:,:]   = res_tau_yu_turb[:,:,:]
+            var_res_tau_yu_visc[t,:,:,:]   = res_tau_yu_visc[:,:,:]
+            var_unres_tau_yu_tot[t,:,:,:]  = unres_tau_yu_tot[:,:,:]
+            var_unres_tau_yu_turb[t,:,:,:] = unres_tau_yu_turb[:,:,:]
+            var_unres_tau_yu_visc[t,:,:,:] = unres_tau_yu_visc[:,:,:]
 
-        var_total_tau_yv_turb[t,:,:,:] = total_tau_yv_turb[:,:,:]
-        var_total_tau_yv_visc[t,:,:,:] = total_tau_yv_visc[:,:,:]
-        var_res_tau_yv_turb[t,:,:,:]   = res_tau_yv_turb[:,:,:]
-        var_res_tau_yv_visc[t,:,:,:]   = res_tau_yv_visc[:,:,:]
-        var_unres_tau_yv_tot[t,:,:,:]  = unres_tau_yv_tot[:,:,:]
-        var_unres_tau_yv_turb[t,:,:,:] = unres_tau_yv_turb[:,:,:]
-        var_unres_tau_yv_visc[t,:,:,:] = unres_tau_yv_visc[:,:,:]
+            var_total_tau_yv_turb[t,:,:,:] = total_tau_yv_turb[:,:,:]
+            var_total_tau_yv_visc[t,:,:,:] = total_tau_yv_visc[:,:,:]
+            var_res_tau_yv_turb[t,:,:,:]   = res_tau_yv_turb[:,:,:]
+            var_res_tau_yv_visc[t,:,:,:]   = res_tau_yv_visc[:,:,:]
+            var_unres_tau_yv_tot[t,:,:,:]  = unres_tau_yv_tot[:,:,:]
+            var_unres_tau_yv_turb[t,:,:,:] = unres_tau_yv_turb[:,:,:]
+            var_unres_tau_yv_visc[t,:,:,:] = unres_tau_yv_visc[:,:,:]
 
-        var_total_tau_yw_turb[t,:,:,:] = total_tau_yw_turb[:,:,:]
-        var_total_tau_yw_visc[t,:,:,:] = total_tau_yw_visc[:,:,:]
-        var_res_tau_yw_turb[t,:,:,:]   = res_tau_yw_turb[:,:,:]
-        var_res_tau_yw_visc[t,:,:,:]   = res_tau_yw_visc[:,:,:]
-        var_unres_tau_yw_tot[t,:,:,:]  = unres_tau_yw_tot[:,:,:]
-        var_unres_tau_yw_turb[t,:,:,:] = unres_tau_yw_turb[:,:,:]
-        var_unres_tau_yw_visc[t,:,:,:] = unres_tau_yw_visc[:,:,:]
+            var_total_tau_yw_turb[t,:,:,:] = total_tau_yw_turb[:,:,:]
+            var_total_tau_yw_visc[t,:,:,:] = total_tau_yw_visc[:,:,:]
+            var_res_tau_yw_turb[t,:,:,:]   = res_tau_yw_turb[:,:,:]
+            var_res_tau_yw_visc[t,:,:,:]   = res_tau_yw_visc[:,:,:]
+            var_unres_tau_yw_tot[t,:,:,:]  = unres_tau_yw_tot[:,:,:]
+            var_unres_tau_yw_turb[t,:,:,:] = unres_tau_yw_turb[:,:,:]
+            var_unres_tau_yw_visc[t,:,:,:] = unres_tau_yw_visc[:,:,:]
 
-        var_total_tau_zu_turb[t,:,:,:] = total_tau_zu_turb[:,:,:]
-        var_total_tau_zu_visc[t,:,:,:] = total_tau_zu_visc[:,:,:]
-        var_res_tau_zu_turb[t,:,:,:]   = res_tau_zu_turb[:,:,:]
-        var_res_tau_zu_visc[t,:,:,:]   = res_tau_zu_visc[:,:,:]
-        var_unres_tau_zu_tot[t,:,:,:]  = unres_tau_zu_tot[:,:,:]
-        var_unres_tau_zu_turb[t,:,:,:] = unres_tau_zu_turb[:,:,:]
-        var_unres_tau_zu_visc[t,:,:,:] = unres_tau_zu_visc[:,:,:]
+            var_total_tau_zu_turb[t,:,:,:] = total_tau_zu_turb[:,:,:]
+            var_total_tau_zu_visc[t,:,:,:] = total_tau_zu_visc[:,:,:]
+            var_res_tau_zu_turb[t,:,:,:]   = res_tau_zu_turb[:,:,:]
+            var_res_tau_zu_visc[t,:,:,:]   = res_tau_zu_visc[:,:,:]
+            var_unres_tau_zu_tot[t,:,:,:]  = unres_tau_zu_tot[:,:,:]
+            var_unres_tau_zu_turb[t,:,:,:] = unres_tau_zu_turb[:,:,:]
+            var_unres_tau_zu_visc[t,:,:,:] = unres_tau_zu_visc[:,:,:]
 
-        var_total_tau_zv_turb[t,:,:,:] = total_tau_zv_turb[:,:,:]
-        var_total_tau_zv_visc[t,:,:,:] = total_tau_zv_visc[:,:,:]
-        var_res_tau_zv_turb[t,:,:,:]   = res_tau_zv_turb[:,:,:]
-        var_res_tau_zv_visc[t,:,:,:]   = res_tau_zv_visc[:,:,:]
-        var_unres_tau_zv_tot[t,:,:,:]  = unres_tau_zv_tot[:,:,:]
-        var_unres_tau_zv_turb[t,:,:,:] = unres_tau_zv_turb[:,:,:]
-        var_unres_tau_zv_visc[t,:,:,:] = unres_tau_zv_visc[:,:,:]
+            var_total_tau_zv_turb[t,:,:,:] = total_tau_zv_turb[:,:,:]
+            var_total_tau_zv_visc[t,:,:,:] = total_tau_zv_visc[:,:,:]
+            var_res_tau_zv_turb[t,:,:,:]   = res_tau_zv_turb[:,:,:]
+            var_res_tau_zv_visc[t,:,:,:]   = res_tau_zv_visc[:,:,:]
+            var_unres_tau_zv_tot[t,:,:,:]  = unres_tau_zv_tot[:,:,:]
+            var_unres_tau_zv_turb[t,:,:,:] = unres_tau_zv_turb[:,:,:]
+            var_unres_tau_zv_visc[t,:,:,:] = unres_tau_zv_visc[:,:,:]
 
-        var_total_tau_zw_turb[t,:,:,:] = total_tau_zw_turb[:,:,:]
-        var_total_tau_zw_visc[t,:,:,:] = total_tau_zw_visc[:,:,:]
-        var_res_tau_zw_turb[t,:,:,:]   = res_tau_zw_turb[:,:,:]
-        var_res_tau_zw_visc[t,:,:,:]   = res_tau_zw_visc[:,:,:]
-        var_unres_tau_zw_tot[t,:,:,:]  = unres_tau_zw_tot[:,:,:]
-        var_unres_tau_zw_turb[t,:,:,:] = unres_tau_zw_turb[:,:,:]
-        var_unres_tau_zw_visc[t,:,:,:] = unres_tau_zw_visc[:,:,:]
+            var_total_tau_zw_turb[t,:,:,:] = total_tau_zw_turb[:,:,:]
+            var_total_tau_zw_visc[t,:,:,:] = total_tau_zw_visc[:,:,:]
+            var_res_tau_zw_turb[t,:,:,:]   = res_tau_zw_turb[:,:,:]
+            var_res_tau_zw_visc[t,:,:,:]   = res_tau_zw_visc[:,:,:]
+            var_unres_tau_zw_tot[t,:,:,:]  = unres_tau_zw_tot[:,:,:]
+            var_unres_tau_zw_turb[t,:,:,:] = unres_tau_zw_turb[:,:,:]
+            var_unres_tau_zw_visc[t,:,:,:] = unres_tau_zw_visc[:,:,:]
 
-        #Close file
-        a.close()
+            #Close file
+            a.close()
