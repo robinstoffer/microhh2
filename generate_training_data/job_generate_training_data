@@ -1,9 +1,10 @@
 #!/bin/bash
 ####SBATCH -t 2-00:00:00
-#SBATCH -t 0:05:00
-####SBATCH -N 1
+#SBATCH -t 1-00:00:00
+#SBATCH -N 1
 ####SBATCH -n 48
-#SBATCH -p short
+####SBATCH -p short
+#SBATCH  -p fat
 ####SBATCH -p gpu_short
 ####SBATCH -p gpu
 
@@ -21,12 +22,12 @@ module load Doxygen/1.8.14-GCCcore-7.3.0
 #Activate virtual environment created with install_tensorflow_cpu_cartesius.sh (stored in config directory)
 source ~/virtualenv/firstMLP_intel_CPU/bin/activate
 
-#Create directory to store training data, remove it first if it already exists
-if [ -d "../cases/moser600/training_data" ]; then
-    rm -r ../cases/moser600/training_data
-fi
-
-mkdir ../cases/moser600/training_data
+##Create directory to store training data, remove it first if it already exists
+#if [ -d "../cases/moser600/training_data" ]; then
+#    rm -r ../cases/moser600/training_data
+#fi
+#
+#mkdir ../cases/moser600/training_data
 
 python3 main_training.py
 

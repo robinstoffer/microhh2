@@ -3,6 +3,8 @@
 import numpy as np
 import warnings
 
+#Note: the functions below currently involve some comparisons of rounded floating point numbers, which may not always give the fully accurate result. However, because these comparisons are only used to select the points for which the weights are calculated for the downsampling, the errors introduced by these comparisons can be expected to be small for the normal coarse-graining factors currently used (i.e. the possibly wrongly introduced or neglected weights will have a minimal magnitude).
+
 def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid):
     """ Function that downsamples a variable in finegrid, located at the center of the grid cells, to a coarse grid cell centered around cor_c_middle and with size dist_corc. Since the control volume of such a variable is defined by the edges of the grid cells, the cor_edges are used to select the correct cells of the fine grid and to calculate the corresponding weights (or to be more precise, fractions)."""
 
@@ -17,9 +19,15 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid
     cor_edges = np.round(cor_edges, sgn_digits)
     
     #Find points of fine grid located just outside the coarse grid cell considered in iteration
-    cor_bottom = np.round(cor_edges[cor_edges <= cor_c_bottom].max(), sgn_digits)
-    #cor_top = cor_c_top if iteration == (len_coordinate - 1) else cor_edges[cor_edges >= cor_c_top].min()
-    cor_top = np.round(cor_edges[cor_edges >= cor_c_top].min(), sgn_digits)    
+    if np.any(cor_edges <= cor_c_bottom):
+        cor_bottom = np.round(cor_edges[cor_edges <= cor_c_bottom].max(), sgn_digits)
+    else:
+        cor_bottom = np.round(cor_edges[0], sgn_digits)
+
+    if np.any(cor_edges >= cor_c_top):
+        cor_top = np.round(cor_edges[cor_edges >= cor_c_top].min(), sgn_digits)
+    else:
+        cor_top = np.round(cor_edges[-1], sgn_digits)
 
     #Select all points inside and just outside coarse grid cell
     points_indices_cor = np.logical_and(cor_bottom <= cor_edges , cor_edges < cor_top) #NOTE: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).

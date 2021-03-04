@@ -598,7 +598,7 @@ class Coarsegrid:
         if not any( (dim > 0 and isinstance(dim, int)) for dim in dim_new_grid):
             raise ValueError("Dim_new_grid should be a tuple with length 3 (z, y, x), and consist only of positive integers.")
         
-        nz,ny,nx = dim_new_grid
+        nzc,nyc,nxc = dim_new_grid
 
         #Store finegrid_object in Coarsegrid object
         self.finegrid = finegrid_object
@@ -632,12 +632,12 @@ class Coarsegrid:
         self.sgn_digits = self.finegrid.sgn_digits
 
         #Boundary condition: the resolution of the coarse grid should be coarser than the fine resolution
-        if not (nz <= finegrid_object['grid']['ktot'] and ny <= finegrid_object['grid']['jtot'] and nx <= finegrid_object['grid']['itot']):
+        if not (nzc <= finegrid_object['grid']['ktot'] and nyc <= finegrid_object['grid']['jtot'] and nxc <= finegrid_object['grid']['itot']):
             raise ValueError("The resolution of the coarse grid should not be finer than the fine resolution contained in the Finegrid object.")        
 
-        self.var['grid']['ktot'] = nz
-        self.var['grid']['jtot'] = ny
-        self.var['grid']['itot'] = nx
+        self.var['grid']['ktot'] = nzc
+        self.var['grid']['jtot'] = nyc
+        self.var['grid']['itot'] = nxc
 
         try:
             self.var['grid']['xsize'] = finegrid_object['grid']['xsize']
