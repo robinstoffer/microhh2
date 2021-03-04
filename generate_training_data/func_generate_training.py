@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 import warnings
 
 #Define intializer function pool multiprocessing for lock (which makes sure only one process writes to netcdf file at a time
-def init_pool(l):
-    global lock
-    lock = l
-    
+def init_pool(lk):
+    global lock1
+    lock1 = lk
+
 #Loop over timesteps, define as func for multiprocessing
 def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge_gridcell_v,bool_edge_gridcell_w,input_directory,dim_new_grid,finegrid,igc,jgc,kgc,mvisc,output_directory,name_output_file,periodic_bc, zero_w_topbottom,create_file):
 #for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
@@ -536,7 +536,6 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
     unres_tau_zw_tot = unres_tau_zw_turb + unres_tau_zw_visc
     
     #For each  wind velocity, calculate the unresolved part both with and without contribution from the interpolation error
-    #NOTE1: this is not needed to calculate the unresolved transport, and is only required to calculate spectra of the isotropic unresolved transport components (which requires u'!)
     #Only box filterg
     unres_u_box = utot_box_stag - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend]
     unres_v_box = vtot_box_stag - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend]
@@ -551,12 +550,11 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
     ##########################################################################################
     if create_file: #Lock makes sure only one process writes at a time
         
-        lock.acquire()
+        lock1.acquire()
         
         a = nc.Dataset(output_directory + name_output_file, 'r+')
 
         print('Start storing output for timestep:', t+1)
-        sys.stdout.flush()
 
         #Store values coarse fields
         var_uc[t,:,:,:] = coarsegrid['output']['u']['variable']
@@ -651,9 +649,9 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
         a.close()
         
         print('End storing output for timestep:', t+1)
-        sys.stdout.flush()
 
-        lock.release()
+        lock1.release()
+        
 
 def generate_training_data(dim_new_grid, input_directory, output_directory, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): 
     
@@ -959,15 +957,17 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
 
     ##Start pool of workers to parallelize time iteration
 
+    mp.set_start_method('spawn')
+    
     #Define lock
     l = mp.Lock()
+    pool = mp.Pool(initializer=init_pool, initargs=(l,), processes=16) #Using more processes than 16 will eventually cause memory issues
+    #iterable:time
+    #arguments:testing,bool_edge_gridcell_u,bool_edge_gridcell_v,bool_edge_gridcell_w,input_directory,dim_new_grid,finegrid,igc,jgc,kgc,mvisc,output_directory,name_output_file
+    iterable_args = []
+    for t in time:
+        iterable_args.append((int(t), testing,bool_edge_gridcell_u,bool_edge_gridcell_v,bool_edge_gridcell_w,input_directory,dim_new_grid,finegrid,igc,jgc,kgc,mvisc,output_directory,name_output_file,periodic_bc,zero_w_topbottom,create_file))
 
-    with mp.get_context('spawn').Pool(initializer=init_pool, initargs=(l,), processes=16) as pool: #Using more processes than 5 will eventually cause memory issues
-        #iterable:time
-        #arguments:testing,bool_edge_gridcell_u,bool_edge_gridcell_v,bool_edge_gridcell_w,input_directory,dim_new_grid,finegrid,igc,jgc,kgc,mvisc,output_directory,name_output_file
-        iterable_args = []
-        for t in time:
-            iterable_args.append((int(t), testing,bool_edge_gridcell_u,bool_edge_gridcell_v,bool_edge_gridcell_w,input_directory,dim_new_grid,finegrid,igc,jgc,kgc,mvisc,output_directory,name_output_file,periodic_bc,zero_w_topbottom,create_file))
-        pool.starmap(_time_loop_training_data_generation, iterable_args)
-        pool.close()
-        pool.join()
+    pool.starmap(_time_loop_training_data_generation, iterable_args)
+    pool.close()
+    pool.join()

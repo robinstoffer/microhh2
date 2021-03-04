@@ -64,7 +64,6 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
 
     #Define shapes of output arrays based on stored training data
     nt = a['unres_tau_xu_tot'].shape[0] # NOTE1: nt should be the same for all variables.
-    #nt = 30 #SHOULD CORRESPOND TO NUMER OF TRAINING FIELDS USED IN MLP TRAINING AND CREATED WITH FUNC_GENERATE_TRAINING.PY!
     nz = zc.shape[0]
     ny = yc.shape[0]
     nx = xc.shape[0]
@@ -555,8 +554,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             
             #Create training data based on absolute wind velocities, store in groups of 10000 samples except last file
             nsamples_per_tfrecord = 10000
-            tot_num_files = (nsamples // nsamples_per_tfrecord) + 1;
-            (tot_num_files)
+            tot_num_files = (nsamples // nsamples_per_tfrecord) + 1
             for num_file in range(tot_num_files):
                 
                 output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}_file_{}.tfrecords'.format('training', t+1, nt, num_file+1))

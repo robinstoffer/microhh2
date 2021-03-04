@@ -227,7 +227,7 @@ def create_MLP(inputs, name_MLP, params):
 #Define model function for MLP estimator
 def model_fn(features, labels, mode, params):
     '''Model function which calls create_MLP multiple times to build MLPs that each predict some of the labels. These separate MLPs are trained together and combined in validation and inference mode. \\
-            NOTE: this function accesses the global variables means_dict_avgt, stdevs_dict_avgt, and iter_per_epoch.'''
+            NOTE: this function accesses the global variables means_dict_avgt, and stdevs_dict_avgt.'''
 
     #Define tf.constants for storing the means and stdevs of the input variables & labels, which is needed for the normalisation and subsequent denormalisation in this graph
     #NOTE: the means and stdevs for the '_upstream' and '_downstream' labels are the same. This is why each mean and stdev is repeated twice.
