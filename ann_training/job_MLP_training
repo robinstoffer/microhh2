@@ -1,9 +1,9 @@
 #!/bin/bash
-####SBATCH -t 5:00
+#SBATCH -t 5:00
 ####SBATCH -t 1:00:00
-#SBATCH -t 1-00:00:00
+####SBATCH -t 1-00:00:00
 #SBATCH -N 1
-####SBATCH -p short
+#SBATCH -p short
 
 #INFO: Job script (Cartesius) to train ANN 10 times with different number of hidden neurons
 #NOTE: This script should be run as an array job as follows: `sbatch --array=0-9 job_MLP_training`
@@ -74,7 +74,8 @@ then
 fi
 
 #Train ANN
-python3 -u MLP_tfestimator.py --input_dir '../cases/moser600/training_data/' --checkpoint_dir "./MLP$MLPNUM" --stored_means_stdevs_filepath '../cases/moser600/training_data/means_stdevs_allfields.nc' --training_filepath '../cases/moser600/training_data/training_data.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 100 --checkpoint_steps 10000
+#NOTE: select batch size such that is an exact multiple of the number of resolutions incorporated in training, to ensure each batch has an equal share of every resolution
+python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP$MLPNUM" --stored_means_stdevs_filepath '/projects/1/flowsim/gmd_training_data/8dx4dz/means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 3 --profile_steps 10000 --summary_steps 100 --checkpoint_steps 10000 #--train_dir1 '4dx4dz' --train_dir2 '12dx4dz'
 
 #Postprocessing for incorporation in MicroHH, only do this once and for the MLP to be selected
 if [ $SLURM_ARRAY_TASK_ID == 9 ]
@@ -84,7 +85,7 @@ then
     bash extract_weights_frozen_graph.sh #NOTE: currently selects MLP7 (with NHIDDEN=64) as MLP to extract the parameters from. This should be identical to the MLP selected in this job script to incoporate in MicroHH (see other lines in postprocessing part of this job script)!
     
     #Create directory for MLP to be selected, remove it first if it already exists
-    if [ -d "./MLP_selected" ]; then
+    if [ -d "/projects/1/flowsim/gmd_resuls_training/MLP_selected" ]; then
         rm -r ./MLP_selected
     fi
     

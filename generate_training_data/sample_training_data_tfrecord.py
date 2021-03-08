@@ -552,12 +552,12 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             
                 writer.close()
             
-            #Create training data based on absolute wind velocities, store in groups of 10000 samples except last file
-            nsamples_per_tfrecord = 10000
+            #Create training data based on absolute wind velocities, store in groups of 1000 samples except last file
+            nsamples_per_tfrecord = 1000
             tot_num_files = (nsamples // nsamples_per_tfrecord) + 1
             for num_file in range(tot_num_files):
                 
-                output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}_file_{}.tfrecords'.format('training', t+1, nt, num_file+1))
+                output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}_file_{}_numsamples_1000.tfrecords'.format('training', t+1, nt, num_file+1))
                 
                 if num_file == (tot_num_files - 1):
                     slice_samples = np.s_[num_file * nsamples_per_tfrecord:] #Select all remaining samples, which should be less than 10000

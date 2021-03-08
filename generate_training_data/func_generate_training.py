@@ -5,6 +5,7 @@ import scipy.interpolate
 import multiprocessing as mp
 import os
 import sys
+import copy
 from downsampling_training import generate_coarsecoord_centercell, generate_coarsecoord_edgecell
 from grid_objects_training import Finegrid, Coarsegrid
 import matplotlib as mpl
@@ -25,6 +26,8 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
 #for t in range(1): #FOR TESTING PURPOSES ONLY!
     ##Read or define fine-resolution DNS data ##
     ############################################
+    print('start time loop for t ',t+1)
+    sys.stdout.flush()
 
     #Read variables from fine resolution data into finegrid or manually define them when testing
     if testing:
@@ -52,6 +55,7 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
     coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc, kgc = kgc)
 
     #Calculate representative velocities for each coarse grid cell
+
     coarsegrid.downsample('u')
     coarsegrid.downsample('v')
     coarsegrid.downsample('w')
@@ -335,7 +339,6 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
                     total_tau_zv_visc[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * interp_tau_zv_visc[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center])
 
 
-
     ##Add ghostcell to isotropic transport components
     #NOTE1: the ghostcell is added at the beginning of the array, such that the orientation of the transport components is consistent with the resolved transport components calculated below. To allow for this, in the code above 1 is added to the indices of the isotropic components.
 
@@ -545,7 +548,8 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
     unres_v_boxint = vtot_box_center - vc_vxzint[:,1:,:]
     unres_w_boxint = wtot_box_center - wc_wxyint[1:,:,:]
 
-
+    print('start storing processes for t ',t+1)
+    sys.stdout.flush()
     ##Store flow fields coarse grid and total/resolved/unresolved transports in netCDF-file ##
     ##########################################################################################
     if create_file: #Lock makes sure only one process writes at a time
@@ -555,100 +559,102 @@ def _time_loop_training_data_generation(t,testing,bool_edge_gridcell_u,bool_edge
         a = nc.Dataset(output_directory + name_output_file, 'r+')
 
         print('Start storing output for timestep:', t+1)
+        sys.stdout.flush()
 
         #Store values coarse fields
-        var_uc[t,:,:,:] = coarsegrid['output']['u']['variable']
-        var_vc[t,:,:,:] = coarsegrid['output']['v']['variable']
-        var_wc[t,:,:,:] = coarsegrid['output']['w']['variable']
+        a['uc'][t,:,:,:] = coarsegrid['output']['u']['variable']
+        a['vc'][t,:,:,:] = coarsegrid['output']['v']['variable']
+        a['wc'][t,:,:,:] = coarsegrid['output']['w']['variable']
 
-        var_res_u_boxint[t,:,:,:]      = uc_uyzint[:,:,1:]
-        var_res_v_boxint[t,:,:,:]      = vc_vxzint[:,1:,:]
-        var_res_w_boxint[t,:,:,:]      = wc_wxyint[1:,:,:]
+        a['res_u_boxint'][t,:,:,:]      = uc_uyzint[:,:,1:]
+        a['res_v_boxint'][t,:,:,:]      = vc_vxzint[:,1:,:]
+        a['res_w_boxint'][t,:,:,:]      = wc_wxyint[1:,:,:]
         
-        var_unres_u_box[t,:,:,:]       = unres_u_box[:,:,:]
-        var_unres_v_box[t,:,:,:]       = unres_v_box[:,:,:]
-        var_unres_w_box[t,:,:,:]       = unres_w_box[:,:,:]
+        a['unres_u_box'][t,:,:,:]       = unres_u_box[:,:,:]
+        a['unres_v_box'][t,:,:,:]       = unres_v_box[:,:,:]
+        a['unres_w_box'][t,:,:,:]       = unres_w_box[:,:,:]
         
-        var_unres_u_boxint[t,:,:,:]    = unres_u_boxint[:,:,:]
-        var_unres_v_boxint[t,:,:,:]    = unres_v_boxint[:,:,:]
-        var_unres_w_boxint[t,:,:,:]    = unres_w_boxint[:,:,:]
+        a['unres_u_boxint'][t,:,:,:]    = unres_u_boxint[:,:,:]
+        a['unres_v_boxint'][t,:,:,:]    = unres_v_boxint[:,:,:]
+        a['unres_w_boxint'][t,:,:,:]    = unres_w_boxint[:,:,:]
 
-        var_total_tau_xu_turb[t,:,:,:] = total_tau_xu_turb[:,:,:]
-        var_total_tau_xu_visc[t,:,:,:] = total_tau_xu_visc[:,:,:]
-        var_res_tau_xu_turb[t,:,:,:]   = res_tau_xu_turb[:,:,:]
-        var_res_tau_xu_visc[t,:,:,:]   = res_tau_xu_visc[:,:,:]
-        var_unres_tau_xu_tot[t,:,:,:]  = unres_tau_xu_tot[:,:,:]
-        var_unres_tau_xu_turb[t,:,:,:] = unres_tau_xu_turb[:,:,:]
-        var_unres_tau_xu_visc[t,:,:,:] = unres_tau_xu_visc[:,:,:]
+        a['total_tau_xu_turb'][t,:,:,:] = total_tau_xu_turb[:,:,:]
+        a['total_tau_xu_visc'][t,:,:,:] = total_tau_xu_visc[:,:,:]
+        a['res_tau_xu_turb'][t,:,:,:]   = res_tau_xu_turb[:,:,:]
+        a['res_tau_xu_visc'][t,:,:,:]   = res_tau_xu_visc[:,:,:]
+        a['unres_tau_xu_tot'][t,:,:,:]  = unres_tau_xu_tot[:,:,:]
+        a['unres_tau_xu_turb'][t,:,:,:] = unres_tau_xu_turb[:,:,:]
+        a['unres_tau_xu_visc'][t,:,:,:] = unres_tau_xu_visc[:,:,:]
 
-        var_total_tau_xv_turb[t,:,:,:] = total_tau_xv_turb[:,:,:]
-        var_total_tau_xv_visc[t,:,:,:] = total_tau_xv_visc[:,:,:]
-        var_res_tau_xv_turb[t,:,:,:]   = res_tau_xv_turb[:,:,:]
-        var_res_tau_xv_visc[t,:,:,:]   = res_tau_xv_visc[:,:,:]
-        var_unres_tau_xv_tot[t,:,:,:]  = unres_tau_xv_tot[:,:,:]
-        var_unres_tau_xv_turb[t,:,:,:] = unres_tau_xv_turb[:,:,:]
-        var_unres_tau_xv_visc[t,:,:,:] = unres_tau_xv_visc[:,:,:]
+        a['total_tau_xv_turb'][t,:,:,:] = total_tau_xv_turb[:,:,:]
+        a['total_tau_xv_visc'][t,:,:,:] = total_tau_xv_visc[:,:,:]
+        a['res_tau_xv_turb'][t,:,:,:]   = res_tau_xv_turb[:,:,:]
+        a['res_tau_xv_visc'][t,:,:,:]   = res_tau_xv_visc[:,:,:]
+        a['unres_tau_xv_tot'][t,:,:,:]  = unres_tau_xv_tot[:,:,:]
+        a['unres_tau_xv_turb'][t,:,:,:] = unres_tau_xv_turb[:,:,:]
+        a['unres_tau_xv_visc'][t,:,:,:] = unres_tau_xv_visc[:,:,:]
    
-        var_total_tau_xw_turb[t,:,:,:] = total_tau_xw_turb[:,:,:]
-        var_total_tau_xw_visc[t,:,:,:] = total_tau_xw_visc[:,:,:]
-        var_res_tau_xw_turb[t,:,:,:]   = res_tau_xw_turb[:,:,:]
-        var_res_tau_xw_visc[t,:,:,:]   = res_tau_xw_visc[:,:,:]
-        var_unres_tau_xw_tot[t,:,:,:]  = unres_tau_xw_tot[:,:,:]
-        var_unres_tau_xw_turb[t,:,:,:] = unres_tau_xw_turb[:,:,:]
-        var_unres_tau_xw_visc[t,:,:,:] = unres_tau_xw_visc[:,:,:]
+        a['total_tau_xw_turb'][t,:,:,:] = total_tau_xw_turb[:,:,:]
+        a['total_tau_xw_visc'][t,:,:,:] = total_tau_xw_visc[:,:,:]
+        a['res_tau_xw_turb'][t,:,:,:]   = res_tau_xw_turb[:,:,:]
+        a['res_tau_xw_visc'][t,:,:,:]   = res_tau_xw_visc[:,:,:]
+        a['unres_tau_xw_tot'][t,:,:,:]  = unres_tau_xw_tot[:,:,:]
+        a['unres_tau_xw_turb'][t,:,:,:] = unres_tau_xw_turb[:,:,:]
+        a['unres_tau_xw_visc'][t,:,:,:] = unres_tau_xw_visc[:,:,:]
 
-        var_total_tau_yu_turb[t,:,:,:] = total_tau_yu_turb[:,:,:]
-        var_total_tau_yu_visc[t,:,:,:] = total_tau_yu_visc[:,:,:]
-        var_res_tau_yu_turb[t,:,:,:]   = res_tau_yu_turb[:,:,:]
-        var_res_tau_yu_visc[t,:,:,:]   = res_tau_yu_visc[:,:,:]
-        var_unres_tau_yu_tot[t,:,:,:]  = unres_tau_yu_tot[:,:,:]
-        var_unres_tau_yu_turb[t,:,:,:] = unres_tau_yu_turb[:,:,:]
-        var_unres_tau_yu_visc[t,:,:,:] = unres_tau_yu_visc[:,:,:]
+        a['total_tau_yu_turb'][t,:,:,:] = total_tau_yu_turb[:,:,:]
+        a['total_tau_yu_visc'][t,:,:,:] = total_tau_yu_visc[:,:,:]
+        a['res_tau_yu_turb'][t,:,:,:]   = res_tau_yu_turb[:,:,:]
+        a['res_tau_yu_visc'][t,:,:,:]   = res_tau_yu_visc[:,:,:]
+        a['unres_tau_yu_tot'][t,:,:,:]  = unres_tau_yu_tot[:,:,:]
+        a['unres_tau_yu_turb'][t,:,:,:] = unres_tau_yu_turb[:,:,:]
+        a['unres_tau_yu_visc'][t,:,:,:] = unres_tau_yu_visc[:,:,:]
 
-        var_total_tau_yv_turb[t,:,:,:] = total_tau_yv_turb[:,:,:]
-        var_total_tau_yv_visc[t,:,:,:] = total_tau_yv_visc[:,:,:]
-        var_res_tau_yv_turb[t,:,:,:]   = res_tau_yv_turb[:,:,:]
-        var_res_tau_yv_visc[t,:,:,:]   = res_tau_yv_visc[:,:,:]
-        var_unres_tau_yv_tot[t,:,:,:]  = unres_tau_yv_tot[:,:,:]
-        var_unres_tau_yv_turb[t,:,:,:] = unres_tau_yv_turb[:,:,:]
-        var_unres_tau_yv_visc[t,:,:,:] = unres_tau_yv_visc[:,:,:]
+        a['total_tau_yv_turb'][t,:,:,:] = total_tau_yv_turb[:,:,:]
+        a['total_tau_yv_visc'][t,:,:,:] = total_tau_yv_visc[:,:,:]
+        a['res_tau_yv_turb'][t,:,:,:]   = res_tau_yv_turb[:,:,:]
+        a['res_tau_yv_visc'][t,:,:,:]   = res_tau_yv_visc[:,:,:]
+        a['unres_tau_yv_tot'][t,:,:,:]  = unres_tau_yv_tot[:,:,:]
+        a['unres_tau_yv_turb'][t,:,:,:] = unres_tau_yv_turb[:,:,:]
+        a['unres_tau_yv_visc'][t,:,:,:] = unres_tau_yv_visc[:,:,:]
 
-        var_total_tau_yw_turb[t,:,:,:] = total_tau_yw_turb[:,:,:]
-        var_total_tau_yw_visc[t,:,:,:] = total_tau_yw_visc[:,:,:]
-        var_res_tau_yw_turb[t,:,:,:]   = res_tau_yw_turb[:,:,:]
-        var_res_tau_yw_visc[t,:,:,:]   = res_tau_yw_visc[:,:,:]
-        var_unres_tau_yw_tot[t,:,:,:]  = unres_tau_yw_tot[:,:,:]
-        var_unres_tau_yw_turb[t,:,:,:] = unres_tau_yw_turb[:,:,:]
-        var_unres_tau_yw_visc[t,:,:,:] = unres_tau_yw_visc[:,:,:]
+        a['total_tau_yw_turb'][t,:,:,:] = total_tau_yw_turb[:,:,:]
+        a['total_tau_yw_visc'][t,:,:,:] = total_tau_yw_visc[:,:,:]
+        a['res_tau_yw_turb'][t,:,:,:]   = res_tau_yw_turb[:,:,:]
+        a['res_tau_yw_visc'][t,:,:,:]   = res_tau_yw_visc[:,:,:]
+        a['unres_tau_yw_tot'][t,:,:,:]  = unres_tau_yw_tot[:,:,:]
+        a['unres_tau_yw_turb'][t,:,:,:] = unres_tau_yw_turb[:,:,:]
+        a['unres_tau_yw_visc'][t,:,:,:] = unres_tau_yw_visc[:,:,:]
 
-        var_total_tau_zu_turb[t,:,:,:] = total_tau_zu_turb[:,:,:]
-        var_total_tau_zu_visc[t,:,:,:] = total_tau_zu_visc[:,:,:]
-        var_res_tau_zu_turb[t,:,:,:]   = res_tau_zu_turb[:,:,:]
-        var_res_tau_zu_visc[t,:,:,:]   = res_tau_zu_visc[:,:,:]
-        var_unres_tau_zu_tot[t,:,:,:]  = unres_tau_zu_tot[:,:,:]
-        var_unres_tau_zu_turb[t,:,:,:] = unres_tau_zu_turb[:,:,:]
-        var_unres_tau_zu_visc[t,:,:,:] = unres_tau_zu_visc[:,:,:]
+        a['total_tau_zu_turb'][t,:,:,:] = total_tau_zu_turb[:,:,:]
+        a['total_tau_zu_visc'][t,:,:,:] = total_tau_zu_visc[:,:,:]
+        a['res_tau_zu_turb'][t,:,:,:]   = res_tau_zu_turb[:,:,:]
+        a['res_tau_zu_visc'][t,:,:,:]   = res_tau_zu_visc[:,:,:]
+        a['unres_tau_zu_tot'][t,:,:,:]  = unres_tau_zu_tot[:,:,:]
+        a['unres_tau_zu_turb'][t,:,:,:] = unres_tau_zu_turb[:,:,:]
+        a['unres_tau_zu_visc'][t,:,:,:] = unres_tau_zu_visc[:,:,:]
 
-        var_total_tau_zv_turb[t,:,:,:] = total_tau_zv_turb[:,:,:]
-        var_total_tau_zv_visc[t,:,:,:] = total_tau_zv_visc[:,:,:]
-        var_res_tau_zv_turb[t,:,:,:]   = res_tau_zv_turb[:,:,:]
-        var_res_tau_zv_visc[t,:,:,:]   = res_tau_zv_visc[:,:,:]
-        var_unres_tau_zv_tot[t,:,:,:]  = unres_tau_zv_tot[:,:,:]
-        var_unres_tau_zv_turb[t,:,:,:] = unres_tau_zv_turb[:,:,:]
-        var_unres_tau_zv_visc[t,:,:,:] = unres_tau_zv_visc[:,:,:]
+        a['total_tau_zv_turb'][t,:,:,:] = total_tau_zv_turb[:,:,:]
+        a['total_tau_zv_visc'][t,:,:,:] = total_tau_zv_visc[:,:,:]
+        a['res_tau_zv_turb'][t,:,:,:]   = res_tau_zv_turb[:,:,:]
+        a['res_tau_zv_visc'][t,:,:,:]   = res_tau_zv_visc[:,:,:]
+        a['unres_tau_zv_tot'][t,:,:,:]  = unres_tau_zv_tot[:,:,:]
+        a['unres_tau_zv_turb'][t,:,:,:] = unres_tau_zv_turb[:,:,:]
+        a['unres_tau_zv_visc'][t,:,:,:] = unres_tau_zv_visc[:,:,:]
 
-        var_total_tau_zw_turb[t,:,:,:] = total_tau_zw_turb[:,:,:]
-        var_total_tau_zw_visc[t,:,:,:] = total_tau_zw_visc[:,:,:]
-        var_res_tau_zw_turb[t,:,:,:]   = res_tau_zw_turb[:,:,:]
-        var_res_tau_zw_visc[t,:,:,:]   = res_tau_zw_visc[:,:,:]
-        var_unres_tau_zw_tot[t,:,:,:]  = unres_tau_zw_tot[:,:,:]
-        var_unres_tau_zw_turb[t,:,:,:] = unres_tau_zw_turb[:,:,:]
-        var_unres_tau_zw_visc[t,:,:,:] = unres_tau_zw_visc[:,:,:]
+        a['total_tau_zw_turb'][t,:,:,:] = total_tau_zw_turb[:,:,:]
+        a['total_tau_zw_visc'][t,:,:,:] = total_tau_zw_visc[:,:,:]
+        a['res_tau_zw_turb'][t,:,:,:]   = res_tau_zw_turb[:,:,:]
+        a['res_tau_zw_visc'][t,:,:,:]   = res_tau_zw_visc[:,:,:]
+        a['unres_tau_zw_tot'][t,:,:,:]  = unres_tau_zw_tot[:,:,:]
+        a['unres_tau_zw_turb'][t,:,:,:] = unres_tau_zw_turb[:,:,:]
+        a['unres_tau_zw_visc'][t,:,:,:] = unres_tau_zw_visc[:,:,:]
 
         #Close file
         a.close()
         
         print('End storing output for timestep:', t+1)
+        sys.stdout.flush()
 
         lock1.release()
         
@@ -957,7 +963,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
 
     ##Start pool of workers to parallelize time iteration
 
-    mp.set_start_method('spawn')
+    #mp.set_start_method('spawn'). Already done in main_training.py, don't do it here to preven that context is set multiple times (which causes a crash).
     
     #Define lock
     l = mp.Lock()
@@ -967,7 +973,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
     iterable_args = []
     for t in time:
         iterable_args.append((int(t), testing,bool_edge_gridcell_u,bool_edge_gridcell_v,bool_edge_gridcell_w,input_directory,dim_new_grid,finegrid,igc,jgc,kgc,mvisc,output_directory,name_output_file,periodic_bc,zero_w_topbottom,create_file))
-
+    sys.stdout.flush()
     pool.starmap(_time_loop_training_data_generation, iterable_args)
     pool.close()
     pool.join()

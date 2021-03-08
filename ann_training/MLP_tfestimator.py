@@ -23,11 +23,9 @@ parser = argparse.ArgumentParser(description='microhh_ML')
 parser.add_argument('--checkpoint_dir', type=str, default='.',
                     help='directory where checkpoints are stored')
 parser.add_argument('--input_dir', type=str, default='./',
-                    help='directory where tfrecord files are located')
+                    help='directory where tfrecord files are located. The tfrecord files assumed to be located in subdirectories of input_dir that correspond to different resolutions.')
 parser.add_argument('--stored_means_stdevs_filepath', type=str, default='./means_stdevs_allfields.nc', \
         help='filepath for stored means and standard deviations of input variables, which should refer to a nc-file created as part of the training data')
-parser.add_argument('--training_filepath', type=str, default='./training_data.nc', \
-        help='filepath for stored training file which should contain the friction velocity and be in netCDF-format.')
 parser.add_argument('--benchmark', dest='benchmark', default=None, \
         action='store_true', \
         help='Do a full run when benchmark is false, which includes producing and storing of preditions. Furthermore, in a full run more variables are stored to facilitate reconstruction of the corresponding transport fields. When the benchmark flag is true, the scripts ends immidiately after calculating the validation loss to facilitate benchmark tests.')
@@ -50,6 +48,10 @@ parser.add_argument('--summary_steps', type=int, default=100, \
         help='Every nth step, a summary is written for Tensorboard visualization')
 parser.add_argument('--checkpoint_steps', type=int, default=10000, \
         help='Every nth step, a checkpoint of the model is written')
+parser.add_argument('--train_dir1', type=str, default=None,
+                    help='first directory used for training. If not specified, all directories present in input dir are used for training.')
+parser.add_argument('--train_dir2', type=str, default=None,
+                    help='second directory used for training. If not specified, all directories present in input dir are used for training, or, alternatively, the directory specified with --train_dir1.')
 args = parser.parse_args()
 
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
@@ -164,8 +166,7 @@ def train_input_fn(filenames, batch_size):
     dataset = dataset.shuffle(buffer_size=len(filenames)) #Reshuffle the tfrecord files every epoch, only possible when .cache() is commented out. NOTE:the (prior randomized) content of the files is not reshuffled, so it is not fully random from epoch to epoch.
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     #dataset = dataset.cache() #Put samples from tfrecord files directly in memory
-    #dataset = dataset.shuffle(buffer_size=10000) #NOTE: shuffling operation commented out, which causes the samples to be in the same order every epoch. The shuffling would require a large buffer size because of the relatively large batches chosen (1000), which would negatively impact the total involved computational effort (especially since each sample contains quite some data in our case). Instead, we 1) randomly shuffled the samples before storing them in tfrecord files (see sample_training_data_tfrecord.py), and 2) we randomized the order of the tfrecord-files before training (see below). Putting the shuffle in front of cache() results in memory saturation issues.
-    dataset = dataset.batch(batch_size, drop_remainder=False)
+    #dataset = dataset.shuffle(buffer_size=10000) #NOTE: shuffling operation commented out, which causes the samples to be in the same order every epoch. The shuffling would require a large buffer size because of the relatively large batches chosen (1000/3000), which would negatively impact the total involved computational effort (especially since each sample contains quite some data in our case). Instead, we 1) randomly shuffled the samples before storing them in tfrecord files (see sample_training_data_tfrecord.py), and 2) we randomized the order of the tfrecord-files before training (see below). Putting the shuffle in front of cache() results in memory saturation issues.
     dataset = dataset.repeat()
     dataset.prefetch(1)
 
@@ -492,52 +493,108 @@ files_per_snapshot = 53 #Number of tfrecord files per time snapshot, with curren
 #Define filenames of tfrecords for training and validation
 nt_total = 31 #Number of time steps that should be used for training/validation/testing, assuming that the number of the time step in the filenames ranges from 1 to nt_total without gaps.
 time_numbers = np.arange(nt_total)
-train_stepnumbers, val_stepnumbers, test_stepnumbers = split_train_val_test(time_numbers, 0.1, 0.1) #Set aside ~10% of files for validation and ~10% for testing (with current settings, this boilds down to 3 independent time-snapshots each for validation and testing.)
-train_filenames = np.zeros((len(train_stepnumbers)*files_per_snapshot,), dtype=object)
-val_filenames   = np.zeros((len(val_stepnumbers)*files_per_snapshot,), dtype=object)
-test_filenames  = np.zeros((len(test_stepnumbers)*files_per_snapshot,), dtype=object)
+train_stepnumbers, val_stepnumbers, test_stepnumbers = split_train_val_test(time_numbers, 0.1, 0.1) #Set aside ~10% of files for validation and ~10% for testing (with current settings, this results in 3 independent time-snapshots each for validation and testing.)
+#Extract training filenames for specified training dirs, or all subdirectories if none are specified
+if args.train_dir1 is not None:
+    train_filenames_dir1 = []
+    val_filenames_dir1 = []
+    for train_step in train_stepnumbers:
+        train_filenames_dir1 += glob.glob(args.input_dir + args.train_dir1 + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+    for val_step in val_stepnumbers:
+        val_filenames_dir1 += glob.glob(args.input_dir + args.train_dir1 + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
 
-k=0
-for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
+if args.train_dir2 is not None:
+    train_filenames_dir2 = []
+    val_filenames_dir2 = []
+    for train_step in train_stepnumbers:
+        train_filenames_dir2 += glob.glob(args.input_dir + args.train_dir2 + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+    for val_step in val_stepnumbers:
+        val_filenames_dir2 += glob.glob(args.input_dir + args.train_dir2 + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
 
-    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
+if (args.train_dir1 is None) and (args.train_dir2 is None):
+    train_dirs = glob.glob(args.input_dir + '*')
+    num_train_dirs = len(train_dirs)
+    train_filenames_dirs = [[] for _ in range(num_train_dirs)]
+    val_filenames_dirs = [[] for _ in range(num_train_dirs)] #Prevent aliasing by initializing the list of lists like this
+    for n in range(num_train_dirs):
+        for train_step in train_stepnumbers:
+            train_filenames_dirs[n] += glob.glob(str(train_dirs[n]) + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+        for val_step in val_stepnumbers:
+            val_filenames_dirs[n] += glob.glob(str(train_dirs[n]) + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+#Make final training file list; ensure different resolutions are equally selected to prevent biased training
+train_filenames = []
+val_filenames = []
+if (args.train_dir1 is None) and (args.train_dir2 is None):
+    #Determine maximum length of training/validation dirs
+    num_train_dirs = len(train_dirs)
+    max_len_train = len(train_filenames_dirs[0])
+    max_len_val   = len(val_filenames_dirs[0])
+    for n in range(1,num_train_dirs):
+        if len(train_filenames_dirs[n]) > max_len_train:
+            max_len_train = len(train_filenames_dirs[n])
+        if len(val_filenames_dirs[n]) > max_len_val:
+            max_len_val   = len(val_filenames_dirs[n])
 
-        train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
+    #Make list, repeat shorter lists to ensure all resolutions are equally represented in each batch
+    for i in range(max_len_train):
+        for n in range(num_train_dirs):
+            train_filenames += [train_filenames_dirs[n][i % len(train_filenames_dirs[n])]]
+    
+    for i in range(max_len_val):
+        for n in range(num_train_dirs):
+            val_filenames += [val_filenames_dirs[n][i % len(val_filenames_dirs[n])]]
 
-        k+=1
 
-k=0
-for val_stepnumber in val_stepnumbers: #Generate validation filenames from selected step numbers and total steps
+elif (args.train_dir1 is not None) and (args.train_dir2 is not None):
+    #Determine maximum length of training/validation dirs
+    len1_train = len(train_filenames_dir1)
+    len2_train = len(train_filenames_dir2)
+    max_len_train = max(len1_train,len2_train) 
+    len1_val   = len(val_filenames_dir1)
+    len2_val   = len(val_filenames_dir2)
+    max_len_val = max(len1_val,len2_val) 
 
-    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
+    #Make list, repeat shorter lists to ensure all resolutions are equally represented in each batch
+    for i in range(max_len_train):
+        train_filenames += [train_filenames_dir1[i % len1_train]]
+        train_filenames += [train_filenames_dir2[i % len2_train]]
+    for i in range(max_len_val):
+        val_filenames += [val_filenames_dir1[i % len1_val]]
+        val_filenames += [val_filenames_dir2[i % len2_val]]
 
-        val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
+elif args.train_dir1 is not None:
+    train_filenames = train_filenames_dir1
+    val_filenames   = val_filenames_dir1
 
-        k+=1
-k=0
-for test_stepnumber in test_stepnumbers: #Generate testing filenames from selected step numbers and total steps
+elif args.train_dir2 is not None:
+    train_filenames = train_filenames_dir2
+    val_filenames   = val_filenames_dir2
 
-    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
-
-        test_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(test_stepnumber+1, nt_total, i+1)
-
-        k+=1
+#Extract test filenames for all subdirectories, such the ANN is tested for all incorporated resolutions in input_dir.
+test_filenames = [] #NOTE: here, no need to ensure that all resolutions (subdirectories) are equally represented 
+test_dirs = glob.glob(args.input_dir + '*')
+num_test_dirs = len(test_dirs)
+test_filenames_dirs = [[]] * num_test_dirs
+for n in range(num_test_dirs):
+    for test_step in test_stepnumbers:
+        test_filenames += glob.glob(str(test_dirs[n]) + '/training_time_step_' + str(test_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf]*')
 
 #Randomly shuffle filenames
-np.random.shuffle(train_filenames)
+#np.random.shuffle(train_filenames) #NOTE: NOT needed, samples were already shuffled before stored in tfrecord files. The current order ensures that each batch (if chosen to be an exact multiple of the number of training subdirectories/resolutions) has an equal share of every resolution used for training.
 
 #Print filenames to check
 np.set_printoptions(threshold=np.inf)
 print("Training files:")
-print(train_filenames)
-print(train_filenames.shape)
+print('\n'.join(train_filenames))
+print(len(train_filenames))
 print("Validation files:")
-print(val_filenames)
-print(val_filenames.shape)
+print('\n'.join(val_filenames))
+print(len(val_filenames))
 print("Testing files:")
-print(test_filenames)
-print(test_filenames.shape)
+print('\n'.join(test_filenames))
+print(len(test_filenames))
 
+crash=true
 #Extract means and stdevs for input variables (which is needed for the normalisation).
 means_stdevs_filepath = args.stored_means_stdevs_filepath
 means_stdevs_file     = nc.Dataset(means_stdevs_filepath, 'r')

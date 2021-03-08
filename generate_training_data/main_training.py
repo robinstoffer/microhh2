@@ -9,6 +9,8 @@ from sample_training_data_tfrecord import generate_samples
 
 if __name__ == "__main__":
 
+    mp.set_start_method('spawn')
+
     input_directory = '/projects/1/flowsim/gmd_preprint_moser600_dns_run/'
     settings_filepath = '/projects/1/flowsim/gmd_preprint_moser600_dns_run/moser600.ini'
     grid_filepath = '/projects/1/flowsim/gmd_preprint_moser600_dns_run/grid.0000000'
@@ -16,25 +18,25 @@ if __name__ == "__main__":
     name_boxfilter_file = 'dns_boxfilter.nc'
      
     #Generate training data and samples
-    #8dx
+    ##8dx
     output_directory = '/projects/1/flowsim/gmd_training_data/8dx4dz/'
     training_filepath = output_directory + name_training_file
     sampling_filepath = output_directory + 'samples_training.nc'
     means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
-    
-    generate_training_data((64,48,96), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+    #
+    #generate_training_data((64,48,96), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
     ##Generate samples stored in tfrecord-files
-    #generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)
+    generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)
     
-    #4dx
+    ##4dx
     output_directory = '/projects/1/flowsim/gmd_training_data/4dx4dz/'
     training_filepath = output_directory + name_training_file
     sampling_filepath = output_directory + 'samples_training.nc'
     means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
-    #
-    generate_training_data((64,96,192), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+    ##
+    #generate_training_data((64,96,192), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
     ##Generate samples stored in tfrecord-files
-    #generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)
+    generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)
     
     #12dx
     output_directory = '/projects/1/flowsim/gmd_training_data/12dx4dz/'
@@ -42,10 +44,10 @@ if __name__ == "__main__":
     sampling_filepath = output_directory + 'samples_training.nc'
     means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
     
-    generate_training_data((64,32,64), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+    #generate_training_data((64,32,64), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
     #
     ##Generate samples stored in tfrecord-files
-    #generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)
+    generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_tfrecord = True, store_means_stdevs = True)
     
     ##test
     #output_directory = '/projects/1/flowsim/gmd_training_data/test/'
