@@ -560,7 +560,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}_file_{}_numsamples_1000.tfrecords'.format('training', t+1, nt, num_file+1))
                 
                 if num_file == (tot_num_files - 1):
-                    slice_samples = np.s_[num_file * nsamples_per_tfrecord:] #Select all remaining samples, which should be less than 10000
+                    slice_samples = np.s_[num_file * nsamples_per_tfrecord:] #Select all remaining samples, which should be less than 1000
                 else:
                     slice_samples = np.s_[num_file * nsamples_per_tfrecord: (num_file+1) * nsamples_per_tfrecord]
 

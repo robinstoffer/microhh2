@@ -24,8 +24,8 @@ parser.add_argument('--checkpoint_dir', type=str, default='.',
                     help='directory where checkpoints are stored')
 parser.add_argument('--input_dir', type=str, default='./',
                     help='directory where tfrecord files are located. The tfrecord files assumed to be located in subdirectories of input_dir that correspond to different resolutions.')
-parser.add_argument('--stored_means_stdevs_filepath', type=str, default='./means_stdevs_allfields.nc', \
-        help='filepath for stored means and standard deviations of input variables, which should refer to a nc-file created as part of the training data')
+parser.add_argument('--stored_means_stdevs_filename', type=str, default='means_stdevs_allfields.nc', \
+        help='name of netcdf-file with stored means and standard deviations of input and output variables, which should refer to a nc-file created as part of the training data. It is assumed that the training data associated with multiple resolutions is stored in multiple subdirectories, where each resolution/subdirectory has a separate nc-file with the stored means/stdevs with the provided name.')
 parser.add_argument('--benchmark', dest='benchmark', default=None, \
         action='store_true', \
         help='Do a full run when benchmark is false, which includes producing and storing of preditions. Furthermore, in a full run more variables are stored to facilitate reconstruction of the corresponding transport fields. When the benchmark flag is true, the scripts ends immidiately after calculating the validation loss to facilitate benchmark tests.')
@@ -167,6 +167,7 @@ def train_input_fn(filenames, batch_size):
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     #dataset = dataset.cache() #Put samples from tfrecord files directly in memory
     #dataset = dataset.shuffle(buffer_size=10000) #NOTE: shuffling operation commented out, which causes the samples to be in the same order every epoch. The shuffling would require a large buffer size because of the relatively large batches chosen (1000/3000), which would negatively impact the total involved computational effort (especially since each sample contains quite some data in our case). Instead, we 1) randomly shuffled the samples before storing them in tfrecord files (see sample_training_data_tfrecord.py), and 2) we randomized the order of the tfrecord-files before training (see below). Putting the shuffle in front of cache() results in memory saturation issues.
+    dataset = dataset.batch(batch_size, drop_remainder=False)
     dataset = dataset.repeat()
     dataset.prefetch(1)
 
@@ -499,17 +500,17 @@ if args.train_dir1 is not None:
     train_filenames_dir1 = []
     val_filenames_dir1 = []
     for train_step in train_stepnumbers:
-        train_filenames_dir1 += glob.glob(args.input_dir + args.train_dir1 + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+        train_filenames_dir1 += glob.glob(args.input_dir + args.train_dir1 + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
     for val_step in val_stepnumbers:
-        val_filenames_dir1 += glob.glob(args.input_dir + args.train_dir1 + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+        val_filenames_dir1 += glob.glob(args.input_dir + args.train_dir1 + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
 
 if args.train_dir2 is not None:
     train_filenames_dir2 = []
     val_filenames_dir2 = []
     for train_step in train_stepnumbers:
-        train_filenames_dir2 += glob.glob(args.input_dir + args.train_dir2 + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+        train_filenames_dir2 += glob.glob(args.input_dir + args.train_dir2 + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
     for val_step in val_stepnumbers:
-        val_filenames_dir2 += glob.glob(args.input_dir + args.train_dir2 + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+        val_filenames_dir2 += glob.glob(args.input_dir + args.train_dir2 + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
 
 if (args.train_dir1 is None) and (args.train_dir2 is None):
     train_dirs = glob.glob(args.input_dir + '*')
@@ -518,9 +519,9 @@ if (args.train_dir1 is None) and (args.train_dir2 is None):
     val_filenames_dirs = [[] for _ in range(num_train_dirs)] #Prevent aliasing by initializing the list of lists like this
     for n in range(num_train_dirs):
         for train_step in train_stepnumbers:
-            train_filenames_dirs[n] += glob.glob(str(train_dirs[n]) + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+            train_filenames_dirs[n] += glob.glob(str(train_dirs[n]) + '/training_time_step_' + str(train_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
         for val_step in val_stepnumbers:
-            val_filenames_dirs[n] += glob.glob(str(train_dirs[n]) + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf][tfr.]*')
+            val_filenames_dirs[n] += glob.glob(str(train_dirs[n]) + '/training_time_step_' + str(val_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
 #Make final training file list; ensure different resolutions are equally selected to prevent biased training
 train_filenames = []
 val_filenames = []
@@ -577,7 +578,12 @@ num_test_dirs = len(test_dirs)
 test_filenames_dirs = [[]] * num_test_dirs
 for n in range(num_test_dirs):
     for test_step in test_stepnumbers:
-        test_filenames += glob.glob(str(test_dirs[n]) + '/training_time_step_' + str(test_step+1) + '_of_' + str(nt_total) + '_file_[0-9][0-9.][0-9.t][0-9.tf]*')
+        test_filenames += glob.glob(str(test_dirs[n]) + '/training_time_step_' + str(test_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
+
+#Reduce number of validation files if above 2000, to keep computational effort feasible. This is reasonable, as each tfrecord is already randomly shuffled and, if present, the different resolutions are interchanged sequentially in val_filenames.
+max_val_files = 2000
+if len(val_filenames) > max_val_files:
+    val_filenames = val_filenames[:max_val_files]
 
 #Randomly shuffle filenames
 #np.random.shuffle(train_filenames) #NOTE: NOT needed, samples were already shuffled before stored in tfrecord files. The current order ensures that each batch (if chosen to be an exact multiple of the number of training subdirectories/resolutions) has an equal share of every resolution used for training.
@@ -585,80 +591,130 @@ for n in range(num_test_dirs):
 #Print filenames to check
 np.set_printoptions(threshold=np.inf)
 print("Training files:")
-print('\n'.join(train_filenames))
+#print('\n'.join(train_filenames))
 print(len(train_filenames))
 print("Validation files:")
-print('\n'.join(val_filenames))
+#print('\n'.join(val_filenames))
 print(len(val_filenames))
 print("Testing files:")
-print('\n'.join(test_filenames))
+#print('\n'.join(test_filenames))
 print(len(test_filenames))
 
-crash=true
 #Extract means and stdevs for input variables (which is needed for the normalisation).
-means_stdevs_filepath = args.stored_means_stdevs_filepath
-means_stdevs_file     = nc.Dataset(means_stdevs_filepath, 'r')
+means_stdevs_filename = args.stored_means_stdevs_filename
 
+if (args.train_dir1 is None) and (args.train_dir2 is None):
+    iter_range = range(num_train_dirs)
+    train_dirs = glob.glob(args.input_dir + '*') #Repeated for the sake of clarity of the code
+elif (args.train_dir1 is not None) and (args.train_dir2 is not None):
+    iter_range = range(2)
+    train_dirs = [args.input_dir + args.train_dir1, args.input_dir + args.train_dir2]
+elif (args.train_dir1 is not None):
+    iter_range = range(1)
+    train_dirs = [args.input_dir + args.train_dir1]
+elif (args.train_dir2 is not None):
+    iter_range = range(1)
+    train_dirs = [args.input_dir + args.train_dir2]
+else:
+    raise RuntimeError("This condition should not have been reached. Check code for errors.")
+
+
+#Initialize dictionary for calculation means+stdevs over resolutions
 means_dict_t  = {}
 stdevs_dict_t = {}
-means_dict_t['uc'] = np.array(means_stdevs_file['mean_uc'][:])
-means_dict_t['vc'] = np.array(means_stdevs_file['mean_vc'][:])
-means_dict_t['wc'] = np.array(means_stdevs_file['mean_wc'][:])
+means_dict_t['uc']  = np.empty((nt_total, len(iter_range)))
+means_dict_t['vc']  = np.empty((nt_total, len(iter_range)))
+means_dict_t['wc']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['uc']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['vc']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['wc']  = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_xu_sample']  = np.empty((nt_total, len(iter_range))) 
+stdevs_dict_t['unres_tau_xu_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_yu_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_yu_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_zu_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_zu_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_xv_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_xv_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_yv_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_yv_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_zv_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_zv_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_xw_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_xw_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_yw_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_yw_sample'] = np.empty((nt_total, len(iter_range)))
+means_dict_t['unres_tau_zw_sample']  = np.empty((nt_total, len(iter_range)))
+stdevs_dict_t['unres_tau_zw_sample'] = np.empty((nt_total, len(iter_range)))
 
-stdevs_dict_t['uc'] = np.array(means_stdevs_file['stdev_uc'][:])
-stdevs_dict_t['vc'] = np.array(means_stdevs_file['stdev_vc'][:])
-stdevs_dict_t['wc'] = np.array(means_stdevs_file['stdev_wc'][:])
+    #
+for n in iter_range:
+    means_stdevs_file     = nc.Dataset(train_dirs[n] + '/' + means_stdevs_filename, 'r')
+     
+    means_dict_t['uc'][:,n] = np.array(means_stdevs_file['mean_uc'][:])
+    means_dict_t['vc'][:,n] = np.array(means_stdevs_file['mean_vc'][:])
+    means_dict_t['wc'][:,n] = np.array(means_stdevs_file['mean_wc'][:])
+    
+    stdevs_dict_t['uc'][:,n] = np.array(means_stdevs_file['stdev_uc'][:])
+    stdevs_dict_t['vc'][:,n] = np.array(means_stdevs_file['stdev_vc'][:])
+    stdevs_dict_t['wc'][:,n] = np.array(means_stdevs_file['stdev_wc'][:])
+    
+    #Extract mean & standard deviation labels
+    means_dict_t['unres_tau_xu_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_xu_sample'][:])
+    stdevs_dict_t['unres_tau_xu_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_xu_sample'][:])
+    means_dict_t['unres_tau_yu_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_yu_sample'][:])
+    stdevs_dict_t['unres_tau_yu_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_yu_sample'][:])
+    means_dict_t['unres_tau_zu_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_zu_sample'][:])
+    stdevs_dict_t['unres_tau_zu_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_zu_sample'][:])
+    means_dict_t['unres_tau_xv_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_xv_sample'][:])
+    stdevs_dict_t['unres_tau_xv_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_xv_sample'][:])
+    means_dict_t['unres_tau_yv_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_yv_sample'][:])
+    stdevs_dict_t['unres_tau_yv_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_yv_sample'][:])
+    means_dict_t['unres_tau_zv_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_zv_sample'][:])
+    stdevs_dict_t['unres_tau_zv_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_zv_sample'][:])
+    means_dict_t['unres_tau_xw_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_xw_sample'][:])
+    stdevs_dict_t['unres_tau_xw_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_xw_sample'][:])
+    means_dict_t['unres_tau_yw_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_yw_sample'][:])
+    stdevs_dict_t['unres_tau_yw_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_yw_sample'][:])
+    means_dict_t['unres_tau_zw_sample'][:,n]  = np.array(means_stdevs_file['mean_unres_tau_zw_sample'][:])
+    stdevs_dict_t['unres_tau_zw_sample'][:,n] = np.array(means_stdevs_file['stdev_unres_tau_zw_sample'][:])
 
-#Extract mean & standard deviation labels
-means_dict_t['unres_tau_xu_sample']    = np.array(means_stdevs_file['mean_unres_tau_xu_sample'][:])
-stdevs_dict_t['unres_tau_xu_sample']   = np.array(means_stdevs_file['stdev_unres_tau_xu_sample'][:])
-means_dict_t['unres_tau_yu_sample']    = np.array(means_stdevs_file['mean_unres_tau_yu_sample'][:])
-stdevs_dict_t['unres_tau_yu_sample']   = np.array(means_stdevs_file['stdev_unres_tau_yu_sample'][:])
-means_dict_t['unres_tau_zu_sample']    = np.array(means_stdevs_file['mean_unres_tau_zu_sample'][:])
-stdevs_dict_t['unres_tau_zu_sample']   = np.array(means_stdevs_file['stdev_unres_tau_zu_sample'][:])
-means_dict_t['unres_tau_xv_sample']    = np.array(means_stdevs_file['mean_unres_tau_xv_sample'][:])
-stdevs_dict_t['unres_tau_xv_sample']   = np.array(means_stdevs_file['stdev_unres_tau_xv_sample'][:])
-means_dict_t['unres_tau_yv_sample']    = np.array(means_stdevs_file['mean_unres_tau_yv_sample'][:])
-stdevs_dict_t['unres_tau_yv_sample']   = np.array(means_stdevs_file['stdev_unres_tau_yv_sample'][:])
-means_dict_t['unres_tau_zv_sample']    = np.array(means_stdevs_file['mean_unres_tau_zv_sample'][:])
-stdevs_dict_t['unres_tau_zv_sample']   = np.array(means_stdevs_file['stdev_unres_tau_zv_sample'][:])
-means_dict_t['unres_tau_xw_sample']    = np.array(means_stdevs_file['mean_unres_tau_xw_sample'][:])
-stdevs_dict_t['unres_tau_xw_sample']   = np.array(means_stdevs_file['stdev_unres_tau_xw_sample'][:])
-means_dict_t['unres_tau_yw_sample']    = np.array(means_stdevs_file['mean_unres_tau_yw_sample'][:])
-stdevs_dict_t['unres_tau_yw_sample']   = np.array(means_stdevs_file['stdev_unres_tau_yw_sample'][:])
-means_dict_t['unres_tau_zw_sample']    = np.array(means_stdevs_file['mean_unres_tau_zw_sample'][:])
-stdevs_dict_t['unres_tau_zw_sample']   = np.array(means_stdevs_file['stdev_unres_tau_zw_sample'][:])
-
-#Take average over training time steps
+    #Close nc-file
+    means_stdevs_file.close()
+    
+#Take average over training time steps and resolutions
 means_dict_avgt  = {}
 stdevs_dict_avgt = {}
 #
-means_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
-means_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
-means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
+means_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers,:])
+means_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers,:])
+means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers,:])
 #
-stdevs_dict_avgt['uc'] = np.mean(stdevs_dict_t['uc'][train_stepnumbers])
-stdevs_dict_avgt['vc'] = np.mean(stdevs_dict_t['vc'][train_stepnumbers])
-stdevs_dict_avgt['wc'] = np.mean(stdevs_dict_t['wc'][train_stepnumbers])
+stdevs_dict_avgt['uc'] = np.mean(stdevs_dict_t['uc'][train_stepnumbers,:])
+stdevs_dict_avgt['vc'] = np.mean(stdevs_dict_t['vc'][train_stepnumbers,:])
+stdevs_dict_avgt['wc'] = np.mean(stdevs_dict_t['wc'][train_stepnumbers,:])
 #
-means_dict_avgt['unres_tau_xu_sample']    = np.mean(means_dict_t['unres_tau_xu_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_xu_sample']   = np.mean(stdevs_dict_t['unres_tau_xu_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_yu_sample']    = np.mean(means_dict_t['unres_tau_yu_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_yu_sample']   = np.mean(stdevs_dict_t['unres_tau_yu_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_zu_sample']    = np.mean(means_dict_t['unres_tau_zu_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_zu_sample']   = np.mean(stdevs_dict_t['unres_tau_zu_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_xv_sample']    = np.mean(means_dict_t['unres_tau_xv_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_xv_sample']   = np.mean(stdevs_dict_t['unres_tau_xv_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_yv_sample']    = np.mean(means_dict_t['unres_tau_yv_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_yv_sample']   = np.mean(stdevs_dict_t['unres_tau_yv_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_zv_sample']    = np.mean(means_dict_t['unres_tau_zv_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_zv_sample']   = np.mean(stdevs_dict_t['unres_tau_zv_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_xw_sample']    = np.mean(means_dict_t['unres_tau_xw_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_xw_sample']   = np.mean(stdevs_dict_t['unres_tau_xw_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_yw_sample']    = np.mean(means_dict_t['unres_tau_yw_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_yw_sample']   = np.mean(stdevs_dict_t['unres_tau_yw_sample'][train_stepnumbers])
-means_dict_avgt['unres_tau_zw_sample']    = np.mean(means_dict_t['unres_tau_zw_sample'][train_stepnumbers])
-stdevs_dict_avgt['unres_tau_zw_sample']   = np.mean(stdevs_dict_t['unres_tau_zw_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_xu_sample']    = np.mean(means_dict_t['unres_tau_xu_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_xu_sample']   = np.mean(stdevs_dict_t['unres_tau_xu_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_yu_sample']    = np.mean(means_dict_t['unres_tau_yu_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_yu_sample']   = np.mean(stdevs_dict_t['unres_tau_yu_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_zu_sample']    = np.mean(means_dict_t['unres_tau_zu_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_zu_sample']   = np.mean(stdevs_dict_t['unres_tau_zu_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_xv_sample']    = np.mean(means_dict_t['unres_tau_xv_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_xv_sample']   = np.mean(stdevs_dict_t['unres_tau_xv_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_yv_sample']    = np.mean(means_dict_t['unres_tau_yv_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_yv_sample']   = np.mean(stdevs_dict_t['unres_tau_yv_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_zv_sample']    = np.mean(means_dict_t['unres_tau_zv_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_zv_sample']   = np.mean(stdevs_dict_t['unres_tau_zv_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_xw_sample']    = np.mean(means_dict_t['unres_tau_xw_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_xw_sample']   = np.mean(stdevs_dict_t['unres_tau_xw_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_yw_sample']    = np.mean(means_dict_t['unres_tau_yw_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_yw_sample']   = np.mean(stdevs_dict_t['unres_tau_yw_sample'][train_stepnumbers,:])
+means_dict_avgt['unres_tau_zw_sample']    = np.mean(means_dict_t['unres_tau_zw_sample'][train_stepnumbers,:])
+stdevs_dict_avgt['unres_tau_zw_sample']   = np.mean(stdevs_dict_t['unres_tau_zw_sample'][train_stepnumbers,:])
+
+print('means avg: ', means_dict_avgt)
+print('stdevs avg: ', stdevs_dict_avgt)
 
 #Set configuration
 config = tf.ConfigProto(log_device_placement=False)
@@ -712,596 +768,614 @@ tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 #NOTE1: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
 #NOTE2: the resulting predictions and labels are automatically stored in a netCDF-file called MLP_predictions.nc, which is placed in the specified checkpoint_dir.
 #NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file and other scripts.
+#NOTE4: Regardless how the ANN is trained, it is tested separately for all resolutions/subdirectories. A netCDF-file is created for each resolution.
 
 if args.benchmark is None:
     print('Inference mode started.')
+
+    samples_per_tfrecord = 1000 #Hard-coded value used to ensure correct inference. Change if number of samples per tfrecord is changed.
     
-    #Create netCDF-file to store predictions and labels
-    filepath = args.checkpoint_dir + '/MLP_predictions.nc'
-    predictions_file = nc.Dataset(filepath, 'w')
-    dim_ns = predictions_file.createDimension("ns",None)
-    
-    #Create variables for storage
-    var_pred_tau_xu_upstream        = predictions_file.createVariable("preds_values_tau_xu_upstream","f8",("ns",))
-    var_pred_random_tau_xu_upstream = predictions_file.createVariable("preds_values_random_tau_xu_upstream","f8",("ns",))
-    var_lbl_tau_xu_upstream         = predictions_file.createVariable("lbls_values_tau_xu_upstream","f8",("ns",))
-    var_res_tau_xu_upstream         = predictions_file.createVariable("residuals_tau_xu_upstream","f8",("ns",))
-    var_res_random_tau_xu_upstream  = predictions_file.createVariable("residuals_random_tau_xu_upstream","f8",("ns",))
-    #
-    var_pred_tau_xu_downstream        = predictions_file.createVariable("preds_values_tau_xu_downstream","f8",("ns",))
-    var_pred_random_tau_xu_downstream = predictions_file.createVariable("preds_values_random_tau_xu_downstream","f8",("ns",))
-    var_lbl_tau_xu_downstream         = predictions_file.createVariable("lbls_values_tau_xu_downstream","f8",("ns",))
-    var_res_tau_xu_downstream         = predictions_file.createVariable("residuals_tau_xu_downstream","f8",("ns",))
-    var_res_random_tau_xu_downstream  = predictions_file.createVariable("residuals_random_tau_xu_downstream","f8",("ns",))
-    #
-    var_pred_tau_yu_upstream        = predictions_file.createVariable("preds_values_tau_yu_upstream","f8",("ns",))
-    var_pred_random_tau_yu_upstream = predictions_file.createVariable("preds_values_random_tau_yu_upstream","f8",("ns",))
-    var_lbl_tau_yu_upstream         = predictions_file.createVariable("lbls_values_tau_yu_upstream","f8",("ns",))
-    var_res_tau_yu_upstream         = predictions_file.createVariable("residuals_tau_yu_upstream","f8",("ns",))
-    var_res_random_tau_yu_upstream  = predictions_file.createVariable("residuals_random_tau_yu_upstream","f8",("ns",))
-    #
-    var_pred_tau_yu_downstream        = predictions_file.createVariable("preds_values_tau_yu_downstream","f8",("ns",))
-    var_pred_random_tau_yu_downstream = predictions_file.createVariable("preds_values_random_tau_yu_downstream","f8",("ns",))
-    var_lbl_tau_yu_downstream         = predictions_file.createVariable("lbls_values_tau_yu_downstream","f8",("ns",))
-    var_res_tau_yu_downstream         = predictions_file.createVariable("residuals_tau_yu_downstream","f8",("ns",))
-    var_res_random_tau_yu_downstream  = predictions_file.createVariable("residuals_random_tau_yu_downstream","f8",("ns",))
-    #
-    var_pred_tau_zu_upstream        = predictions_file.createVariable("preds_values_tau_zu_upstream","f8",("ns",))
-    var_pred_random_tau_zu_upstream = predictions_file.createVariable("preds_values_random_tau_zu_upstream","f8",("ns",))
-    var_lbl_tau_zu_upstream         = predictions_file.createVariable("lbls_values_tau_zu_upstream","f8",("ns",))
-    var_res_tau_zu_upstream         = predictions_file.createVariable("residuals_tau_zu_upstream","f8",("ns",))
-    var_res_random_tau_zu_upstream  = predictions_file.createVariable("residuals_random_tau_zu_upstream","f8",("ns",))
-    #
-    var_pred_tau_zu_downstream        = predictions_file.createVariable("preds_values_tau_zu_downstream","f8",("ns",))
-    var_pred_random_tau_zu_downstream = predictions_file.createVariable("preds_values_random_tau_zu_downstream","f8",("ns",))
-    var_lbl_tau_zu_downstream         = predictions_file.createVariable("lbls_values_tau_zu_downstream","f8",("ns",))
-    var_res_tau_zu_downstream         = predictions_file.createVariable("residuals_tau_zu_downstream","f8",("ns",))
-    var_res_random_tau_zu_downstream  = predictions_file.createVariable("residuals_random_tau_zu_downstream","f8",("ns",))
-    #
-    var_pred_tau_xv_upstream        = predictions_file.createVariable("preds_values_tau_xv_upstream","f8",("ns",))
-    var_pred_random_tau_xv_upstream = predictions_file.createVariable("preds_values_random_tau_xv_upstream","f8",("ns",))
-    var_lbl_tau_xv_upstream         = predictions_file.createVariable("lbls_values_tau_xv_upstream","f8",("ns",))
-    var_res_tau_xv_upstream         = predictions_file.createVariable("residuals_tau_xv_upstream","f8",("ns",))
-    var_res_random_tau_xv_upstream  = predictions_file.createVariable("residuals_random_tau_xv_upstream","f8",("ns",))
-    #
-    var_pred_tau_xv_downstream        = predictions_file.createVariable("preds_values_tau_xv_downstream","f8",("ns",))
-    var_pred_random_tau_xv_downstream = predictions_file.createVariable("preds_values_random_tau_xv_downstream","f8",("ns",))
-    var_lbl_tau_xv_downstream         = predictions_file.createVariable("lbls_values_tau_xv_downstream","f8",("ns",))
-    var_res_tau_xv_downstream         = predictions_file.createVariable("residuals_tau_xv_downstream","f8",("ns",))
-    var_res_random_tau_xv_downstream  = predictions_file.createVariable("residuals_random_tau_xv_downstream","f8",("ns",))
-    #
-    var_pred_tau_yv_upstream        = predictions_file.createVariable("preds_values_tau_yv_upstream","f8",("ns",))
-    var_pred_random_tau_yv_upstream = predictions_file.createVariable("preds_values_random_tau_yv_upstream","f8",("ns",))
-    var_lbl_tau_yv_upstream         = predictions_file.createVariable("lbls_values_tau_yv_upstream","f8",("ns",))
-    var_res_tau_yv_upstream         = predictions_file.createVariable("residuals_tau_yv_upstream","f8",("ns",))
-    var_res_random_tau_yv_upstream  = predictions_file.createVariable("residuals_random_tau_yv_upstream","f8",("ns",))
-    #
-    var_pred_tau_yv_downstream        = predictions_file.createVariable("preds_values_tau_yv_downstream","f8",("ns",))
-    var_pred_random_tau_yv_downstream = predictions_file.createVariable("preds_values_random_tau_yv_downstream","f8",("ns",))
-    var_lbl_tau_yv_downstream         = predictions_file.createVariable("lbls_values_tau_yv_downstream","f8",("ns",))
-    var_res_tau_yv_downstream         = predictions_file.createVariable("residuals_tau_yv_downstream","f8",("ns",))
-    var_res_random_tau_yv_downstream  = predictions_file.createVariable("residuals_random_tau_yv_downstream","f8",("ns",))
-    #
-    var_pred_tau_zv_upstream        = predictions_file.createVariable("preds_values_tau_zv_upstream","f8",("ns",))
-    var_pred_random_tau_zv_upstream = predictions_file.createVariable("preds_values_random_tau_zv_upstream","f8",("ns",))
-    var_lbl_tau_zv_upstream         = predictions_file.createVariable("lbls_values_tau_zv_upstream","f8",("ns",))
-    var_res_tau_zv_upstream         = predictions_file.createVariable("residuals_tau_zv_upstream","f8",("ns",))
-    var_res_random_tau_zv_upstream  = predictions_file.createVariable("residuals_random_tau_zv_upstream","f8",("ns",))
-    #
-    var_pred_tau_zv_downstream        = predictions_file.createVariable("preds_values_tau_zv_downstream","f8",("ns",))
-    var_pred_random_tau_zv_downstream = predictions_file.createVariable("preds_values_random_tau_zv_downstream","f8",("ns",))
-    var_lbl_tau_zv_downstream         = predictions_file.createVariable("lbls_values_tau_zv_downstream","f8",("ns",))
-    var_res_tau_zv_downstream         = predictions_file.createVariable("residuals_tau_zv_downstream","f8",("ns",))
-    var_res_random_tau_zv_downstream  = predictions_file.createVariable("residuals_random_tau_zv_downstream","f8",("ns",))
-    #
-    var_pred_tau_xw_upstream        = predictions_file.createVariable("preds_values_tau_xw_upstream","f8",("ns",))
-    var_pred_random_tau_xw_upstream = predictions_file.createVariable("preds_values_random_tau_xw_upstream","f8",("ns",))
-    var_lbl_tau_xw_upstream         = predictions_file.createVariable("lbls_values_tau_xw_upstream","f8",("ns",))
-    var_res_tau_xw_upstream         = predictions_file.createVariable("residuals_tau_xw_upstream","f8",("ns",))
-    var_res_random_tau_xw_upstream  = predictions_file.createVariable("residuals_random_tau_xw_upstream","f8",("ns",))
-    #
-    var_pred_tau_xw_downstream        = predictions_file.createVariable("preds_values_tau_xw_downstream","f8",("ns",))
-    var_pred_random_tau_xw_downstream = predictions_file.createVariable("preds_values_random_tau_xw_downstream","f8",("ns",))
-    var_lbl_tau_xw_downstream         = predictions_file.createVariable("lbls_values_tau_xw_downstream","f8",("ns",))
-    var_res_tau_xw_downstream         = predictions_file.createVariable("residuals_tau_xw_downstream","f8",("ns",))
-    var_res_random_tau_xw_downstream  = predictions_file.createVariable("residuals_random_tau_xw_downstream","f8",("ns",))
-    #
-    var_pred_tau_yw_upstream        = predictions_file.createVariable("preds_values_tau_yw_upstream","f8",("ns",))
-    var_pred_random_tau_yw_upstream = predictions_file.createVariable("preds_values_random_tau_yw_upstream","f8",("ns",))
-    var_lbl_tau_yw_upstream         = predictions_file.createVariable("lbls_values_tau_yw_upstream","f8",("ns",))
-    var_res_tau_yw_upstream         = predictions_file.createVariable("residuals_tau_yw_upstream","f8",("ns",))
-    var_res_random_tau_yw_upstream  = predictions_file.createVariable("residuals_random_tau_yw_upstream","f8",("ns",))
-    #
-    var_pred_tau_yw_downstream        = predictions_file.createVariable("preds_values_tau_yw_downstream","f8",("ns",))
-    var_pred_random_tau_yw_downstream = predictions_file.createVariable("preds_values_random_tau_yw_downstream","f8",("ns",))
-    var_lbl_tau_yw_downstream         = predictions_file.createVariable("lbls_values_tau_yw_downstream","f8",("ns",))
-    var_res_tau_yw_downstream         = predictions_file.createVariable("residuals_tau_yw_downstream","f8",("ns",))
-    var_res_random_tau_yw_downstream  = predictions_file.createVariable("residuals_random_tau_yw_downstream","f8",("ns",))
-    #
-    var_pred_tau_zw_upstream        = predictions_file.createVariable("preds_values_tau_zw_upstream","f8",("ns",))
-    var_pred_random_tau_zw_upstream = predictions_file.createVariable("preds_values_random_tau_zw_upstream","f8",("ns",))
-    var_lbl_tau_zw_upstream         = predictions_file.createVariable("lbls_values_tau_zw_upstream","f8",("ns",))
-    var_res_tau_zw_upstream         = predictions_file.createVariable("residuals_tau_zw_upstream","f8",("ns",))
-    var_res_random_tau_zw_upstream  = predictions_file.createVariable("residuals_random_tau_zw_upstream","f8",("ns",))
-    #
-    var_pred_tau_zw_downstream        = predictions_file.createVariable("preds_values_tau_zw_downstream","f8",("ns",))
-    var_pred_random_tau_zw_downstream = predictions_file.createVariable("preds_values_random_tau_zw_downstream","f8",("ns",))
-    var_lbl_tau_zw_downstream         = predictions_file.createVariable("lbls_values_tau_zw_downstream","f8",("ns",))
-    var_res_tau_zw_downstream         = predictions_file.createVariable("residuals_tau_zw_downstream","f8",("ns",))
-    var_res_random_tau_zw_downstream  = predictions_file.createVariable("residuals_random_tau_zw_downstream","f8",("ns",))
-    #
-    vartstep               = predictions_file.createVariable("tstep_samples","f8",("ns",))
-    varzhloc               = predictions_file.createVariable("zhloc_samples","f8",("ns",))
-    varzloc                = predictions_file.createVariable("zloc_samples","f8",("ns",))
-    varyhloc               = predictions_file.createVariable("yhloc_samples","f8",("ns",))
-    varyloc                = predictions_file.createVariable("yloc_samples","f8",("ns",))
-    varxhloc               = predictions_file.createVariable("xhloc_samples","f8",("ns",))
-    varxloc                = predictions_file.createVariable("xloc_samples","f8",("ns",))
-    
-    #Initialize variables for keeping track of iterations
-    tot_sample_end = 0
-    tot_sample_begin = 0
-    
-    #Intialize flag to store inference graph only once
-    store_graph = True
-    
-    #Loop over test files to prevent memory overflow issues
-    for test_filename in test_filenames:
-    
-        tf.reset_default_graph() #Reset the graph for each tfrecord (i.e. each flow 'snapshot')
-    
-        #Generate iterator to extract features and labels from tfrecords
-        iterator = eval_input_fn([test_filename], batch_size).make_initializable_iterator() #All samples present in test_filenames are used for validation once.
-    
-        #Define operation to extract features and labels from iterator
-        fes, lbls = iterator.get_next()
-    
-        #Define operation to generate predictions for extracted features and labels
-        preds_op = model_fn(fes, lbls, \
-                        tf.estimator.ModeKeys.PREDICT, hyperparams).predictions
-    
-        #Create saver MLP_model such that it can be restored in the tf.Session() below
-        saver = tf.train.Saver()
+    test_dirs = glob.glob(args.input_dir + '*') #Repeated for the sake of clarity of the code
+    num_test_dirs = len(test_dirs)
+    test_filenames = np.array(test_filenames) #Convert to numpy array, otherwhise the code below does not work.
+    #loop over test dirs, do inference for each of them
+    for n in range(num_test_dirs):
+
+        #Extract filenames corresponding to test dir from test filenames
+        name_test_dir = test_dirs[n][len(args.input_dir):]
+        print('Name current test directory: ', name_test_dir)
+        bool_test_dir = np.zeros(len(test_filenames), dtype=bool)
+        for i in range(len(test_filenames)):
+            if name_test_dir in test_filenames[i]:
+                bool_test_dir[i] = True
+            else:
+                bool_test_dir[i] = False
+        test_filenames_dir = test_filenames[bool_test_dir]
+        #print('Selected files: ', test_filenames_dir)
+
+        #Create netCDF-file to store predictions and labels
+        filepath = args.checkpoint_dir + '/MLP_predictions_' + name_test_dir + '.nc'
+        predictions_file = nc.Dataset(filepath, 'w')
+        dim_ns = predictions_file.createDimension("ns",None)
         
-        with tf.Session(config=config) as sess:
-    
-            #Restore MLP_model within tf.Session()
-            ckpt  = tf.train.get_checkpoint_state(args.checkpoint_dir)
-            saver.restore(sess, ckpt.model_checkpoint_path)
-    
-            #Store inference graph
-            if store_graph:
-                tf.io.write_graph(sess.graph, args.checkpoint_dir, 'inference_graph.pbtxt', as_text = True)
-                store_graph = False
+        #Create variables for storage
+        var_pred_tau_xu_upstream        = predictions_file.createVariable("preds_values_tau_xu_upstream","f8",("ns",))
+        var_pred_random_tau_xu_upstream = predictions_file.createVariable("preds_values_random_tau_xu_upstream","f8",("ns",))
+        var_lbl_tau_xu_upstream         = predictions_file.createVariable("lbls_values_tau_xu_upstream","f8",("ns",))
+        var_res_tau_xu_upstream         = predictions_file.createVariable("residuals_tau_xu_upstream","f8",("ns",))
+        var_res_random_tau_xu_upstream  = predictions_file.createVariable("residuals_random_tau_xu_upstream","f8",("ns",))
+        #
+        var_pred_tau_xu_downstream        = predictions_file.createVariable("preds_values_tau_xu_downstream","f8",("ns",))
+        var_pred_random_tau_xu_downstream = predictions_file.createVariable("preds_values_random_tau_xu_downstream","f8",("ns",))
+        var_lbl_tau_xu_downstream         = predictions_file.createVariable("lbls_values_tau_xu_downstream","f8",("ns",))
+        var_res_tau_xu_downstream         = predictions_file.createVariable("residuals_tau_xu_downstream","f8",("ns",))
+        var_res_random_tau_xu_downstream  = predictions_file.createVariable("residuals_random_tau_xu_downstream","f8",("ns",))
+        #
+        var_pred_tau_yu_upstream        = predictions_file.createVariable("preds_values_tau_yu_upstream","f8",("ns",))
+        var_pred_random_tau_yu_upstream = predictions_file.createVariable("preds_values_random_tau_yu_upstream","f8",("ns",))
+        var_lbl_tau_yu_upstream         = predictions_file.createVariable("lbls_values_tau_yu_upstream","f8",("ns",))
+        var_res_tau_yu_upstream         = predictions_file.createVariable("residuals_tau_yu_upstream","f8",("ns",))
+        var_res_random_tau_yu_upstream  = predictions_file.createVariable("residuals_random_tau_yu_upstream","f8",("ns",))
+        #
+        var_pred_tau_yu_downstream        = predictions_file.createVariable("preds_values_tau_yu_downstream","f8",("ns",))
+        var_pred_random_tau_yu_downstream = predictions_file.createVariable("preds_values_random_tau_yu_downstream","f8",("ns",))
+        var_lbl_tau_yu_downstream         = predictions_file.createVariable("lbls_values_tau_yu_downstream","f8",("ns",))
+        var_res_tau_yu_downstream         = predictions_file.createVariable("residuals_tau_yu_downstream","f8",("ns",))
+        var_res_random_tau_yu_downstream  = predictions_file.createVariable("residuals_random_tau_yu_downstream","f8",("ns",))
+        #
+        var_pred_tau_zu_upstream        = predictions_file.createVariable("preds_values_tau_zu_upstream","f8",("ns",))
+        var_pred_random_tau_zu_upstream = predictions_file.createVariable("preds_values_random_tau_zu_upstream","f8",("ns",))
+        var_lbl_tau_zu_upstream         = predictions_file.createVariable("lbls_values_tau_zu_upstream","f8",("ns",))
+        var_res_tau_zu_upstream         = predictions_file.createVariable("residuals_tau_zu_upstream","f8",("ns",))
+        var_res_random_tau_zu_upstream  = predictions_file.createVariable("residuals_random_tau_zu_upstream","f8",("ns",))
+        #
+        var_pred_tau_zu_downstream        = predictions_file.createVariable("preds_values_tau_zu_downstream","f8",("ns",))
+        var_pred_random_tau_zu_downstream = predictions_file.createVariable("preds_values_random_tau_zu_downstream","f8",("ns",))
+        var_lbl_tau_zu_downstream         = predictions_file.createVariable("lbls_values_tau_zu_downstream","f8",("ns",))
+        var_res_tau_zu_downstream         = predictions_file.createVariable("residuals_tau_zu_downstream","f8",("ns",))
+        var_res_random_tau_zu_downstream  = predictions_file.createVariable("residuals_random_tau_zu_downstream","f8",("ns",))
+        #
+        var_pred_tau_xv_upstream        = predictions_file.createVariable("preds_values_tau_xv_upstream","f8",("ns",))
+        var_pred_random_tau_xv_upstream = predictions_file.createVariable("preds_values_random_tau_xv_upstream","f8",("ns",))
+        var_lbl_tau_xv_upstream         = predictions_file.createVariable("lbls_values_tau_xv_upstream","f8",("ns",))
+        var_res_tau_xv_upstream         = predictions_file.createVariable("residuals_tau_xv_upstream","f8",("ns",))
+        var_res_random_tau_xv_upstream  = predictions_file.createVariable("residuals_random_tau_xv_upstream","f8",("ns",))
+        #
+        var_pred_tau_xv_downstream        = predictions_file.createVariable("preds_values_tau_xv_downstream","f8",("ns",))
+        var_pred_random_tau_xv_downstream = predictions_file.createVariable("preds_values_random_tau_xv_downstream","f8",("ns",))
+        var_lbl_tau_xv_downstream         = predictions_file.createVariable("lbls_values_tau_xv_downstream","f8",("ns",))
+        var_res_tau_xv_downstream         = predictions_file.createVariable("residuals_tau_xv_downstream","f8",("ns",))
+        var_res_random_tau_xv_downstream  = predictions_file.createVariable("residuals_random_tau_xv_downstream","f8",("ns",))
+        #
+        var_pred_tau_yv_upstream        = predictions_file.createVariable("preds_values_tau_yv_upstream","f8",("ns",))
+        var_pred_random_tau_yv_upstream = predictions_file.createVariable("preds_values_random_tau_yv_upstream","f8",("ns",))
+        var_lbl_tau_yv_upstream         = predictions_file.createVariable("lbls_values_tau_yv_upstream","f8",("ns",))
+        var_res_tau_yv_upstream         = predictions_file.createVariable("residuals_tau_yv_upstream","f8",("ns",))
+        var_res_random_tau_yv_upstream  = predictions_file.createVariable("residuals_random_tau_yv_upstream","f8",("ns",))
+        #
+        var_pred_tau_yv_downstream        = predictions_file.createVariable("preds_values_tau_yv_downstream","f8",("ns",))
+        var_pred_random_tau_yv_downstream = predictions_file.createVariable("preds_values_random_tau_yv_downstream","f8",("ns",))
+        var_lbl_tau_yv_downstream         = predictions_file.createVariable("lbls_values_tau_yv_downstream","f8",("ns",))
+        var_res_tau_yv_downstream         = predictions_file.createVariable("residuals_tau_yv_downstream","f8",("ns",))
+        var_res_random_tau_yv_downstream  = predictions_file.createVariable("residuals_random_tau_yv_downstream","f8",("ns",))
+        #
+        var_pred_tau_zv_upstream        = predictions_file.createVariable("preds_values_tau_zv_upstream","f8",("ns",))
+        var_pred_random_tau_zv_upstream = predictions_file.createVariable("preds_values_random_tau_zv_upstream","f8",("ns",))
+        var_lbl_tau_zv_upstream         = predictions_file.createVariable("lbls_values_tau_zv_upstream","f8",("ns",))
+        var_res_tau_zv_upstream         = predictions_file.createVariable("residuals_tau_zv_upstream","f8",("ns",))
+        var_res_random_tau_zv_upstream  = predictions_file.createVariable("residuals_random_tau_zv_upstream","f8",("ns",))
+        #
+        var_pred_tau_zv_downstream        = predictions_file.createVariable("preds_values_tau_zv_downstream","f8",("ns",))
+        var_pred_random_tau_zv_downstream = predictions_file.createVariable("preds_values_random_tau_zv_downstream","f8",("ns",))
+        var_lbl_tau_zv_downstream         = predictions_file.createVariable("lbls_values_tau_zv_downstream","f8",("ns",))
+        var_res_tau_zv_downstream         = predictions_file.createVariable("residuals_tau_zv_downstream","f8",("ns",))
+        var_res_random_tau_zv_downstream  = predictions_file.createVariable("residuals_random_tau_zv_downstream","f8",("ns",))
+        #
+        var_pred_tau_xw_upstream        = predictions_file.createVariable("preds_values_tau_xw_upstream","f8",("ns",))
+        var_pred_random_tau_xw_upstream = predictions_file.createVariable("preds_values_random_tau_xw_upstream","f8",("ns",))
+        var_lbl_tau_xw_upstream         = predictions_file.createVariable("lbls_values_tau_xw_upstream","f8",("ns",))
+        var_res_tau_xw_upstream         = predictions_file.createVariable("residuals_tau_xw_upstream","f8",("ns",))
+        var_res_random_tau_xw_upstream  = predictions_file.createVariable("residuals_random_tau_xw_upstream","f8",("ns",))
+        #
+        var_pred_tau_xw_downstream        = predictions_file.createVariable("preds_values_tau_xw_downstream","f8",("ns",))
+        var_pred_random_tau_xw_downstream = predictions_file.createVariable("preds_values_random_tau_xw_downstream","f8",("ns",))
+        var_lbl_tau_xw_downstream         = predictions_file.createVariable("lbls_values_tau_xw_downstream","f8",("ns",))
+        var_res_tau_xw_downstream         = predictions_file.createVariable("residuals_tau_xw_downstream","f8",("ns",))
+        var_res_random_tau_xw_downstream  = predictions_file.createVariable("residuals_random_tau_xw_downstream","f8",("ns",))
+        #
+        var_pred_tau_yw_upstream        = predictions_file.createVariable("preds_values_tau_yw_upstream","f8",("ns",))
+        var_pred_random_tau_yw_upstream = predictions_file.createVariable("preds_values_random_tau_yw_upstream","f8",("ns",))
+        var_lbl_tau_yw_upstream         = predictions_file.createVariable("lbls_values_tau_yw_upstream","f8",("ns",))
+        var_res_tau_yw_upstream         = predictions_file.createVariable("residuals_tau_yw_upstream","f8",("ns",))
+        var_res_random_tau_yw_upstream  = predictions_file.createVariable("residuals_random_tau_yw_upstream","f8",("ns",))
+        #
+        var_pred_tau_yw_downstream        = predictions_file.createVariable("preds_values_tau_yw_downstream","f8",("ns",))
+        var_pred_random_tau_yw_downstream = predictions_file.createVariable("preds_values_random_tau_yw_downstream","f8",("ns",))
+        var_lbl_tau_yw_downstream         = predictions_file.createVariable("lbls_values_tau_yw_downstream","f8",("ns",))
+        var_res_tau_yw_downstream         = predictions_file.createVariable("residuals_tau_yw_downstream","f8",("ns",))
+        var_res_random_tau_yw_downstream  = predictions_file.createVariable("residuals_random_tau_yw_downstream","f8",("ns",))
+        #
+        var_pred_tau_zw_upstream        = predictions_file.createVariable("preds_values_tau_zw_upstream","f8",("ns",))
+        var_pred_random_tau_zw_upstream = predictions_file.createVariable("preds_values_random_tau_zw_upstream","f8",("ns",))
+        var_lbl_tau_zw_upstream         = predictions_file.createVariable("lbls_values_tau_zw_upstream","f8",("ns",))
+        var_res_tau_zw_upstream         = predictions_file.createVariable("residuals_tau_zw_upstream","f8",("ns",))
+        var_res_random_tau_zw_upstream  = predictions_file.createVariable("residuals_random_tau_zw_upstream","f8",("ns",))
+        #
+        var_pred_tau_zw_downstream        = predictions_file.createVariable("preds_values_tau_zw_downstream","f8",("ns",))
+        var_pred_random_tau_zw_downstream = predictions_file.createVariable("preds_values_random_tau_zw_downstream","f8",("ns",))
+        var_lbl_tau_zw_downstream         = predictions_file.createVariable("lbls_values_tau_zw_downstream","f8",("ns",))
+        var_res_tau_zw_downstream         = predictions_file.createVariable("residuals_tau_zw_downstream","f8",("ns",))
+        var_res_random_tau_zw_downstream  = predictions_file.createVariable("residuals_random_tau_zw_downstream","f8",("ns",))
+        #
+        vartstep               = predictions_file.createVariable("tstep_samples","f8",("ns",))
+        varzhloc               = predictions_file.createVariable("zhloc_samples","f8",("ns",))
+        varzloc                = predictions_file.createVariable("zloc_samples","f8",("ns",))
+        varyhloc               = predictions_file.createVariable("yhloc_samples","f8",("ns",))
+        varyloc                = predictions_file.createVariable("yloc_samples","f8",("ns",))
+        varxhloc               = predictions_file.createVariable("xhloc_samples","f8",("ns",))
+        varxloc                = predictions_file.createVariable("xloc_samples","f8",("ns",))
+        
+        #Initialize variables for keeping track of iterations
+        tot_sample_end = 0
+        tot_sample_begin = 0
+        
+        #Intialize flag to store inference graph only once
+        store_graph = True
+        
+        #Loop over test files to prevent memory overflow issues
+        for test_filename in test_filenames_dir:
+        
+            tf.reset_default_graph() #Reset the graph for each tfrecord
+        
+            #Generate iterator to extract features and labels from tfrecords
+            iterator = eval_input_fn([test_filename], samples_per_tfrecord).make_initializable_iterator() #All samples present in test_filenames are used for validation once.
+        
+            #Define operation to extract features and labels from iterator
+            fes, lbls = iterator.get_next()
+        
+            #Define operation to generate predictions for extracted features and labels
+            preds_op = model_fn(fes, lbls, \
+                            tf.estimator.ModeKeys.PREDICT, hyperparams).predictions
+        
+            #Create saver MLP_model such that it can be restored in the tf.Session() below
+            saver = tf.train.Saver()
+            
+            with tf.Session(config=config) as sess:
+        
+                #Restore MLP_model within tf.Session()
+                ckpt  = tf.train.get_checkpoint_state(args.checkpoint_dir)
+                saver.restore(sess, ckpt.model_checkpoint_path)
+        
+                #Store inference graph
+                if store_graph:
+                    tf.io.write_graph(sess.graph, args.checkpoint_dir, 'inference_graph.pbtxt', as_text = True)
+                    store_graph = False
 
-            #Initialize iterator
-            sess.run(iterator.initializer)
+                #Initialize iterator
+                sess.run(iterator.initializer)
 
-            #Generate predictions for every batch in the tfrecord file
-            while True:
-                try:
-                    #Execute computational graph to generate predictions
-                    preds = sess.run(preds_op)
-    
-                    #Initialize variables for storage
-                    preds_tau_xu_upstream               = []
-                    preds_random_tau_xu_upstream        = []
-                    lbls_tau_xu_upstream                = []
-                    residuals_tau_xu_upstream           = []
-                    residuals_random_tau_xu_upstream    = []
-                    #
-                    preds_tau_xu_downstream               = []
-                    preds_random_tau_xu_downstream        = []
-                    lbls_tau_xu_downstream                = []
-                    residuals_tau_xu_downstream           = []
-                    residuals_random_tau_xu_downstream    = []
-                    #
-                    preds_tau_yu_upstream               = []
-                    preds_random_tau_yu_upstream        = []
-                    lbls_tau_yu_upstream                = []
-                    residuals_tau_yu_upstream           = []
-                    residuals_random_tau_yu_upstream    = []
-                    #
-                    preds_tau_yu_downstream               = []
-                    preds_random_tau_yu_downstream        = []
-                    lbls_tau_yu_downstream                = []
-                    residuals_tau_yu_downstream           = []
-                    residuals_random_tau_yu_downstream    = []
-                    #
-                    preds_tau_zu_upstream               = []
-                    preds_random_tau_zu_upstream        = []
-                    lbls_tau_zu_upstream                = []
-                    residuals_tau_zu_upstream           = []
-                    residuals_random_tau_zu_upstream    = []
-                    #
-                    preds_tau_zu_downstream               = []
-                    preds_random_tau_zu_downstream        = []
-                    lbls_tau_zu_downstream                = []
-                    residuals_tau_zu_downstream           = []
-                    residuals_random_tau_zu_downstream    = []
-                    #
-                    preds_tau_xv_upstream               = []
-                    preds_random_tau_xv_upstream        = []
-                    lbls_tau_xv_upstream                = []
-                    residuals_tau_xv_upstream           = []
-                    residuals_random_tau_xv_upstream    = []
-                    #
-                    preds_tau_xv_downstream               = []
-                    preds_random_tau_xv_downstream        = []
-                    lbls_tau_xv_downstream                = []
-                    residuals_tau_xv_downstream           = []
-                    residuals_random_tau_xv_downstream    = []
-                    #
-                    preds_tau_yv_upstream               = []
-                    preds_random_tau_yv_upstream        = []
-                    lbls_tau_yv_upstream                = []
-                    residuals_tau_yv_upstream           = []
-                    residuals_random_tau_yv_upstream    = []
-                    #
-                    preds_tau_yv_downstream               = []
-                    preds_random_tau_yv_downstream        = []
-                    lbls_tau_yv_downstream                = []
-                    residuals_tau_yv_downstream           = []
-                    residuals_random_tau_yv_downstream    = []
-                    #
-                    preds_tau_zv_upstream               = []
-                    preds_random_tau_zv_upstream        = []
-                    lbls_tau_zv_upstream                = []
-                    residuals_tau_zv_upstream           = []
-                    residuals_random_tau_zv_upstream    = []
-                    #
-                    preds_tau_zv_downstream               = []
-                    preds_random_tau_zv_downstream        = []
-                    lbls_tau_zv_downstream                = []
-                    residuals_tau_zv_downstream           = []
-                    residuals_random_tau_zv_downstream    = []
-                    #
-                    preds_tau_xw_upstream               = []
-                    preds_random_tau_xw_upstream        = []
-                    lbls_tau_xw_upstream                = []
-                    residuals_tau_xw_upstream           = []
-                    residuals_random_tau_xw_upstream    = []
-                    #
-                    preds_tau_xw_downstream               = []
-                    preds_random_tau_xw_downstream        = []
-                    lbls_tau_xw_downstream                = []
-                    residuals_tau_xw_downstream           = []
-                    residuals_random_tau_xw_downstream    = []
-                    #
-                    preds_tau_yw_upstream               = []
-                    preds_random_tau_yw_upstream        = []
-                    lbls_tau_yw_upstream                = []
-                    residuals_tau_yw_upstream           = []
-                    residuals_random_tau_yw_upstream    = []
-                    #
-                    preds_tau_yw_downstream               = []
-                    preds_random_tau_yw_downstream        = []
-                    lbls_tau_yw_downstream                = []
-                    residuals_tau_yw_downstream           = []
-                    residuals_random_tau_yw_downstream    = []
-                    #
-                    preds_tau_zw_upstream               = []
-                    preds_random_tau_zw_upstream        = []
-                    lbls_tau_zw_upstream                = []
-                    residuals_tau_zw_upstream           = []
-                    residuals_random_tau_zw_upstream    = []
-                    #
-                    preds_tau_zw_downstream               = []
-                    preds_random_tau_zw_downstream        = []
-                    lbls_tau_zw_downstream                = []
-                    residuals_tau_zw_downstream           = []
-                    residuals_random_tau_zw_downstream    = []
-                    #
-                    tstep_samples       = []
-                    zhloc_samples       = []
-                    zloc_samples        = []
-                    yhloc_samples       = []
-                    yloc_samples        = []
-                    xhloc_samples       = []
-                    xloc_samples        = []
-    
-                    for pred_tau_xu_upstream,   lbl_tau_xu_upstream, \
-                        pred_tau_xu_downstream, lbl_tau_xu_downstream, \
-                        pred_tau_yu_upstream,   lbl_tau_yu_upstream, \
-                        pred_tau_yu_downstream, lbl_tau_yu_downstream, \
-                        pred_tau_zu_upstream,   lbl_tau_zu_upstream, \
-                        pred_tau_zu_downstream, lbl_tau_zu_downstream, \
-                        pred_tau_xv_upstream,   lbl_tau_xv_upstream, \
-                        pred_tau_xv_downstream, lbl_tau_xv_downstream, \
-                        pred_tau_yv_upstream,   lbl_tau_yv_upstream, \
-                        pred_tau_yv_downstream, lbl_tau_yv_downstream, \
-                        pred_tau_zv_upstream,   lbl_tau_zv_upstream, \
-                        pred_tau_zv_downstream, lbl_tau_zv_downstream, \
-                        pred_tau_xw_upstream,   lbl_tau_xw_upstream, \
-                        pred_tau_xw_downstream, lbl_tau_xw_downstream, \
-                        pred_tau_yw_upstream,   lbl_tau_yw_upstream, \
-                        pred_tau_yw_downstream, lbl_tau_yw_downstream, \
-                        pred_tau_zw_upstream,   lbl_tau_zw_upstream, \
-                        pred_tau_zw_downstream, lbl_tau_zw_downstream, \
-                        tstep, zhloc, zloc, yhloc, yloc, xhloc, xloc in zip(
-                                preds['pred_tau_xu_upstream'], preds['label_tau_xu_upstream'],
-                                preds['pred_tau_xu_downstream'], preds['label_tau_xu_downstream'],
-                                preds['pred_tau_yu_upstream'], preds['label_tau_yu_upstream'],
-                                preds['pred_tau_yu_downstream'], preds['label_tau_yu_downstream'],
-                                preds['pred_tau_zu_upstream'], preds['label_tau_zu_upstream'],
-                                preds['pred_tau_zu_downstream'], preds['label_tau_zu_downstream'],
-                                preds['pred_tau_xv_upstream'], preds['label_tau_xv_upstream'],
-                                preds['pred_tau_xv_downstream'], preds['label_tau_xv_downstream'],
-                                preds['pred_tau_yv_upstream'], preds['label_tau_yv_upstream'],
-                                preds['pred_tau_yv_downstream'], preds['label_tau_yv_downstream'],
-                                preds['pred_tau_zv_upstream'], preds['label_tau_zv_upstream'],
-                                preds['pred_tau_zv_downstream'], preds['label_tau_zv_downstream'],
-                                preds['pred_tau_xw_upstream'], preds['label_tau_xw_upstream'],
-                                preds['pred_tau_xw_downstream'], preds['label_tau_xw_downstream'],
-                                preds['pred_tau_yw_upstream'], preds['label_tau_yw_upstream'],
-                                preds['pred_tau_yw_downstream'], preds['label_tau_yw_downstream'],
-                                preds['pred_tau_zw_upstream'], preds['label_tau_zw_upstream'],
-                                preds['pred_tau_zw_downstream'], preds['label_tau_zw_downstream'],
-                                preds['tstep'], preds['zhloc'], preds['zloc'], 
-                                preds['yhloc'], preds['yloc'], preds['xhloc'], preds['xloc']):
-                        # 
-                        preds_tau_xu_upstream               += [pred_tau_xu_upstream]
-                        lbls_tau_xu_upstream                += [lbl_tau_xu_upstream]
-                        residuals_tau_xu_upstream           += [abs(pred_tau_xu_upstream-lbl_tau_xu_upstream)]
-                        pred_random_tau_xu_upstream          = random.choice(preds['label_tau_xu_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_xu_upstream        += [pred_random_tau_xu_upstream]
-                        residuals_random_tau_xu_upstream    += [abs(pred_random_tau_xu_upstream-lbl_tau_xu_upstream)]
+                #Generate predictions for every batch in the tfrecord file
+                while True:
+                    try:
+                        #Execute computational graph to generate predictions
+                        preds = sess.run(preds_op)
+        
+                        #Initialize variables for storage
+                        preds_tau_xu_upstream               = []
+                        preds_random_tau_xu_upstream        = []
+                        lbls_tau_xu_upstream                = []
+                        residuals_tau_xu_upstream           = []
+                        residuals_random_tau_xu_upstream    = []
                         #
-                        preds_tau_xu_downstream               += [pred_tau_xu_downstream]
-                        lbls_tau_xu_downstream                += [lbl_tau_xu_downstream]
-                        residuals_tau_xu_downstream           += [abs(pred_tau_xu_downstream-lbl_tau_xu_downstream)]
-                        pred_random_tau_xu_downstream          = random.choice(preds['label_tau_xu_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_xu_downstream        += [pred_random_tau_xu_downstream]
-                        residuals_random_tau_xu_downstream    += [abs(pred_random_tau_xu_downstream-lbl_tau_xu_downstream)]
+                        preds_tau_xu_downstream               = []
+                        preds_random_tau_xu_downstream        = []
+                        lbls_tau_xu_downstream                = []
+                        residuals_tau_xu_downstream           = []
+                        residuals_random_tau_xu_downstream    = []
                         #
-                        preds_tau_yu_upstream               += [pred_tau_yu_upstream]
-                        lbls_tau_yu_upstream                += [lbl_tau_yu_upstream]
-                        residuals_tau_yu_upstream           += [abs(pred_tau_yu_upstream-lbl_tau_yu_upstream)]
-                        pred_random_tau_yu_upstream          = random.choice(preds['label_tau_yu_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_yu_upstream        += [pred_random_tau_yu_upstream]
-                        residuals_random_tau_yu_upstream    += [abs(pred_random_tau_yu_upstream-lbl_tau_yu_upstream)]
+                        preds_tau_yu_upstream               = []
+                        preds_random_tau_yu_upstream        = []
+                        lbls_tau_yu_upstream                = []
+                        residuals_tau_yu_upstream           = []
+                        residuals_random_tau_yu_upstream    = []
                         #
-                        preds_tau_yu_downstream               += [pred_tau_yu_downstream]
-                        lbls_tau_yu_downstream                += [lbl_tau_yu_downstream]
-                        residuals_tau_yu_downstream           += [abs(pred_tau_yu_downstream-lbl_tau_yu_downstream)]
-                        pred_random_tau_yu_downstream          = random.choice(preds['label_tau_yu_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_yu_downstream        += [pred_random_tau_yu_downstream]
-                        residuals_random_tau_yu_downstream    += [abs(pred_random_tau_yu_downstream-lbl_tau_yu_downstream)]
+                        preds_tau_yu_downstream               = []
+                        preds_random_tau_yu_downstream        = []
+                        lbls_tau_yu_downstream                = []
+                        residuals_tau_yu_downstream           = []
+                        residuals_random_tau_yu_downstream    = []
                         #
-                        preds_tau_zu_upstream               += [pred_tau_zu_upstream]
-                        lbls_tau_zu_upstream                += [lbl_tau_zu_upstream]
-                        residuals_tau_zu_upstream           += [abs(pred_tau_zu_upstream-lbl_tau_zu_upstream)]
-                        pred_random_tau_zu_upstream          = random.choice(preds['label_tau_zu_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_zu_upstream        += [pred_random_tau_zu_upstream]
-                        residuals_random_tau_zu_upstream    += [abs(pred_random_tau_zu_upstream-lbl_tau_zu_upstream)]
+                        preds_tau_zu_upstream               = []
+                        preds_random_tau_zu_upstream        = []
+                        lbls_tau_zu_upstream                = []
+                        residuals_tau_zu_upstream           = []
+                        residuals_random_tau_zu_upstream    = []
                         #
-                        preds_tau_zu_downstream               += [pred_tau_zu_downstream]
-                        lbls_tau_zu_downstream                += [lbl_tau_zu_downstream]
-                        residuals_tau_zu_downstream           += [abs(pred_tau_zu_downstream-lbl_tau_zu_downstream)]
-                        pred_random_tau_zu_downstream          = random.choice(preds['label_tau_zu_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_zu_downstream        += [pred_random_tau_zu_downstream]
-                        residuals_random_tau_zu_downstream    += [abs(pred_random_tau_zu_downstream-lbl_tau_zu_downstream)]
+                        preds_tau_zu_downstream               = []
+                        preds_random_tau_zu_downstream        = []
+                        lbls_tau_zu_downstream                = []
+                        residuals_tau_zu_downstream           = []
+                        residuals_random_tau_zu_downstream    = []
                         #
-                        preds_tau_xv_upstream               += [pred_tau_xv_upstream]
-                        lbls_tau_xv_upstream                += [lbl_tau_xv_upstream]
-                        residuals_tau_xv_upstream           += [abs(pred_tau_xv_upstream-lbl_tau_xv_upstream)]
-                        pred_random_tau_xv_upstream          = random.choice(preds['label_tau_xv_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_xv_upstream        += [pred_random_tau_xv_upstream]
-                        residuals_random_tau_xv_upstream    += [abs(pred_random_tau_xv_upstream-lbl_tau_xv_upstream)]
+                        preds_tau_xv_upstream               = []
+                        preds_random_tau_xv_upstream        = []
+                        lbls_tau_xv_upstream                = []
+                        residuals_tau_xv_upstream           = []
+                        residuals_random_tau_xv_upstream    = []
                         #
-                        preds_tau_xv_downstream               += [pred_tau_xv_downstream]
-                        lbls_tau_xv_downstream                += [lbl_tau_xv_downstream]
-                        residuals_tau_xv_downstream           += [abs(pred_tau_xv_downstream-lbl_tau_xv_downstream)]
-                        pred_random_tau_xv_downstream          = random.choice(preds['label_tau_xv_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_xv_downstream        += [pred_random_tau_xv_downstream]
-                        residuals_random_tau_xv_downstream    += [abs(pred_random_tau_xv_downstream-lbl_tau_xv_downstream)]
+                        preds_tau_xv_downstream               = []
+                        preds_random_tau_xv_downstream        = []
+                        lbls_tau_xv_downstream                = []
+                        residuals_tau_xv_downstream           = []
+                        residuals_random_tau_xv_downstream    = []
                         #
-                        preds_tau_yv_upstream               += [pred_tau_yv_upstream]
-                        lbls_tau_yv_upstream                += [lbl_tau_yv_upstream]
-                        residuals_tau_yv_upstream           += [abs(pred_tau_yv_upstream-lbl_tau_yv_upstream)]
-                        pred_random_tau_yv_upstream          = random.choice(preds['label_tau_yv_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_yv_upstream        += [pred_random_tau_yv_upstream]
-                        residuals_random_tau_yv_upstream    += [abs(pred_random_tau_yv_upstream-lbl_tau_yv_upstream)]
+                        preds_tau_yv_upstream               = []
+                        preds_random_tau_yv_upstream        = []
+                        lbls_tau_yv_upstream                = []
+                        residuals_tau_yv_upstream           = []
+                        residuals_random_tau_yv_upstream    = []
                         #
-                        preds_tau_yv_downstream               += [pred_tau_yv_downstream]
-                        lbls_tau_yv_downstream                += [lbl_tau_yv_downstream]
-                        residuals_tau_yv_downstream           += [abs(pred_tau_yv_downstream-lbl_tau_yv_downstream)]
-                        pred_random_tau_yv_downstream          = random.choice(preds['label_tau_yv_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_yv_downstream        += [pred_random_tau_yv_downstream]
-                        residuals_random_tau_yv_downstream    += [abs(pred_random_tau_yv_downstream-lbl_tau_yv_downstream)]
+                        preds_tau_yv_downstream               = []
+                        preds_random_tau_yv_downstream        = []
+                        lbls_tau_yv_downstream                = []
+                        residuals_tau_yv_downstream           = []
+                        residuals_random_tau_yv_downstream    = []
                         #
-                        preds_tau_zv_upstream               += [pred_tau_zv_upstream]
-                        lbls_tau_zv_upstream                += [lbl_tau_zv_upstream]
-                        residuals_tau_zv_upstream           += [abs(pred_tau_zv_upstream-lbl_tau_zv_upstream)]
-                        pred_random_tau_zv_upstream          = random.choice(preds['label_tau_zv_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_zv_upstream        += [pred_random_tau_zv_upstream]
-                        residuals_random_tau_zv_upstream    += [abs(pred_random_tau_zv_upstream-lbl_tau_zv_upstream)]
+                        preds_tau_zv_upstream               = []
+                        preds_random_tau_zv_upstream        = []
+                        lbls_tau_zv_upstream                = []
+                        residuals_tau_zv_upstream           = []
+                        residuals_random_tau_zv_upstream    = []
                         #
-                        preds_tau_zv_downstream               += [pred_tau_zv_downstream]
-                        lbls_tau_zv_downstream                += [lbl_tau_zv_downstream]
-                        residuals_tau_zv_downstream           += [abs(pred_tau_zv_downstream-lbl_tau_zv_downstream)]
-                        pred_random_tau_zv_downstream          = random.choice(preds['label_tau_zv_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_zv_downstream        += [pred_random_tau_zv_downstream]
-                        residuals_random_tau_zv_downstream    += [abs(pred_random_tau_zv_downstream-lbl_tau_zv_downstream)]
+                        preds_tau_zv_downstream               = []
+                        preds_random_tau_zv_downstream        = []
+                        lbls_tau_zv_downstream                = []
+                        residuals_tau_zv_downstream           = []
+                        residuals_random_tau_zv_downstream    = []
                         #
-                        preds_tau_xw_upstream               += [pred_tau_xw_upstream]
-                        lbls_tau_xw_upstream                += [lbl_tau_xw_upstream]
-                        residuals_tau_xw_upstream           += [abs(pred_tau_xw_upstream-lbl_tau_xw_upstream)]
-                        pred_random_tau_xw_upstream          = random.choice(preds['label_tau_xw_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_xw_upstream        += [pred_random_tau_xw_upstream]
-                        residuals_random_tau_xw_upstream    += [abs(pred_random_tau_xw_upstream-lbl_tau_xw_upstream)]
+                        preds_tau_xw_upstream               = []
+                        preds_random_tau_xw_upstream        = []
+                        lbls_tau_xw_upstream                = []
+                        residuals_tau_xw_upstream           = []
+                        residuals_random_tau_xw_upstream    = []
                         #
-                        preds_tau_xw_downstream               += [pred_tau_xw_downstream]
-                        lbls_tau_xw_downstream                += [lbl_tau_xw_downstream]
-                        residuals_tau_xw_downstream           += [abs(pred_tau_xw_downstream-lbl_tau_xw_downstream)]
-                        pred_random_tau_xw_downstream          = random.choice(preds['label_tau_xw_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_xw_downstream        += [pred_random_tau_xw_downstream]
-                        residuals_random_tau_xw_downstream    += [abs(pred_random_tau_xw_downstream-lbl_tau_xw_downstream)]
+                        preds_tau_xw_downstream               = []
+                        preds_random_tau_xw_downstream        = []
+                        lbls_tau_xw_downstream                = []
+                        residuals_tau_xw_downstream           = []
+                        residuals_random_tau_xw_downstream    = []
                         #
-                        preds_tau_yw_upstream               += [pred_tau_yw_upstream]
-                        lbls_tau_yw_upstream                += [lbl_tau_yw_upstream]
-                        residuals_tau_yw_upstream           += [abs(pred_tau_yw_upstream-lbl_tau_yw_upstream)]
-                        pred_random_tau_yw_upstream          = random.choice(preds['label_tau_yw_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_yw_upstream        += [pred_random_tau_yw_upstream]
-                        residuals_random_tau_yw_upstream    += [abs(pred_random_tau_yw_upstream-lbl_tau_yw_upstream)]
+                        preds_tau_yw_upstream               = []
+                        preds_random_tau_yw_upstream        = []
+                        lbls_tau_yw_upstream                = []
+                        residuals_tau_yw_upstream           = []
+                        residuals_random_tau_yw_upstream    = []
                         #
-                        preds_tau_yw_downstream               += [pred_tau_yw_downstream]
-                        lbls_tau_yw_downstream                += [lbl_tau_yw_downstream]
-                        residuals_tau_yw_downstream           += [abs(pred_tau_yw_downstream-lbl_tau_yw_downstream)]
-                        pred_random_tau_yw_downstream          = random.choice(preds['label_tau_yw_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_yw_downstream        += [pred_random_tau_yw_downstream]
-                        residuals_random_tau_yw_downstream    += [abs(pred_random_tau_yw_downstream-lbl_tau_yw_downstream)]
+                        preds_tau_yw_downstream               = []
+                        preds_random_tau_yw_downstream        = []
+                        lbls_tau_yw_downstream                = []
+                        residuals_tau_yw_downstream           = []
+                        residuals_random_tau_yw_downstream    = []
                         #
-                        preds_tau_zw_upstream               += [pred_tau_zw_upstream]
-                        lbls_tau_zw_upstream                += [lbl_tau_zw_upstream]
-                        residuals_tau_zw_upstream           += [abs(pred_tau_zw_upstream-lbl_tau_zw_upstream)]
-                        pred_random_tau_zw_upstream          = random.choice(preds['label_tau_zw_upstream'][:][:]) #Generate random prediction
-                        preds_random_tau_zw_upstream        += [pred_random_tau_zw_upstream]
-                        residuals_random_tau_zw_upstream    += [abs(pred_random_tau_zw_upstream-lbl_tau_zw_upstream)]
+                        preds_tau_zw_upstream               = []
+                        preds_random_tau_zw_upstream        = []
+                        lbls_tau_zw_upstream                = []
+                        residuals_tau_zw_upstream           = []
+                        residuals_random_tau_zw_upstream    = []
                         #
-                        preds_tau_zw_downstream               += [pred_tau_zw_downstream]
-                        lbls_tau_zw_downstream                += [lbl_tau_zw_downstream]
-                        residuals_tau_zw_downstream           += [abs(pred_tau_zw_downstream-lbl_tau_zw_downstream)]
-                        pred_random_tau_zw_downstream          = random.choice(preds['label_tau_zw_downstream'][:][:]) #Generate random prediction
-                        preds_random_tau_zw_downstream        += [pred_random_tau_zw_downstream]
-                        residuals_random_tau_zw_downstream    += [abs(pred_random_tau_zw_downstream-lbl_tau_zw_downstream)]
+                        preds_tau_zw_downstream               = []
+                        preds_random_tau_zw_downstream        = []
+                        lbls_tau_zw_downstream                = []
+                        residuals_tau_zw_downstream           = []
+                        residuals_random_tau_zw_downstream    = []
                         #
-                        tstep_samples += [tstep]
-                        zhloc_samples += [zhloc]
-                        zloc_samples  += [zloc]
-                        yhloc_samples += [yhloc]
-                        yloc_samples  += [yloc]
-                        xhloc_samples += [xhloc]
-                        xloc_samples  += [xloc]
-    
-                        tot_sample_end +=1
-                    
-                    #Store variables
-                    #
-                    var_pred_tau_xu_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_xu_upstream[:]
-                    var_pred_random_tau_xu_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xu_upstream[:]
-                    var_lbl_tau_xu_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xu_upstream[:]
-                    var_res_tau_xu_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xu_upstream[:]
-                    var_res_random_tau_xu_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xu_upstream[:]
-                    #
-                    var_pred_tau_xu_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_xu_downstream[:]
-                    var_pred_random_tau_xu_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xu_downstream[:]
-                    var_lbl_tau_xu_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xu_downstream[:]
-                    var_res_tau_xu_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xu_downstream[:]
-                    var_res_random_tau_xu_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xu_downstream[:]
-                    #
-                    var_pred_tau_yu_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_yu_upstream[:]
-                    var_pred_random_tau_yu_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yu_upstream[:]
-                    var_lbl_tau_yu_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yu_upstream[:]
-                    var_res_tau_yu_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yu_upstream[:]
-                    var_res_random_tau_yu_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yu_upstream[:]
-                    #
-                    var_pred_tau_yu_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_yu_downstream[:]
-                    var_pred_random_tau_yu_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yu_downstream[:]
-                    var_lbl_tau_yu_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yu_downstream[:]
-                    var_res_tau_yu_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yu_downstream[:]
-                    var_res_random_tau_yu_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yu_downstream[:]
-                    #
-                    var_pred_tau_zu_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_zu_upstream[:]
-                    var_pred_random_tau_zu_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zu_upstream[:]
-                    var_lbl_tau_zu_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zu_upstream[:]
-                    var_res_tau_zu_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zu_upstream[:]
-                    var_res_random_tau_zu_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zu_upstream[:]
-                    #
-                    var_pred_tau_zu_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_zu_downstream[:]
-                    var_pred_random_tau_zu_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zu_downstream[:]
-                    var_lbl_tau_zu_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zu_downstream[:]
-                    var_res_tau_zu_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zu_downstream[:]
-                    var_res_random_tau_zu_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zu_downstream[:]
-                    #
-                    var_pred_tau_xv_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_xv_upstream[:]
-                    var_pred_random_tau_xv_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xv_upstream[:]
-                    var_lbl_tau_xv_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xv_upstream[:]
-                    var_res_tau_xv_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xv_upstream[:]
-                    var_res_random_tau_xv_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv_upstream[:]
-                    #
-                    var_pred_tau_xv_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_xv_downstream[:]
-                    var_pred_random_tau_xv_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xv_downstream[:]
-                    var_lbl_tau_xv_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xv_downstream[:]
-                    var_res_tau_xv_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xv_downstream[:]
-                    var_res_random_tau_xv_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv_downstream[:]
-                    #
-                    var_pred_tau_yv_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_yv_upstream[:]
-                    var_pred_random_tau_yv_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yv_upstream[:]
-                    var_lbl_tau_yv_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yv_upstream[:]
-                    var_res_tau_yv_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yv_upstream[:]
-                    var_res_random_tau_yv_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yv_upstream[:]
-                    #
-                    var_pred_tau_yv_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_yv_downstream[:]
-                    var_pred_random_tau_yv_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yv_downstream[:]
-                    var_lbl_tau_yv_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yv_downstream[:]
-                    var_res_tau_yv_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yv_downstream[:]
-                    var_res_random_tau_yv_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yv_downstream[:]
-                    #
-                    var_pred_tau_zv_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_zv_upstream[:]
-                    var_pred_random_tau_zv_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zv_upstream[:]
-                    var_lbl_tau_zv_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zv_upstream[:]
-                    var_res_tau_zv_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zv_upstream[:]
-                    var_res_random_tau_zv_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zv_upstream[:]
-                    #
-                    var_pred_tau_zv_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_zv_downstream[:]
-                    var_pred_random_tau_zv_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zv_downstream[:]
-                    var_lbl_tau_zv_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zv_downstream[:]
-                    var_res_tau_zv_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zv_downstream[:]
-                    var_res_random_tau_zv_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zv_downstream[:]
-                    #
-                    var_pred_tau_xw_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_xw_upstream[:]
-                    var_pred_random_tau_xw_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xw_upstream[:]
-                    var_lbl_tau_xw_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xw_upstream[:]
-                    var_res_tau_xw_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xw_upstream[:]
-                    var_res_random_tau_xw_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw_upstream[:]
-                    #
-                    var_pred_tau_xw_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_xw_downstream[:]
-                    var_pred_random_tau_xw_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xw_downstream[:]
-                    var_lbl_tau_xw_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xw_downstream[:]
-                    var_res_tau_xw_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xw_downstream[:]
-                    var_res_random_tau_xw_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw_downstream[:]
-                    #
-                    var_pred_tau_yw_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_yw_upstream[:]
-                    var_pred_random_tau_yw_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yw_upstream[:]
-                    var_lbl_tau_yw_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yw_upstream[:]
-                    var_res_tau_yw_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yw_upstream[:]
-                    var_res_random_tau_yw_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yw_upstream[:]
-                    #
-                    var_pred_tau_yw_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_yw_downstream[:]
-                    var_pred_random_tau_yw_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yw_downstream[:]
-                    var_lbl_tau_yw_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yw_downstream[:]
-                    var_res_tau_yw_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yw_downstream[:]
-                    var_res_random_tau_yw_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yw_downstream[:]
-                    #
-                    var_pred_tau_zw_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_zw_upstream[:]
-                    var_pred_random_tau_zw_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zw_upstream[:]
-                    var_lbl_tau_zw_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zw_upstream[:]
-                    var_res_tau_zw_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zw_upstream[:]
-                    var_res_random_tau_zw_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zw_upstream[:]
-                    #
-                    var_pred_tau_zw_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_zw_downstream[:]
-                    var_pred_random_tau_zw_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zw_downstream[:]
-                    var_lbl_tau_zw_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zw_downstream[:]
-                    var_res_tau_zw_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zw_downstream[:]
-                    var_res_random_tau_zw_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zw_downstream[:]
-                    #
-                    vartstep[tot_sample_begin:tot_sample_end]        = tstep_samples[:]
-                    varzhloc[tot_sample_begin:tot_sample_end]        = zhloc_samples[:]
-                    varzloc[tot_sample_begin:tot_sample_end]         = zloc_samples[:]
-                    varyhloc[tot_sample_begin:tot_sample_end]        = yhloc_samples[:]
-                    varyloc[tot_sample_begin:tot_sample_end]         = yloc_samples[:]
-                    varxhloc[tot_sample_begin:tot_sample_end]        = xhloc_samples[:]
-                    varxloc[tot_sample_begin:tot_sample_end]         = xloc_samples[:]
-    
-                    tot_sample_begin = tot_sample_end #Make sure stored variables are not overwritten.
-    
-                except tf.errors.OutOfRangeError:
-                    break #Break out of while-loop after one test file. NOTE: for this part of the code it is important that the eval_input_fn does not implement the .repeat() method on the created tf.Dataset.
+                        tstep_samples       = []
+                        zhloc_samples       = []
+                        zloc_samples        = []
+                        yhloc_samples       = []
+                        yloc_samples        = []
+                        xhloc_samples       = []
+                        xloc_samples        = []
+        
+                        for pred_tau_xu_upstream,   lbl_tau_xu_upstream, \
+                            pred_tau_xu_downstream, lbl_tau_xu_downstream, \
+                            pred_tau_yu_upstream,   lbl_tau_yu_upstream, \
+                            pred_tau_yu_downstream, lbl_tau_yu_downstream, \
+                            pred_tau_zu_upstream,   lbl_tau_zu_upstream, \
+                            pred_tau_zu_downstream, lbl_tau_zu_downstream, \
+                            pred_tau_xv_upstream,   lbl_tau_xv_upstream, \
+                            pred_tau_xv_downstream, lbl_tau_xv_downstream, \
+                            pred_tau_yv_upstream,   lbl_tau_yv_upstream, \
+                            pred_tau_yv_downstream, lbl_tau_yv_downstream, \
+                            pred_tau_zv_upstream,   lbl_tau_zv_upstream, \
+                            pred_tau_zv_downstream, lbl_tau_zv_downstream, \
+                            pred_tau_xw_upstream,   lbl_tau_xw_upstream, \
+                            pred_tau_xw_downstream, lbl_tau_xw_downstream, \
+                            pred_tau_yw_upstream,   lbl_tau_yw_upstream, \
+                            pred_tau_yw_downstream, lbl_tau_yw_downstream, \
+                            pred_tau_zw_upstream,   lbl_tau_zw_upstream, \
+                            pred_tau_zw_downstream, lbl_tau_zw_downstream, \
+                            tstep, zhloc, zloc, yhloc, yloc, xhloc, xloc in zip(
+                                    preds['pred_tau_xu_upstream'], preds['label_tau_xu_upstream'],
+                                    preds['pred_tau_xu_downstream'], preds['label_tau_xu_downstream'],
+                                    preds['pred_tau_yu_upstream'], preds['label_tau_yu_upstream'],
+                                    preds['pred_tau_yu_downstream'], preds['label_tau_yu_downstream'],
+                                    preds['pred_tau_zu_upstream'], preds['label_tau_zu_upstream'],
+                                    preds['pred_tau_zu_downstream'], preds['label_tau_zu_downstream'],
+                                    preds['pred_tau_xv_upstream'], preds['label_tau_xv_upstream'],
+                                    preds['pred_tau_xv_downstream'], preds['label_tau_xv_downstream'],
+                                    preds['pred_tau_yv_upstream'], preds['label_tau_yv_upstream'],
+                                    preds['pred_tau_yv_downstream'], preds['label_tau_yv_downstream'],
+                                    preds['pred_tau_zv_upstream'], preds['label_tau_zv_upstream'],
+                                    preds['pred_tau_zv_downstream'], preds['label_tau_zv_downstream'],
+                                    preds['pred_tau_xw_upstream'], preds['label_tau_xw_upstream'],
+                                    preds['pred_tau_xw_downstream'], preds['label_tau_xw_downstream'],
+                                    preds['pred_tau_yw_upstream'], preds['label_tau_yw_upstream'],
+                                    preds['pred_tau_yw_downstream'], preds['label_tau_yw_downstream'],
+                                    preds['pred_tau_zw_upstream'], preds['label_tau_zw_upstream'],
+                                    preds['pred_tau_zw_downstream'], preds['label_tau_zw_downstream'],
+                                    preds['tstep'], preds['zhloc'], preds['zloc'], 
+                                    preds['yhloc'], preds['yloc'], preds['xhloc'], preds['xloc']):
+                            # 
+                            preds_tau_xu_upstream               += [pred_tau_xu_upstream]
+                            lbls_tau_xu_upstream                += [lbl_tau_xu_upstream]
+                            residuals_tau_xu_upstream           += [abs(pred_tau_xu_upstream-lbl_tau_xu_upstream)]
+                            pred_random_tau_xu_upstream          = random.choice(preds['label_tau_xu_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_xu_upstream        += [pred_random_tau_xu_upstream]
+                            residuals_random_tau_xu_upstream    += [abs(pred_random_tau_xu_upstream-lbl_tau_xu_upstream)]
+                            #
+                            preds_tau_xu_downstream               += [pred_tau_xu_downstream]
+                            lbls_tau_xu_downstream                += [lbl_tau_xu_downstream]
+                            residuals_tau_xu_downstream           += [abs(pred_tau_xu_downstream-lbl_tau_xu_downstream)]
+                            pred_random_tau_xu_downstream          = random.choice(preds['label_tau_xu_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_xu_downstream        += [pred_random_tau_xu_downstream]
+                            residuals_random_tau_xu_downstream    += [abs(pred_random_tau_xu_downstream-lbl_tau_xu_downstream)]
+                            #
+                            preds_tau_yu_upstream               += [pred_tau_yu_upstream]
+                            lbls_tau_yu_upstream                += [lbl_tau_yu_upstream]
+                            residuals_tau_yu_upstream           += [abs(pred_tau_yu_upstream-lbl_tau_yu_upstream)]
+                            pred_random_tau_yu_upstream          = random.choice(preds['label_tau_yu_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_yu_upstream        += [pred_random_tau_yu_upstream]
+                            residuals_random_tau_yu_upstream    += [abs(pred_random_tau_yu_upstream-lbl_tau_yu_upstream)]
+                            #
+                            preds_tau_yu_downstream               += [pred_tau_yu_downstream]
+                            lbls_tau_yu_downstream                += [lbl_tau_yu_downstream]
+                            residuals_tau_yu_downstream           += [abs(pred_tau_yu_downstream-lbl_tau_yu_downstream)]
+                            pred_random_tau_yu_downstream          = random.choice(preds['label_tau_yu_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_yu_downstream        += [pred_random_tau_yu_downstream]
+                            residuals_random_tau_yu_downstream    += [abs(pred_random_tau_yu_downstream-lbl_tau_yu_downstream)]
+                            #
+                            preds_tau_zu_upstream               += [pred_tau_zu_upstream]
+                            lbls_tau_zu_upstream                += [lbl_tau_zu_upstream]
+                            residuals_tau_zu_upstream           += [abs(pred_tau_zu_upstream-lbl_tau_zu_upstream)]
+                            pred_random_tau_zu_upstream          = random.choice(preds['label_tau_zu_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_zu_upstream        += [pred_random_tau_zu_upstream]
+                            residuals_random_tau_zu_upstream    += [abs(pred_random_tau_zu_upstream-lbl_tau_zu_upstream)]
+                            #
+                            preds_tau_zu_downstream               += [pred_tau_zu_downstream]
+                            lbls_tau_zu_downstream                += [lbl_tau_zu_downstream]
+                            residuals_tau_zu_downstream           += [abs(pred_tau_zu_downstream-lbl_tau_zu_downstream)]
+                            pred_random_tau_zu_downstream          = random.choice(preds['label_tau_zu_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_zu_downstream        += [pred_random_tau_zu_downstream]
+                            residuals_random_tau_zu_downstream    += [abs(pred_random_tau_zu_downstream-lbl_tau_zu_downstream)]
+                            #
+                            preds_tau_xv_upstream               += [pred_tau_xv_upstream]
+                            lbls_tau_xv_upstream                += [lbl_tau_xv_upstream]
+                            residuals_tau_xv_upstream           += [abs(pred_tau_xv_upstream-lbl_tau_xv_upstream)]
+                            pred_random_tau_xv_upstream          = random.choice(preds['label_tau_xv_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_xv_upstream        += [pred_random_tau_xv_upstream]
+                            residuals_random_tau_xv_upstream    += [abs(pred_random_tau_xv_upstream-lbl_tau_xv_upstream)]
+                            #
+                            preds_tau_xv_downstream               += [pred_tau_xv_downstream]
+                            lbls_tau_xv_downstream                += [lbl_tau_xv_downstream]
+                            residuals_tau_xv_downstream           += [abs(pred_tau_xv_downstream-lbl_tau_xv_downstream)]
+                            pred_random_tau_xv_downstream          = random.choice(preds['label_tau_xv_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_xv_downstream        += [pred_random_tau_xv_downstream]
+                            residuals_random_tau_xv_downstream    += [abs(pred_random_tau_xv_downstream-lbl_tau_xv_downstream)]
+                            #
+                            preds_tau_yv_upstream               += [pred_tau_yv_upstream]
+                            lbls_tau_yv_upstream                += [lbl_tau_yv_upstream]
+                            residuals_tau_yv_upstream           += [abs(pred_tau_yv_upstream-lbl_tau_yv_upstream)]
+                            pred_random_tau_yv_upstream          = random.choice(preds['label_tau_yv_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_yv_upstream        += [pred_random_tau_yv_upstream]
+                            residuals_random_tau_yv_upstream    += [abs(pred_random_tau_yv_upstream-lbl_tau_yv_upstream)]
+                            #
+                            preds_tau_yv_downstream               += [pred_tau_yv_downstream]
+                            lbls_tau_yv_downstream                += [lbl_tau_yv_downstream]
+                            residuals_tau_yv_downstream           += [abs(pred_tau_yv_downstream-lbl_tau_yv_downstream)]
+                            pred_random_tau_yv_downstream          = random.choice(preds['label_tau_yv_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_yv_downstream        += [pred_random_tau_yv_downstream]
+                            residuals_random_tau_yv_downstream    += [abs(pred_random_tau_yv_downstream-lbl_tau_yv_downstream)]
+                            #
+                            preds_tau_zv_upstream               += [pred_tau_zv_upstream]
+                            lbls_tau_zv_upstream                += [lbl_tau_zv_upstream]
+                            residuals_tau_zv_upstream           += [abs(pred_tau_zv_upstream-lbl_tau_zv_upstream)]
+                            pred_random_tau_zv_upstream          = random.choice(preds['label_tau_zv_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_zv_upstream        += [pred_random_tau_zv_upstream]
+                            residuals_random_tau_zv_upstream    += [abs(pred_random_tau_zv_upstream-lbl_tau_zv_upstream)]
+                            #
+                            preds_tau_zv_downstream               += [pred_tau_zv_downstream]
+                            lbls_tau_zv_downstream                += [lbl_tau_zv_downstream]
+                            residuals_tau_zv_downstream           += [abs(pred_tau_zv_downstream-lbl_tau_zv_downstream)]
+                            pred_random_tau_zv_downstream          = random.choice(preds['label_tau_zv_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_zv_downstream        += [pred_random_tau_zv_downstream]
+                            residuals_random_tau_zv_downstream    += [abs(pred_random_tau_zv_downstream-lbl_tau_zv_downstream)]
+                            #
+                            preds_tau_xw_upstream               += [pred_tau_xw_upstream]
+                            lbls_tau_xw_upstream                += [lbl_tau_xw_upstream]
+                            residuals_tau_xw_upstream           += [abs(pred_tau_xw_upstream-lbl_tau_xw_upstream)]
+                            pred_random_tau_xw_upstream          = random.choice(preds['label_tau_xw_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_xw_upstream        += [pred_random_tau_xw_upstream]
+                            residuals_random_tau_xw_upstream    += [abs(pred_random_tau_xw_upstream-lbl_tau_xw_upstream)]
+                            #
+                            preds_tau_xw_downstream               += [pred_tau_xw_downstream]
+                            lbls_tau_xw_downstream                += [lbl_tau_xw_downstream]
+                            residuals_tau_xw_downstream           += [abs(pred_tau_xw_downstream-lbl_tau_xw_downstream)]
+                            pred_random_tau_xw_downstream          = random.choice(preds['label_tau_xw_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_xw_downstream        += [pred_random_tau_xw_downstream]
+                            residuals_random_tau_xw_downstream    += [abs(pred_random_tau_xw_downstream-lbl_tau_xw_downstream)]
+                            #
+                            preds_tau_yw_upstream               += [pred_tau_yw_upstream]
+                            lbls_tau_yw_upstream                += [lbl_tau_yw_upstream]
+                            residuals_tau_yw_upstream           += [abs(pred_tau_yw_upstream-lbl_tau_yw_upstream)]
+                            pred_random_tau_yw_upstream          = random.choice(preds['label_tau_yw_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_yw_upstream        += [pred_random_tau_yw_upstream]
+                            residuals_random_tau_yw_upstream    += [abs(pred_random_tau_yw_upstream-lbl_tau_yw_upstream)]
+                            #
+                            preds_tau_yw_downstream               += [pred_tau_yw_downstream]
+                            lbls_tau_yw_downstream                += [lbl_tau_yw_downstream]
+                            residuals_tau_yw_downstream           += [abs(pred_tau_yw_downstream-lbl_tau_yw_downstream)]
+                            pred_random_tau_yw_downstream          = random.choice(preds['label_tau_yw_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_yw_downstream        += [pred_random_tau_yw_downstream]
+                            residuals_random_tau_yw_downstream    += [abs(pred_random_tau_yw_downstream-lbl_tau_yw_downstream)]
+                            #
+                            preds_tau_zw_upstream               += [pred_tau_zw_upstream]
+                            lbls_tau_zw_upstream                += [lbl_tau_zw_upstream]
+                            residuals_tau_zw_upstream           += [abs(pred_tau_zw_upstream-lbl_tau_zw_upstream)]
+                            pred_random_tau_zw_upstream          = random.choice(preds['label_tau_zw_upstream'][:][:]) #Generate random prediction
+                            preds_random_tau_zw_upstream        += [pred_random_tau_zw_upstream]
+                            residuals_random_tau_zw_upstream    += [abs(pred_random_tau_zw_upstream-lbl_tau_zw_upstream)]
+                            #
+                            preds_tau_zw_downstream               += [pred_tau_zw_downstream]
+                            lbls_tau_zw_downstream                += [lbl_tau_zw_downstream]
+                            residuals_tau_zw_downstream           += [abs(pred_tau_zw_downstream-lbl_tau_zw_downstream)]
+                            pred_random_tau_zw_downstream          = random.choice(preds['label_tau_zw_downstream'][:][:]) #Generate random prediction
+                            preds_random_tau_zw_downstream        += [pred_random_tau_zw_downstream]
+                            residuals_random_tau_zw_downstream    += [abs(pred_random_tau_zw_downstream-lbl_tau_zw_downstream)]
+                            #
+                            tstep_samples += [tstep]
+                            zhloc_samples += [zhloc]
+                            zloc_samples  += [zloc]
+                            yhloc_samples += [yhloc]
+                            yloc_samples  += [yloc]
+                            xhloc_samples += [xhloc]
+                            xloc_samples  += [xloc]
+        
+                            tot_sample_end +=1
+                        
+                        #Store variables
+                        #
+                        var_pred_tau_xu_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_xu_upstream[:]
+                        var_pred_random_tau_xu_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xu_upstream[:]
+                        var_lbl_tau_xu_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xu_upstream[:]
+                        var_res_tau_xu_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xu_upstream[:]
+                        var_res_random_tau_xu_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xu_upstream[:]
+                        #
+                        var_pred_tau_xu_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_xu_downstream[:]
+                        var_pred_random_tau_xu_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xu_downstream[:]
+                        var_lbl_tau_xu_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xu_downstream[:]
+                        var_res_tau_xu_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xu_downstream[:]
+                        var_res_random_tau_xu_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xu_downstream[:]
+                        #
+                        var_pred_tau_yu_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_yu_upstream[:]
+                        var_pred_random_tau_yu_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yu_upstream[:]
+                        var_lbl_tau_yu_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yu_upstream[:]
+                        var_res_tau_yu_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yu_upstream[:]
+                        var_res_random_tau_yu_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yu_upstream[:]
+                        #
+                        var_pred_tau_yu_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_yu_downstream[:]
+                        var_pred_random_tau_yu_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yu_downstream[:]
+                        var_lbl_tau_yu_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yu_downstream[:]
+                        var_res_tau_yu_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yu_downstream[:]
+                        var_res_random_tau_yu_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yu_downstream[:]
+                        #
+                        var_pred_tau_zu_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_zu_upstream[:]
+                        var_pred_random_tau_zu_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zu_upstream[:]
+                        var_lbl_tau_zu_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zu_upstream[:]
+                        var_res_tau_zu_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zu_upstream[:]
+                        var_res_random_tau_zu_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zu_upstream[:]
+                        #
+                        var_pred_tau_zu_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_zu_downstream[:]
+                        var_pred_random_tau_zu_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zu_downstream[:]
+                        var_lbl_tau_zu_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zu_downstream[:]
+                        var_res_tau_zu_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zu_downstream[:]
+                        var_res_random_tau_zu_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zu_downstream[:]
+                        #
+                        var_pred_tau_xv_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_xv_upstream[:]
+                        var_pred_random_tau_xv_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xv_upstream[:]
+                        var_lbl_tau_xv_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xv_upstream[:]
+                        var_res_tau_xv_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xv_upstream[:]
+                        var_res_random_tau_xv_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv_upstream[:]
+                        #
+                        var_pred_tau_xv_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_xv_downstream[:]
+                        var_pred_random_tau_xv_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xv_downstream[:]
+                        var_lbl_tau_xv_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xv_downstream[:]
+                        var_res_tau_xv_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xv_downstream[:]
+                        var_res_random_tau_xv_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv_downstream[:]
+                        #
+                        var_pred_tau_yv_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_yv_upstream[:]
+                        var_pred_random_tau_yv_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yv_upstream[:]
+                        var_lbl_tau_yv_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yv_upstream[:]
+                        var_res_tau_yv_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yv_upstream[:]
+                        var_res_random_tau_yv_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yv_upstream[:]
+                        #
+                        var_pred_tau_yv_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_yv_downstream[:]
+                        var_pred_random_tau_yv_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yv_downstream[:]
+                        var_lbl_tau_yv_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yv_downstream[:]
+                        var_res_tau_yv_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yv_downstream[:]
+                        var_res_random_tau_yv_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yv_downstream[:]
+                        #
+                        var_pred_tau_zv_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_zv_upstream[:]
+                        var_pred_random_tau_zv_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zv_upstream[:]
+                        var_lbl_tau_zv_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zv_upstream[:]
+                        var_res_tau_zv_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zv_upstream[:]
+                        var_res_random_tau_zv_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zv_upstream[:]
+                        #
+                        var_pred_tau_zv_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_zv_downstream[:]
+                        var_pred_random_tau_zv_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zv_downstream[:]
+                        var_lbl_tau_zv_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zv_downstream[:]
+                        var_res_tau_zv_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zv_downstream[:]
+                        var_res_random_tau_zv_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zv_downstream[:]
+                        #
+                        var_pred_tau_xw_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_xw_upstream[:]
+                        var_pred_random_tau_xw_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xw_upstream[:]
+                        var_lbl_tau_xw_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xw_upstream[:]
+                        var_res_tau_xw_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xw_upstream[:]
+                        var_res_random_tau_xw_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw_upstream[:]
+                        #
+                        var_pred_tau_xw_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_xw_downstream[:]
+                        var_pred_random_tau_xw_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_xw_downstream[:]
+                        var_lbl_tau_xw_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_xw_downstream[:]
+                        var_res_tau_xw_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_xw_downstream[:]
+                        var_res_random_tau_xw_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw_downstream[:]
+                        #
+                        var_pred_tau_yw_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_yw_upstream[:]
+                        var_pred_random_tau_yw_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yw_upstream[:]
+                        var_lbl_tau_yw_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yw_upstream[:]
+                        var_res_tau_yw_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yw_upstream[:]
+                        var_res_random_tau_yw_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yw_upstream[:]
+                        #
+                        var_pred_tau_yw_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_yw_downstream[:]
+                        var_pred_random_tau_yw_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_yw_downstream[:]
+                        var_lbl_tau_yw_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_yw_downstream[:]
+                        var_res_tau_yw_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_yw_downstream[:]
+                        var_res_random_tau_yw_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yw_downstream[:]
+                        #
+                        var_pred_tau_zw_upstream[tot_sample_begin:tot_sample_end]        = preds_tau_zw_upstream[:]
+                        var_pred_random_tau_zw_upstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zw_upstream[:]
+                        var_lbl_tau_zw_upstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zw_upstream[:]
+                        var_res_tau_zw_upstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zw_upstream[:]
+                        var_res_random_tau_zw_upstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zw_upstream[:]
+                        #
+                        var_pred_tau_zw_downstream[tot_sample_begin:tot_sample_end]        = preds_tau_zw_downstream[:]
+                        var_pred_random_tau_zw_downstream[tot_sample_begin:tot_sample_end] = preds_random_tau_zw_downstream[:]
+                        var_lbl_tau_zw_downstream[tot_sample_begin:tot_sample_end]         = lbls_tau_zw_downstream[:]
+                        var_res_tau_zw_downstream[tot_sample_begin:tot_sample_end]         = residuals_tau_zw_downstream[:]
+                        var_res_random_tau_zw_downstream[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zw_downstream[:]
+                        #
+                        vartstep[tot_sample_begin:tot_sample_end]        = tstep_samples[:]
+                        varzhloc[tot_sample_begin:tot_sample_end]        = zhloc_samples[:]
+                        varzloc[tot_sample_begin:tot_sample_end]         = zloc_samples[:]
+                        varyhloc[tot_sample_begin:tot_sample_end]        = yhloc_samples[:]
+                        varyloc[tot_sample_begin:tot_sample_end]         = yloc_samples[:]
+                        varxhloc[tot_sample_begin:tot_sample_end]        = xhloc_samples[:]
+                        varxloc[tot_sample_begin:tot_sample_end]         = xloc_samples[:]
+        
+                        tot_sample_begin = tot_sample_end #Make sure stored variables are not overwritten.
+        
+                    except tf.errors.OutOfRangeError:
+                        break #Break out of while-loop after one test file. NOTE: for this part of the code it is important that the eval_input_fn does not implement the .repeat() method on the created tf.Dataset.
 
-    predictions_file.close() #Close netCDF-file after all test tfrecord files have been evaluated
-    print("Finished making predictions for test tfrecord files.")
+        predictions_file.close() #Close netCDF-file after all test tfrecord files have been evaluated
+        print("Finished making predictions for test dir ", name_test_dir)
 ###
-
-#Close all nc-files
-means_stdevs_file.close()
