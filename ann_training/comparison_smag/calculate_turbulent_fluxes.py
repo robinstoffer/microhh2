@@ -34,6 +34,7 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
     igc            = int(a['igc'][:])
     jgc            = int(a['jgc'][:])
     kgc_center     = int(a['kgc_center'][:])
+    kgc_edge       = int(a['kgc_edge'][:])
     ihend          = int(a['ihend'][:])
     iend           = int(a['iend'][:])
     jhend          = int(a['jhend'][:])
@@ -41,6 +42,10 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
     khend          = int(a['khend'][:])
     kend           = int(a['kend'][:])
     cells_around_centercell = int(a['cells_around_centercell'][:])
+    
+    #Raise error if kgc_center and kgc_edge are not equal; script not designed for this scenario.
+    if kgc_center != kgc_center:
+        raise RuntimeError("The number of ghostcells in the vertical are not equal for the centered and staggered variables. This script does not take such a difference into account. Please revise the script if necessary.")
 
     zhgc = np.array(a['zhgc'][:])
     zgc  = np.array(a['zgc'][:])
@@ -150,7 +155,7 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
             smag_tau_yw[0,:,:] = 0.
         
         #Add one top/downstream cell to fluxes in the directions where they are located on the grid edges, assuming they are the same as the one at the bottom/upstream edge of the domain.
-        #NOTE: this should work when the horizontal directions have periodic BCs, and the vertical direction has a no-slip BC (ONLY when resolved viscous flux is not added, as is done now).
+        #NOTE: this should work when the horizontal directions have periodic BCs, and the vertical direction has a no-slip BC.
         #z-direction
         smag_tau_zu[-1,:,:] = smag_tau_zu[0,:,:]
         smag_tau_zv[-1,:,:] = smag_tau_zv[0,:,:]

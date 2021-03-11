@@ -123,6 +123,7 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
     igc            = int(a['igc'][:])
     jgc            = int(a['jgc'][:])
     kgc_center     = int(a['kgc_center'][:])
+    kgc_edge       = int(a['kgc_edge'][:])
     iend           = int(a['iend'][:])
     jend           = int(a['jend'][:])
     kend           = int(a['kend'][:])
@@ -141,6 +142,10 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
     xc   = np.array(a['xc'][:])
     nxc  = len(xgc)
     nx   = len(xc)
+
+    #Raise error if kgc_center and kgc_edge are not equal; script not designed for this scenario.
+    if kgc_center != kgc_center:
+        raise RuntimeError("The number of ghostcells in the vertical are not equal for the centered and staggered variables. This script does not take such a difference into account. Please revise the script if necessary.")
 
     #Loop over timesteps
     create_file = True #Flag to ensure output file is only created once

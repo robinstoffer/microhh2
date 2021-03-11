@@ -20,6 +20,7 @@ module load Doxygen/1.8.14-GCCcore-7.3.0
 
 source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
-cd ./MLP_selected #Ensure figures are stored in directory of MLP
+#Post-process selected ANN trained on 8dx4dz, tested on 8dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected/
 
-python3 -u ../read_CNNsmagpredictions.py --prediction_file "./MLP_predictions.nc" --training_file '../../cases/moser600/training_data/training_data.nc' --smagorinsky_file '../comparison_smag/smagorinsky_fluxes.nc' --stats_file '../../cases/moser600/training_data/means_stdevs_allfields.nc' --make_plots --make_table --reconstruct_fields
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "./MLP_predictions_8dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/8dx4dz/smagorinsky_fluxes.nc' --make_plots --make_table --reconstruct_fields

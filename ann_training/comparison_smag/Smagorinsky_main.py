@@ -8,9 +8,31 @@ from calculate_eddy_diffusivity import calculate_eddy_diffusivity
 from calculate_turbulent_fluxes import calculate_turbulent_fluxes
 
 #Define input/output filepaths
-input_filepath  = '../../cases/moser600/training_data/training_data.nc'
-output_filepath_evisc = 'eddy_diffusivity.nc'
-output_filepath_smag  = 'smagorinsky_fluxes.nc'
+input_filepath  = '/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc'
+output_filepath_evisc = '/projects/1/flowsim/gmd_training_data/8dx4dz/eddy_diffusivity.nc'
+output_filepath_smag  = '/projects/1/flowsim/gmd_training_data/8dx4dz/smagorinsky_fluxes.nc'
+
+#Calculate eddy diffusivities
+calculate_eddy_diffusivity(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
+
+#Calculate turbulent fluxes
+calculate_turbulent_fluxes(flowfields_filepath = input_filepath, eddy_diffusivity_filepath = output_filepath_evisc, output_filepath = output_filepath_smag, zero_w_topbottom = True)
+
+#Define input/output filepaths
+input_filepath  = '/projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc'
+output_filepath_evisc = '/projects/1/flowsim/gmd_training_data/4dx4dz/eddy_diffusivity.nc'
+output_filepath_smag  = '/projects/1/flowsim/gmd_training_data/4dx4dz/smagorinsky_fluxes.nc'
+
+#Calculate eddy diffusivities
+calculate_eddy_diffusivity(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
+
+#Calculate turbulent fluxes
+calculate_turbulent_fluxes(flowfields_filepath = input_filepath, eddy_diffusivity_filepath = output_filepath_evisc, output_filepath = output_filepath_smag, zero_w_topbottom = True)
+
+#Define input/output filepaths
+input_filepath  = '/projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc'
+output_filepath_evisc = '/projects/1/flowsim/gmd_training_data/12dx4dz/eddy_diffusivity.nc'
+output_filepath_smag  = '/projects/1/flowsim/gmd_training_data/12dx4dz/smagorinsky_fluxes.nc'
 
 #Calculate eddy diffusivities
 calculate_eddy_diffusivity(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
