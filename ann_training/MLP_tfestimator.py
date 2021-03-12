@@ -5,6 +5,7 @@ import netCDF4 as nc
 import tensorflow as tf
 import random
 import os
+import sys
 import subprocess
 import glob
 import argparse
@@ -163,12 +164,13 @@ def _parse_function(example_proto):
 #Define training input function
 def train_input_fn(filenames, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.shuffle(buffer_size=len(filenames)) #Reshuffle the tfrecord files every epoch, only possible when .cache() is commented out. NOTE:the (prior randomized) content of the files is not reshuffled, so it is not fully random from epoch to epoch.
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
+
     #dataset = dataset.cache() #Put samples from tfrecord files directly in memory
-    #dataset = dataset.shuffle(buffer_size=10000) #NOTE: shuffling operation commented out, which causes the samples to be in the same order every epoch. The shuffling would require a large buffer size because of the relatively large batches chosen (1000/3000), which would negatively impact the total involved computational effort (especially since each sample contains quite some data in our case). Instead, we 1) randomly shuffled the samples before storing them in tfrecord files (see sample_training_data_tfrecord.py), and 2) we randomized the order of the tfrecord-files before training (see below). Putting the shuffle in front of cache() results in memory saturation issues.
+    #dataset = dataset.shuffle(buffer_size=10000) #NOTE: shuffling operation commented out, which causes the samples to be in the same order every epoch. The shuffling would require a large buffer size because of the relatively large batches chosen (1000/3000), which would negatively impact the total involved computational effort (especially since each sample contains quite some data in our case). Instead, we 1) randomly shuffled the samples before storing them in tfrecord files (see sample_training_data_tfrecord.py), and 2) we randomize the order of the tfrecords at the beginning of training (such that the training time steps are randomly shuffled as well). Putting the shuffle in front of cache() results in memory saturation issues.
     dataset = dataset.batch(batch_size, drop_remainder=False)
     dataset = dataset.repeat()
+
     dataset.prefetch(1)
 
     return dataset
@@ -233,12 +235,11 @@ def model_fn(features, labels, mode, params):
 
     #Define tf.constants for storing the means and stdevs of the input variables & labels, which is needed for the normalisation and subsequent denormalisation in this graph
     #NOTE: the means and stdevs for the '_upstream' and '_downstream' labels are the same. This is why each mean and stdev is repeated twice.
-
     means_inputs = tf.constant([[
         means_dict_avgt['uc'],
         means_dict_avgt['vc'],
         means_dict_avgt['wc']]])
-    
+
     stdevs_inputs = tf.constant([[
         stdevs_dict_avgt['uc'],
         stdevs_dict_avgt['vc'],
@@ -450,6 +451,7 @@ def model_fn(features, labels, mode, params):
     weights = tf.constant([[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]])
     #weights = tf.constant([[1,1,1,1,10,10,1,1,1,1,1,1,10,10,1,1,1,1]])
     loss = tf.losses.mean_squared_error(labels_mask, output_layer_mask, weights=weights, reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE) #Mean taken over batch
+    #loss = tf.reduce_sum(tf.square(tf.subtract(labels_mask,output_layer_mask)))/(1000*18)
         
     #Define function to calculate the logarithm
     def log10(values):
@@ -575,7 +577,6 @@ elif args.train_dir2 is not None:
 test_filenames = [] #NOTE: here, no need to ensure that all resolutions (subdirectories) are equally represented 
 test_dirs = glob.glob(args.input_dir + '*')
 num_test_dirs = len(test_dirs)
-test_filenames_dirs = [[]] * num_test_dirs
 for n in range(num_test_dirs):
     for test_step in test_stepnumbers:
         test_filenames += glob.glob(str(test_dirs[n]) + '/training_time_step_' + str(test_step+1) + '_of_' + str(nt_total) + '*numsamples_1000.tfrecords')
@@ -586,15 +587,15 @@ if len(val_filenames) > max_val_files:
     val_filenames = val_filenames[:max_val_files]
 
 #Randomly shuffle filenames
-#np.random.shuffle(train_filenames) #NOTE: NOT needed, samples were already shuffled before stored in tfrecord files. The current order ensures that each batch (if chosen to be an exact multiple of the number of training subdirectories/resolutions) has an equal share of every resolution used for training.
+np.random.shuffle(train_filenames) #NOTE: ensures time steps are randomly shuffled as well for the epochs. It was computationally too expensive to shuffle the samples during the training itself, causing the (random) order to be the same every epoch. Since the epoch are in our case very large (depending on training configuration, ranging from 13.150 to 157.650 iterations (if batch size is 1000)) and the order is random, this can be expected to have limited impact.
 
 #Print filenames to check
 np.set_printoptions(threshold=np.inf)
 print("Training files:")
-#print('\n'.join(train_filenames))
+print('\n'.join(train_filenames))
 print(len(train_filenames))
 print("Validation files:")
-#print('\n'.join(val_filenames))
+print('\n'.join(val_filenames))
 print(len(val_filenames))
 print("Testing files:")
 #print('\n'.join(test_filenames))
