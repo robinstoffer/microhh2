@@ -3,6 +3,7 @@ import pandas as pd
 import netCDF4 as nc
 #import tensorflow as tf
 import matplotlib as mpl
+import copy
 mpl.use('PDF')
 mpl.rc('text', usetex=True)
 mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]
@@ -25,7 +26,7 @@ parser.add_argument('--make_plots', dest='make_plots', default=None, \
         help='Make plots at each height for the predictions of the MLP, Smagorinsky, and the training data')
 parser.add_argument('--make_table', dest='make_table', default=None, \
         action='store_true', \
-        help='Make table with all correlation coefficients between the predictions of the MLP, Smagorinsky, and the training data')
+        help='Make table with all correlation coefficients between the predictions of the MLP, Smagorinsky, and the training data. Note: if --make_table flag is specified, netCDF files called "reconstructed_fields.nc" and "dissipation.nc" should be present. These are created with the --reconstruct_fields and --calc_dissipation flags.')
 parser.add_argument('--reconstruct_fields', dest='reconstruct_fields', default=None, \
         action='store_true', \
         help="Reconstruct the corresponding transport fields for the predictions of the MLP. If not specified, a netCDF file called 'reconstructed_fields.nc' should be present in the current directory.")
@@ -34,7 +35,7 @@ parser.add_argument('--calc_dissipation', dest='calc_dissipation', default=None,
         help="Calculate the corresponding dissipation fields for the predictions of the MLP, the Smagorinsky SGS model, and the filtered DNS fields. If specified, a netCDF file called 'reconstructed_fields.nc' should be present in the current directory. (created with --reconstruct_fields flag). Creates netCDF-file called 'dissipation.nc' in current directory.")
 parser.add_argument('--plot_dissipation', dest='plot_dissipation', default=None, \
         action='store_true', \
-        help="Make plots of the dissipation fields inferred from the MLP predictions, Smagorinsky SGS model, and the filtered DNS fields. If specified, a netCDF file called 'dissipation.nc' should be present in the current directory. (created with --calc_dissipation flag)")
+        help="Make plots of the dissipation fields inferred from the MLP predictions, Smagorinsky SGS model, and the filtered DNS fields. If specified, a netCDF file called 'dissipation.nc' should be present in the current directory. (created with --calc_dissipation flag). Note: if --make_table flag is specified, a correlation table is made of the dissipation.")
 args = parser.parse_args()
 
 ###Fetch Smagorinsky fluxes, training fluxes, MLP predictions, and heights. Next, calculate isotropic part subgrid-scale stress and subtract it.###
@@ -888,9 +889,10 @@ if args.reconstruct_fields:
     d.close()
 
 #Calculate and store dissipation if specified
-if calc_dissipation:
+if args.calc_dissipation:
     
     print('Start reading variables needed to calculate dissipation.')
+    print('Note: the dissipation is calculated under the assumption that the flow fields have periodic BCs in the horizontal directions, and a no-slip BC in the vertical. In addition, it is assumed that the coarse-grained grid is equidistant. If this is not the case, change the script accordingly.')
    
     #Read and create corresponding files
     fields = nc.Dataset("reconstructed_fields.nc", "r")
@@ -909,12 +911,15 @@ if calc_dissipation:
     jgc = int(training['jgc'][:])
     kgc_center = int(training['kgc_center'][:])
     kgc_edge = int(training['kgc_edge'][:])
-    ihend          = int(a['ihend'][:])
-    iend           = int(a['iend'][:])
-    jhend          = int(a['jhend'][:])
-    jend           = int(a['jend'][:])
-    khend          = int(a['khend'][:])
-    kend           = int(a['kend'][:])
+    ihend          = int(training['ihend'][:])
+    iend           = int(training['iend'][:])
+    jhend          = int(training['jhend'][:])
+    jend           = int(training['jend'][:])
+    khend          = int(training['khend'][:])
+    kend           = int(training['kend'][:])
+
+    #Define time steps, based on previously defined tstart, tend that designate the testing time steps.
+    tstep = np.arange(tstart, tend, dtype=np.int64)
 
     #Raise error if kgc_center and kgc_edge are not equal; script not designed for this scenario
     if kgc_center != kgc_center:
@@ -938,9 +943,9 @@ if calc_dissipation:
     #xhcless = xhc[:-1]
 
     #Extract filtered velocity fields, use previously defined tstart, tend (which designate the testing period of the training dataset)
-    unres_tau_xu = np.array(training['unres_tau_xu_tot'][tstart:tend,:,:,1:])
-    unres_tau_yu = np.array(training['unres_tau_yu_tot'][tstart:tend,:,:-1,:-1])
-    unres_tau_zu = np.array(training['unres_tau_zu_tot'][tstart:tend,:,:,:-1])
+    uc = np.array(training['uc'][tstart:tend,:,:,:])
+    vc = np.array(training['vc'][tstart:tend,:,:,:])
+    wc = np.array(training['wc'][tstart:tend,:,:,:])
     
     #Extract MLP fluxes
     unres_tau_xu_MLP = np.array(fields['unres_tau_xu_MLP'][:,:,:,:])
@@ -969,15 +974,298 @@ if calc_dissipation:
     #unres_tau_yv_traceless = np.array(fields['unres_tau_yv_traceless'][:,:,:,:])
     #unres_tau_zw_traceless = np.array(fields['unres_tau_zw_traceless'][:,:,:,:])
     #
-    unres_tau_xu = np.array(fields['unres_tau_xu'][:,:,:,:])
-    unres_tau_xv = np.array(fields['unres_tau_xv'][:,:,:,:])
-    unres_tau_xw = np.array(fields['unres_tau_xw'][:,:,:,:])
-    unres_tau_yu = np.array(fields['unres_tau_yu'][:,:,:,:])
-    unres_tau_yv = np.array(fields['unres_tau_yv'][:,:,:,:])
-    unres_tau_yw = np.array(fields['unres_tau_yw'][:,:,:,:])
-    unres_tau_zu = np.array(fields['unres_tau_zu'][:,:,:,:])
-    unres_tau_zv = np.array(fields['unres_tau_zv'][:,:,:,:])
-    unres_tau_zw = np.array(fields['unres_tau_zw'][:,:,:,:])
+    unres_tau_xu_lbl = np.array(fields['unres_tau_xu'][:,:,:,:])
+    unres_tau_xv_lbl = np.array(fields['unres_tau_xv'][:,:,:,:])
+    unres_tau_xw_lbl = np.array(fields['unres_tau_xw'][:,:,:,:])
+    unres_tau_yu_lbl = np.array(fields['unres_tau_yu'][:,:,:,:])
+    unres_tau_yv_lbl = np.array(fields['unres_tau_yv'][:,:,:,:])
+    unres_tau_yw_lbl = np.array(fields['unres_tau_yw'][:,:,:,:])
+    unres_tau_zu_lbl = np.array(fields['unres_tau_zu'][:,:,:,:])
+    unres_tau_zv_lbl = np.array(fields['unres_tau_zv'][:,:,:,:])
+    unres_tau_zw_lbl = np.array(fields['unres_tau_zw'][:,:,:,:])
+
+    #Create dimensions for storage in nc-file
+    dissipation.createDimension("zc", len(zc))
+    dissipation.createDimension("zhc",len(zhc))
+    #dissipation.createDimension("zhcless",len(zhcless))
+    dissipation.createDimension("yc", len(yc))
+    dissipation.createDimension("yhc",len(yhc))
+    dissipation.createDimension("xc", len(xc))
+    dissipation.createDimension("xhc",len(xhc))
+    dissipation.createDimension("tstep",len(tstep))
+
+    #Create and store dimension variables in nc-file
+    var_zc = dissipation.createVariable("zc","f8",("zc",))
+    var_zc[:]  = zc
+    var_zhc = dissipation.createVariable("zhc","f8",("zhc",))
+    var_zhc[:] = zhc
+    var_yc = dissipation.createVariable("yc","f8",("yc",))
+    var_yc[:]  = yc
+    var_yhc = dissipation.createVariable("yhc","f8",("yhc",))
+    var_yhc[:] = yhc
+    var_xc = dissipation.createVariable("xc","f8",("xc",))
+    var_xc[:]  = xc
+    var_xhc = dissipation.createVariable("xhc","f8",("xhc",))
+    var_xhc[:] = xhc
+    var_tstep = dissipation.createVariable("tstep","f8",("tstep",))
+    var_tstep[:] = tstep
+    
+    #Create variables for storage in nc-file
+    var_diss_tau_xu_MLP     = dissipation.createVariable("diss_tau_xu_MLP","f8",("tstep","zc","yc","xc"))
+    var_diss_tau_xv_MLP     = dissipation.createVariable("diss_tau_xv_MLP","f8",("tstep","zc","yhc","xhc"))
+    var_diss_tau_xw_MLP     = dissipation.createVariable("diss_tau_xw_MLP","f8",("tstep","zhc","yc","xhc"))
+    var_diss_tau_yu_MLP     = dissipation.createVariable("diss_tau_yu_MLP","f8",("tstep","zc","yhc","xhc"))
+    var_diss_tau_yv_MLP     = dissipation.createVariable("diss_tau_yv_MLP","f8",("tstep","zc","yc","xc"))
+    var_diss_tau_yw_MLP     = dissipation.createVariable("diss_tau_yw_MLP","f8",("tstep","zhc","yhc","xc"))
+    var_diss_tau_zu_MLP     = dissipation.createVariable("diss_tau_zu_MLP","f8",("tstep","zhc","yc","xhc"))
+    var_diss_tau_zv_MLP     = dissipation.createVariable("diss_tau_zv_MLP","f8",("tstep","zhc","yhc","xc"))
+    var_diss_tau_zw_MLP     = dissipation.createVariable("diss_tau_zw_MLP","f8",("tstep","zc","yc","xc"))
+    var_diss_tot_MLP        = dissipation.createVariable("diss_tot_MLP","f8",("tstep","zc","yc","xc"))
+    var_diss_tot_MLP_horavg = dissipation.createVariable("diss_tot_MLP_horavg","f8",("tstep","zc"))
+    #
+    var_diss_tau_xu_smag     = dissipation.createVariable("diss_tau_xu_smag","f8",("tstep","zc","yc","xc"))
+    var_diss_tau_xv_smag     = dissipation.createVariable("diss_tau_xv_smag","f8",("tstep","zc","yhc","xhc"))
+    var_diss_tau_xw_smag     = dissipation.createVariable("diss_tau_xw_smag","f8",("tstep","zhc","yc","xhc"))
+    var_diss_tau_yu_smag     = dissipation.createVariable("diss_tau_yu_smag","f8",("tstep","zc","yhc","xhc"))
+    var_diss_tau_yv_smag     = dissipation.createVariable("diss_tau_yv_smag","f8",("tstep","zc","yc","xc"))
+    var_diss_tau_yw_smag     = dissipation.createVariable("diss_tau_yw_smag","f8",("tstep","zhc","yhc","xc"))
+    var_diss_tau_zu_smag     = dissipation.createVariable("diss_tau_zu_smag","f8",("tstep","zhc","yc","xhc"))
+    var_diss_tau_zv_smag     = dissipation.createVariable("diss_tau_zv_smag","f8",("tstep","zhc","yhc","xc"))
+    var_diss_tau_zw_smag     = dissipation.createVariable("diss_tau_zw_smag","f8",("tstep","zc","yc","xc"))
+    var_diss_tot_smag        = dissipation.createVariable("diss_tot_smag","f8",("tstep","zc","yc","xc"))
+    var_diss_tot_smag_horavg = dissipation.createVariable("diss_tot_smag_horavg","f8",("tstep","zc"))
+    #
+    var_diss_tau_xu_lbl     = dissipation.createVariable("diss_tau_xu_lbl","f8",("tstep","zc","yc","xc"))
+    var_diss_tau_xv_lbl     = dissipation.createVariable("diss_tau_xv_lbl","f8",("tstep","zc","yhc","xhc"))
+    var_diss_tau_xw_lbl     = dissipation.createVariable("diss_tau_xw_lbl","f8",("tstep","zhc","yc","xhc"))
+    var_diss_tau_yu_lbl     = dissipation.createVariable("diss_tau_yu_lbl","f8",("tstep","zc","yhc","xhc"))
+    var_diss_tau_yv_lbl     = dissipation.createVariable("diss_tau_yv_lbl","f8",("tstep","zc","yc","xc"))
+    var_diss_tau_yw_lbl     = dissipation.createVariable("diss_tau_yw_lbl","f8",("tstep","zhc","yhc","xc"))
+    var_diss_tau_zu_lbl     = dissipation.createVariable("diss_tau_zu_lbl","f8",("tstep","zhc","yc","xhc"))
+    var_diss_tau_zv_lbl     = dissipation.createVariable("diss_tau_zv_lbl","f8",("tstep","zhc","yhc","xc"))
+    var_diss_tau_zw_lbl     = dissipation.createVariable("diss_tau_zw_lbl","f8",("tstep","zc","yc","xc"))
+    var_diss_tot_lbl        = dissipation.createVariable("diss_tot_lbl","f8",("tstep","zc","yc","xc"))
+    var_diss_tot_lbl_horavg = dissipation.createVariable("diss_tot_lbl_horavg","f8",("tstep","zc"))
+
+    #Add ghostcells in horizontal (periodic BCs) and vertical (no-slip BC). At the same time, intialize dissipation components
+    diss_tau_xu_MLP = copy.deepcopy(unres_tau_xu_MLP)
+    diss_tau_yv_MLP = copy.deepcopy(unres_tau_yv_MLP)
+    diss_tau_zw_MLP = copy.deepcopy(unres_tau_zw_MLP)
+    #
+    diss_tau_xv_MLP = copy.deepcopy(unres_tau_xv_MLP)
+    diss_tau_xv_MLP = np.append(diss_tau_xv_MLP, diss_tau_xv_MLP[:,:,np.newaxis,0,:], axis=2)
+    diss_tau_xv_MLP = np.append(diss_tau_xv_MLP, diss_tau_xv_MLP[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_xw_MLP = copy.deepcopy(unres_tau_xw_MLP)
+    diss_tau_xw_MLP = np.append(diss_tau_xw_MLP, np.zeros(diss_tau_xw_MLP.shape, dtype=np.float64)[:,np.newaxis,0,:,:], axis=1)
+    diss_tau_xw_MLP = np.append(diss_tau_xw_MLP, diss_tau_xw_MLP[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_yu_MLP = copy.deepcopy(unres_tau_yu_MLP)
+    diss_tau_yu_MLP = np.append(diss_tau_yu_MLP, diss_tau_yu_MLP[:,:,np.newaxis,0,:], axis=2)
+    diss_tau_yu_MLP = np.append(diss_tau_yu_MLP, diss_tau_yu_MLP[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_yw_MLP = copy.deepcopy(unres_tau_yw_MLP)
+    diss_tau_yw_MLP = np.append(diss_tau_yw_MLP, np.zeros(diss_tau_yw_MLP.shape, dtype=np.float64)[:,np.newaxis,0,:,:], axis=1)
+    diss_tau_yw_MLP = np.append(diss_tau_yw_MLP, diss_tau_yw_MLP[:,:,np.newaxis,0,:], axis=2)
+    #
+    diss_tau_zu_MLP = copy.deepcopy(unres_tau_zu_MLP)
+    diss_tau_zu_MLP = np.append(diss_tau_zu_MLP, diss_tau_zu_MLP[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_zv_MLP = copy.deepcopy(unres_tau_zv_MLP)
+    diss_tau_zv_MLP = np.append(diss_tau_zv_MLP, diss_tau_zv_MLP[:,:,np.newaxis,0,:], axis=2)
+    #
+    diss_tau_xu_lbl = copy.deepcopy(unres_tau_xu_lbl)
+    diss_tau_yv_lbl = copy.deepcopy(unres_tau_yv_lbl)
+    diss_tau_zw_lbl = copy.deepcopy(unres_tau_zw_lbl)
+    #
+    diss_tau_xv_lbl = copy.deepcopy(unres_tau_xv_lbl)
+    diss_tau_xv_lbl = np.append(diss_tau_xv_lbl, diss_tau_xv_lbl[:,:,np.newaxis,0,:], axis=2)
+    diss_tau_xv_lbl = np.append(diss_tau_xv_lbl, diss_tau_xv_lbl[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_xw_lbl = copy.deepcopy(unres_tau_xw_lbl)
+    diss_tau_xw_lbl = np.append(diss_tau_xw_lbl, np.zeros(diss_tau_xw_lbl.shape, dtype=np.float64)[:,np.newaxis,0,:,:], axis=1)
+    diss_tau_xw_lbl = np.append(diss_tau_xw_lbl, diss_tau_xw_lbl[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_yu_lbl = copy.deepcopy(unres_tau_yu_lbl)
+    diss_tau_yu_lbl = np.append(diss_tau_yu_lbl, diss_tau_yu_lbl[:,:,np.newaxis,0,:], axis=2)
+    diss_tau_yu_lbl = np.append(diss_tau_yu_lbl, diss_tau_yu_lbl[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_yw_lbl = copy.deepcopy(unres_tau_yw_lbl)
+    diss_tau_yw_lbl = np.append(diss_tau_yw_lbl, np.zeros(diss_tau_yw_lbl.shape, dtype=np.float64)[:,np.newaxis,0,:,:], axis=1)
+    diss_tau_yw_lbl = np.append(diss_tau_yw_lbl, diss_tau_yw_lbl[:,:,np.newaxis,0,:], axis=2)
+    #
+    diss_tau_zu_lbl = copy.deepcopy(unres_tau_zu_lbl)
+    diss_tau_zu_lbl = np.append(diss_tau_zu_lbl, diss_tau_zu_lbl[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_zv_lbl = copy.deepcopy(unres_tau_zv_lbl)
+    diss_tau_zv_lbl = np.append(diss_tau_zv_lbl, diss_tau_zv_lbl[:,:,np.newaxis,0,:], axis=2)
+    #
+    diss_tau_xu_smag = copy.deepcopy(unres_tau_xu_smag)
+    diss_tau_yv_smag = copy.deepcopy(unres_tau_yv_smag)
+    diss_tau_zw_smag = copy.deepcopy(unres_tau_zw_smag)
+    #
+    diss_tau_xv_smag = copy.deepcopy(unres_tau_xv_smag)
+    diss_tau_xv_smag = np.append(diss_tau_xv_smag, diss_tau_xv_smag[:,:,np.newaxis,0,:], axis=2)
+    diss_tau_xv_smag = np.append(diss_tau_xv_smag, diss_tau_xv_smag[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_xw_smag = copy.deepcopy(unres_tau_xw_smag)
+    diss_tau_xw_smag = np.append(diss_tau_xw_smag, np.zeros(diss_tau_xw_smag.shape, dtype=np.float64)[:,np.newaxis,0,:,:], axis=1)
+    diss_tau_xw_smag = np.append(diss_tau_xw_smag, diss_tau_xw_smag[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_yu_smag = copy.deepcopy(unres_tau_yu_smag)
+    diss_tau_yu_smag = np.append(diss_tau_yu_smag, diss_tau_yu_smag[:,:,np.newaxis,0,:], axis=2)
+    diss_tau_yu_smag = np.append(diss_tau_yu_smag, diss_tau_yu_smag[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_yw_smag = copy.deepcopy(unres_tau_yw_smag)
+    diss_tau_yw_smag = np.append(diss_tau_yw_smag, np.zeros(diss_tau_yw_smag.shape, dtype=np.float64)[:,np.newaxis,0,:,:], axis=1)
+    diss_tau_yw_smag = np.append(diss_tau_yw_smag, diss_tau_yw_smag[:,:,np.newaxis,0,:], axis=2)
+    #
+    diss_tau_zu_smag = copy.deepcopy(unres_tau_zu_smag)
+    diss_tau_zu_smag = np.append(diss_tau_zu_smag, diss_tau_zu_smag[:,:,:,np.newaxis,0], axis=3)
+    #
+    diss_tau_zv_smag = copy.deepcopy(unres_tau_zv_smag)
+    diss_tau_zv_smag = np.append(diss_tau_zv_smag, diss_tau_zv_smag[:,:,np.newaxis,0,:], axis=2)
+    #
+
+    #Initialize arrays for dissipation calculation
+    diss_tot_MLP  = np.zeros((len(tstep),len(zc),len(yc),len(xc)), dtype=np.float64)
+    diss_tot_smag = np.zeros((len(tstep),len(zc),len(yc),len(xc)), dtype=np.float64)
+    diss_tot_lbl  = np.zeros((len(tstep),len(zc),len(yc),len(xc)), dtype=np.float64)
+
+    #Calculate grid distances
+    nxc = len(xc)
+    nyc = len(yc)
+    nzc = len(zc)
+    zlen = zhc[-1]
+    ylen = yhc[-1]
+    xlen = xhc[-1]
+    dzi = nzc / zlen
+    dyi = nyc / ylen
+    dxi = nxc / xlen
+
+    #Calculate all the individual components
+    #xu
+    diss_tau_xu_MLP = - diss_tau_xu_MLP * (uc[:,kgc_center:kend,jgc:jend,igc+1:ihend] - uc[:,kgc_center:kend,jgc:jend,igc:ihend-1]) * dxi
+    diss_tau_xu_smag = - diss_tau_xu_smag * (uc[:,kgc_center:kend,jgc:jend,igc+1:ihend] - uc[:,kgc_center:kend,jgc:jend,igc:ihend-1]) * dxi
+    diss_tau_xu_lbl = - diss_tau_xu_lbl * (uc[:,kgc_center:kend,jgc:jend,igc+1:ihend] - uc[:,kgc_center:kend,jgc:jend,igc:ihend-1]) * dxi
+    #
+    diss_tot_MLP[:,:,:,:]  += diss_tau_xu_MLP[:,:,:,:]
+    diss_tot_smag[:,:,:,:] += diss_tau_xu_smag[:,:,:,:]
+    diss_tot_lbl[:,:,:,:]  += diss_tau_xu_lbl[:,:,:,:]
+
+    #yu
+    diss_tau_yu_MLP = - diss_tau_yu_MLP * (uc[:,kgc_center:kend,jgc:jend+1,igc:ihend] - uc[:,kgc_center:kend,jgc-1:jend,igc:ihend]) * dyi
+    diss_tau_yu_smag = - diss_tau_yu_smag * (uc[:,kgc_center:kend,jgc:jend+1,igc:ihend] - uc[:,kgc_center:kend,jgc-1:jend,igc:ihend]) * dyi
+    diss_tau_yu_lbl = - diss_tau_yu_lbl * (uc[:,kgc_center:kend,jgc:jend+1,igc:ihend] - uc[:,kgc_center:kend,jgc-1:jend,igc:ihend]) * dyi
+    #
+    diss_tot_MLP[:,:,:,:]   += 0.25 * (diss_tau_yu_MLP[:,:,:-1,:-1] + diss_tau_yu_MLP[:,:,:-1,1:] + diss_tau_yu_MLP[:,:,1:,:-1]  + diss_tau_yu_MLP[:,:,1:,1:])
+    diss_tot_smag[:,:,:,:]  += 0.25 * (diss_tau_yu_smag[:,:,:-1,:-1] + diss_tau_yu_smag[:,:,:-1,1:] + diss_tau_yu_smag[:,:,1:,:-1]  + diss_tau_yu_smag[:,:,1:,1:])
+    diss_tot_lbl[:,:,:,:]   += 0.25 * (diss_tau_yu_lbl[:,:,:-1,:-1] + diss_tau_yu_lbl[:,:,:-1,1:] + diss_tau_yu_lbl[:,:,1:,:-1]  + diss_tau_yu_lbl[:,:,1:,1:])
+    
+    #zu
+    diss_tau_zu_MLP = - diss_tau_zu_MLP * (uc[:,kgc_center:kend+1,jgc:jend,igc:ihend] - uc[:,kgc_center-1:kend,jgc:jend,igc:ihend]) * dzi
+    diss_tau_zu_smag = - diss_tau_zu_smag * (uc[:,kgc_center:kend+1,jgc:jend,igc:ihend] - uc[:,kgc_center-1:kend,jgc:jend,igc:ihend]) * dzi
+    diss_tau_zu_lbl = - diss_tau_zu_lbl * (uc[:,kgc_center:kend+1,jgc:jend,igc:ihend] - uc[:,kgc_center-1:kend,jgc:jend,igc:ihend]) * dzi
+    #
+    diss_tot_MLP[:,:,:,:]   += 0.25 * (diss_tau_zu_MLP[:,:-1,:,:-1] + diss_tau_zu_MLP[:,:-1,:,1:] + diss_tau_zu_MLP[:,1:,:,:-1]  + diss_tau_zu_MLP[:,1:,:,1:])
+    diss_tot_smag[:,:,:,:]  += 0.25 * (diss_tau_zu_smag[:,:-1,:,:-1] + diss_tau_zu_smag[:,:-1,:,1:] + diss_tau_zu_smag[:,1:,:,:-1]  + diss_tau_zu_smag[:,1:,:,1:])
+    diss_tot_lbl[:,:,:,:]   += 0.25 * (diss_tau_zu_lbl[:,:-1,:,:-1] + diss_tau_zu_lbl[:,:-1,:,1:] + diss_tau_zu_lbl[:,1:,:,:-1]  + diss_tau_zu_lbl[:,1:,:,1:])
+    
+    #xv
+    diss_tau_xv_MLP = - diss_tau_xv_MLP * (vc[:,kgc_center:kend,jgc:jhend,igc:iend+1] - vc[:,kgc_center:kend,jgc:jhend,igc-1:iend]) * dxi
+    diss_tau_xv_smag = - diss_tau_xv_smag * (vc[:,kgc_center:kend,jgc:jhend,igc:iend+1] - vc[:,kgc_center:kend,jgc:jhend,igc-1:iend]) * dxi
+    diss_tau_xv_lbl = - diss_tau_xv_lbl * (vc[:,kgc_center:kend,jgc:jhend,igc:iend+1] - vc[:,kgc_center:kend,jgc:jhend,igc-1:iend]) * dxi
+    #
+    diss_tot_MLP[:,:,:,:]   += 0.25 * (diss_tau_xv_MLP[:,:,:-1,:-1] + diss_tau_xv_MLP[:,:,:-1,1:] + diss_tau_xv_MLP[:,:,1:,:-1]  + diss_tau_xv_MLP[:,:,1:,1:])
+    diss_tot_smag[:,:,:,:]  += 0.25 * (diss_tau_xv_smag[:,:,:-1,:-1] + diss_tau_xv_smag[:,:,:-1,1:] + diss_tau_xv_smag[:,:,1:,:-1]  + diss_tau_xv_smag[:,:,1:,1:])
+    diss_tot_lbl[:,:,:,:]   += 0.25 * (diss_tau_xv_lbl[:,:,:-1,:-1] + diss_tau_xv_lbl[:,:,:-1,1:] + diss_tau_xv_lbl[:,:,1:,:-1]  + diss_tau_xv_lbl[:,:,1:,1:])
+    
+    #yv
+    diss_tau_yv_MLP = - diss_tau_yv_MLP * (vc[:,kgc_center:kend,jgc+1:jhend,igc:iend] - vc[:,kgc_center:kend,jgc:jhend-1,igc:iend]) * dyi
+    diss_tau_yv_smag = - diss_tau_yv_smag * (vc[:,kgc_center:kend,jgc+1:jhend,igc:iend] - vc[:,kgc_center:kend,jgc:jhend-1,igc:iend]) * dyi
+    diss_tau_yv_lbl = - diss_tau_yv_lbl * (vc[:,kgc_center:kend,jgc+1:jhend,igc:iend] - vc[:,kgc_center:kend,jgc:jhend-1,igc:iend]) * dyi
+    #
+    diss_tot_MLP[:,:,:,:]  += diss_tau_yv_MLP[:,:,:,:]
+    diss_tot_smag[:,:,:,:] += diss_tau_yv_smag[:,:,:,:]
+    diss_tot_lbl[:,:,:,:]  += diss_tau_yv_lbl[:,:,:,:]
+    
+    #zv
+    diss_tau_zv_MLP = - diss_tau_zv_MLP * (vc[:,kgc_center:kend+1,jgc:jhend,igc:iend] - vc[:,kgc_center-1:kend,jgc:jhend,igc:iend]) * dzi
+    diss_tau_zv_smag = - diss_tau_zv_smag * (vc[:,kgc_center:kend+1,jgc:jhend,igc:iend] - vc[:,kgc_center-1:kend,jgc:jhend,igc:iend]) * dzi
+    diss_tau_zv_lbl = - diss_tau_zv_lbl * (vc[:,kgc_center:kend+1,jgc:jhend,igc:iend] - vc[:,kgc_center-1:kend,jgc:jhend,igc:iend]) * dzi
+    #
+    diss_tot_MLP[:,:,:,:]   += 0.25 * (diss_tau_zv_MLP[:,:-1,:-1,:] + diss_tau_zv_MLP[:,:-1,1:,:] + diss_tau_zv_MLP[:,1:,:-1,:]  + diss_tau_zv_MLP[:,1:,1:,:])
+    diss_tot_smag[:,:,:,:]  += 0.25 * (diss_tau_zv_smag[:,:-1,:-1,:] + diss_tau_zv_smag[:,:-1,1:,:] + diss_tau_zv_smag[:,1:,:-1,:]  + diss_tau_zv_smag[:,1:,1:,:])
+    diss_tot_lbl[:,:,:,:]   += 0.25 * (diss_tau_zv_lbl[:,:-1,:-1,:] + diss_tau_zv_lbl[:,:-1,1:,:] + diss_tau_zv_lbl[:,1:,:-1,:]  + diss_tau_zv_lbl[:,1:,1:,:])
+    
+    #xw
+    diss_tau_xw_MLP = - diss_tau_xw_MLP * (wc[:,kgc_edge:khend,jgc:jend,igc:iend+1] - wc[:,kgc_edge:khend,jgc:jend,igc-1:iend]) * dxi
+    diss_tau_xw_smag = - diss_tau_xw_smag * (wc[:,kgc_edge:khend,jgc:jend,igc:iend+1] - wc[:,kgc_edge:khend,jgc:jend,igc-1:iend]) * dxi
+    diss_tau_xw_lbl = - diss_tau_xw_lbl * (wc[:,kgc_edge:khend,jgc:jend,igc:iend+1] - wc[:,kgc_edge:khend,jgc:jend,igc-1:iend]) * dxi
+    #
+    diss_tot_MLP[:,:,:,:]   += 0.25 * (diss_tau_xw_MLP[:,:-1,:,:-1] + diss_tau_xw_MLP[:,:-1,:,1:] + diss_tau_xw_MLP[:,1:,:,:-1]  + diss_tau_xw_MLP[:,1:,:,1:])
+    diss_tot_smag[:,:,:,:]  += 0.25 * (diss_tau_xw_smag[:,:-1,:,:-1] + diss_tau_xw_smag[:,:-1,:,1:] + diss_tau_xw_smag[:,1:,:,:-1]  + diss_tau_xw_smag[:,1:,:,1:])
+    diss_tot_lbl[:,:,:,:]   += 0.25 * (diss_tau_xw_lbl[:,:-1,:,:-1] + diss_tau_xw_lbl[:,:-1,:,1:] + diss_tau_xw_lbl[:,1:,:,:-1]  + diss_tau_xw_lbl[:,1:,:,1:])
+    
+    #yw
+    diss_tau_yw_MLP = - diss_tau_yw_MLP * (wc[:,kgc_edge:khend,jgc:jend+1,igc:iend] - wc[:,kgc_edge:khend,jgc-1:jend,igc:iend]) * dyi
+    diss_tau_yw_smag = - diss_tau_yw_smag * (wc[:,kgc_edge:khend,jgc:jend+1,igc:iend] - wc[:,kgc_edge:khend,jgc-1:jend,igc:iend]) * dyi
+    diss_tau_yw_lbl = - diss_tau_yw_lbl * (wc[:,kgc_edge:khend,jgc:jend+1,igc:iend] - wc[:,kgc_edge:khend,jgc-1:jend,igc:iend]) * dyi
+    #
+    diss_tot_MLP[:,:,:,:]   += 0.25 * (diss_tau_yw_MLP[:,:-1,:-1,:] + diss_tau_yw_MLP[:,:-1,1:,:] + diss_tau_yw_MLP[:,1:,:-1,:]  + diss_tau_yw_MLP[:,1:,1:,:])
+    diss_tot_smag[:,:,:,:]  += 0.25 * (diss_tau_yw_smag[:,:-1,:-1,:] + diss_tau_yw_smag[:,:-1,1:,:] + diss_tau_yw_smag[:,1:,:-1,:]  + diss_tau_yw_smag[:,1:,1:,:])
+    diss_tot_lbl[:,:,:,:]   += 0.25 * (diss_tau_yw_lbl[:,:-1,:-1,:] + diss_tau_yw_lbl[:,:-1,1:,:] + diss_tau_yw_lbl[:,1:,:-1,:]  + diss_tau_yw_lbl[:,1:,1:,:])
+    
+    #zw
+    diss_tau_zw_MLP = - diss_tau_zw_MLP * (wc[:,kgc_edge+1:khend,jgc:jend,igc:iend] - wc[:,kgc_edge:khend-1,jgc:jend,igc:iend]) * dzi
+    diss_tau_zw_smag = - diss_tau_zw_smag * (wc[:,kgc_edge+1:khend,jgc:jend,igc:iend] - wc[:,kgc_edge:khend-1,jgc:jend,igc:iend]) * dzi
+    diss_tau_zw_lbl = - diss_tau_zw_lbl * (wc[:,kgc_edge+1:khend,jgc:jend,igc:iend] - wc[:,kgc_edge:khend-1,jgc:jend,igc:iend]) * dzi
+    #
+    diss_tot_MLP[:,:,:,:]  += diss_tau_zw_MLP[:,:,:,:]
+    diss_tot_smag[:,:,:,:] += diss_tau_zw_smag[:,:,:,:]
+    diss_tot_lbl[:,:,:,:]  += diss_tau_zw_lbl[:,:,:,:]
+
+    #Calculate horizontally averaged vertical profiles dissipation
+    diss_tot_MLP_horavg = np.mean(diss_tot_MLP, axis=(2,3))
+    diss_tot_smag_horavg = np.mean(diss_tot_smag, axis=(2,3))
+    diss_tot_lbl_horavg = np.mean(diss_tot_lbl, axis=(2,3))
+
+    #Write variables
+    var_diss_tau_xu_MLP[:,:,:,:]     =     diss_tau_xu_MLP[:,:,:,:] 
+    var_diss_tau_xv_MLP[:,:,:,:]     =     diss_tau_xv_MLP[:,:,:,:]
+    var_diss_tau_xw_MLP[:,:,:,:]     =     diss_tau_xw_MLP[:,:,:,:]
+    var_diss_tau_yu_MLP[:,:,:,:]     =     diss_tau_yu_MLP[:,:,:,:]
+    var_diss_tau_yv_MLP[:,:,:,:]     =     diss_tau_yv_MLP[:,:,:,:]
+    var_diss_tau_yw_MLP[:,:,:,:]     =     diss_tau_yw_MLP[:,:,:,:]
+    var_diss_tau_zu_MLP[:,:,:,:]     =     diss_tau_zu_MLP[:,:,:,:]
+    var_diss_tau_zv_MLP[:,:,:,:]     =     diss_tau_zv_MLP[:,:,:,:]
+    var_diss_tau_zw_MLP[:,:,:,:]     =     diss_tau_zw_MLP[:,:,:,:]
+    var_diss_tot_MLP[:,:,:,:]        =        diss_tot_MLP[:,:,:,:]
+    var_diss_tot_MLP_horavg[:,:]     = diss_tot_MLP_horavg[:,:]
+    #
+    var_diss_tau_xu_smag[:,:,:,:]     =     diss_tau_xu_smag[:,:,:,:]
+    var_diss_tau_xv_smag[:,:,:,:]     =     diss_tau_xv_smag[:,:,:,:]
+    var_diss_tau_xw_smag[:,:,:,:]     =     diss_tau_xw_smag[:,:,:,:]
+    var_diss_tau_yu_smag[:,:,:,:]     =     diss_tau_yu_smag[:,:,:,:]
+    var_diss_tau_yv_smag[:,:,:,:]     =     diss_tau_yv_smag[:,:,:,:]
+    var_diss_tau_yw_smag[:,:,:,:]     =     diss_tau_yw_smag[:,:,:,:]
+    var_diss_tau_zu_smag[:,:,:,:]     =     diss_tau_zu_smag[:,:,:,:]
+    var_diss_tau_zv_smag[:,:,:,:]     =     diss_tau_zv_smag[:,:,:,:]
+    var_diss_tau_zw_smag[:,:,:,:]     =     diss_tau_zw_smag[:,:,:,:]
+    var_diss_tot_smag[:,:,:,:]        =        diss_tot_smag[:,:,:,:]
+    var_diss_tot_smag_horavg[:,:]     = diss_tot_smag_horavg[:,:]
+    #
+    var_diss_tau_xu_lbl[:,:,:,:]     =     diss_tau_xu_lbl[:,:,:,:]
+    var_diss_tau_xv_lbl[:,:,:,:]     =     diss_tau_xv_lbl[:,:,:,:]
+    var_diss_tau_xw_lbl[:,:,:,:]     =     diss_tau_xw_lbl[:,:,:,:]
+    var_diss_tau_yu_lbl[:,:,:,:]     =     diss_tau_yu_lbl[:,:,:,:]
+    var_diss_tau_yv_lbl[:,:,:,:]     =     diss_tau_yv_lbl[:,:,:,:]
+    var_diss_tau_yw_lbl[:,:,:,:]     =     diss_tau_yw_lbl[:,:,:,:]
+    var_diss_tau_zu_lbl[:,:,:,:]     =     diss_tau_zu_lbl[:,:,:,:]
+    var_diss_tau_zv_lbl[:,:,:,:]     =     diss_tau_zv_lbl[:,:,:,:]
+    var_diss_tau_zw_lbl[:,:,:,:]     =     diss_tau_zw_lbl[:,:,:,:]
+    var_diss_tot_lbl[:,:,:,:]        =        diss_tot_lbl[:,:,:,:]
+    var_diss_tot_lbl_horavg[:,:]     = diss_tot_lbl_horavg[:,:]
 
     #Close nc-files
     fields.close()
@@ -1065,6 +1353,21 @@ if args.make_plots or args.make_table:
     #Close netCDF-file
     fields.close()
 
+#Load dissipation if correlation table has to be made or dissiplation plots have to created
+if args.plot_dissipation or args.make_table:
+    
+    #Read nc-file with dissipation values
+    dissipation_file = nc.Dataset("dissipation.nc", "r")
+
+    #Extract dissipation fluxes
+    diss_tot_MLP  = np.array(dissipation_file['diss_tot_MLP'][:,:,:,:])
+    diss_tot_smag = np.array(dissipation_file['diss_tot_smag'][:,:,:,:])
+    diss_tot_lbl  = np.array(dissipation_file['diss_tot_lbl'][:,:,:,:])
+    diss_tot_MLP_horavg   = np.array(dissipation_file['diss_tot_MLP_horavg'][:,:])
+    diss_tot_smag_horavg  = np.array(dissipation_file['diss_tot_smag_horavg'][:,:])
+    diss_tot_lbl_horavg   = np.array(dissipation_file['diss_tot_lbl_horavg'][:,:])
+
+
 #Extract all dissipation fields if specified
 if args.plot_dissipation:
     pass
@@ -1078,14 +1381,15 @@ if args.make_table:
     heights = np.insert(heights,0,'zall')
     heights = np.append(heights,'top_wall')
     components = np.array(
-                ['tau_uu_ANN','tau_vu_ANN','tau_wu_ANN',
+                ['diss_ANN','tau_uu_ANN','tau_vu_ANN','tau_wu_ANN',
                 'tau_uv_ANN','tau_vv_ANN','tau_wv_ANN',
                 'tau_uw_ANN','tau_vw_ANN','tau_ww_ANN',
-                'tau_uu_smag','tau_vu_smag','tau_wu_smag',
+                'diss_smag','tau_uu_smag','tau_vu_smag','tau_wu_smag',
                 'tau_uv_smag','tau_vv_smag','tau_wv_smag',
                 'tau_uw_smag','tau_vw_smag','tau_ww_smag'])
 
     #Define arrays for storage
+    corrcoef_diss = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_xu = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_yu = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_zu = np.zeros((nz+3,),dtype=np.float32)
@@ -1095,6 +1399,7 @@ if args.make_table:
     corrcoef_xw = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_yw = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_zw = np.zeros((nz+3,),dtype=np.float32)
+    corrcoef_diss_smag = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_xu_smag = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_yu_smag = np.zeros((nz+3,),dtype=np.float32)
     corrcoef_zu_smag = np.zeros((nz+3,),dtype=np.float32)
@@ -1106,6 +1411,7 @@ if args.make_table:
     corrcoef_zw_smag = np.zeros((nz+3,),dtype=np.float32)
 
     #Consider all heights over all time steps
+    corrcoef_diss[0] = np.round(np.corrcoef(diss_tot_MLP.flatten(), diss_tot_lbl.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_xu[0] = np.round(np.corrcoef(unres_tau_xu_MLP.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yu[0] = np.round(np.corrcoef(unres_tau_yu_MLP.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zu[0] = np.round(np.corrcoef(unres_tau_zu_MLP.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1115,6 +1421,7 @@ if args.make_table:
     corrcoef_xw[0] = np.round(np.corrcoef(unres_tau_xw_MLP.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yw[0] = np.round(np.corrcoef(unres_tau_yw_MLP.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zw[0] = np.round(np.corrcoef(unres_tau_zw_MLP.flatten(), unres_tau_zw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_diss_smag[0] = np.round(np.corrcoef(diss_tot_smag.flatten(), diss_tot_lbl.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_xu_smag[0] = np.round(np.corrcoef(unres_tau_xu_smag.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yu_smag[0] = np.round(np.corrcoef(unres_tau_yu_smag.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zu_smag[0] = np.round(np.corrcoef(unres_tau_zu_smag.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1126,6 +1433,7 @@ if args.make_table:
     corrcoef_zw_smag[0] = np.round(np.corrcoef(unres_tau_zw_smag.flatten(), unres_tau_zw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
  
     #Consider all heights, horizontally averaged over all time steps
+    corrcoef_diss[1]      = np.round(np.corrcoef(diss_tot_MLP_horavg.flatten(), diss_tot_lbl_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_xu[1]      = np.round(np.corrcoef(unres_tau_xu_MLP_horavg.flatten(), unres_tau_xu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yu[1]      = np.round(np.corrcoef(unres_tau_yu_MLP_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zu[1]      = np.round(np.corrcoef(unres_tau_zu_MLP_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1135,6 +1443,7 @@ if args.make_table:
     corrcoef_xw[1]      = np.round(np.corrcoef(unres_tau_xw_MLP_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yw[1]      = np.round(np.corrcoef(unres_tau_yw_MLP_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zw[1]      = np.round(np.corrcoef(unres_tau_zw_MLP_horavg.flatten(), unres_tau_zw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_diss_smag[1] = np.round(np.corrcoef(diss_tot_smag_horavg.flatten(), diss_tot_lbl_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_xu_smag[1] = np.round(np.corrcoef(unres_tau_xu_smag_horavg.flatten(), unres_tau_xu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_yu_smag[1] = np.round(np.corrcoef(unres_tau_yu_smag_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
     corrcoef_zu_smag[1] = np.round(np.corrcoef(unres_tau_zu_smag_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1148,6 +1457,7 @@ if args.make_table:
     #Consider each individual height
     for k in range(nz+1): #+1 needed to calculate corr_coefs at top wall for appropriate components
         if k == nz: #Ensure only arrays with additional cell for top wall are accessed, put the others to NaN
+            corrcoef_diss[k+2] = np.nan
             corrcoef_xu[k+2] = np.nan
             corrcoef_yu[k+2] = np.nan
             corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_MLP[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1157,6 +1467,7 @@ if args.make_table:
             corrcoef_xw[k+2] = np.nan
             corrcoef_yw[k+2] = np.nan
             corrcoef_zw[k+2] = np.nan
+            corrcoef_diss_smag[k+2] = np.nan
             corrcoef_xu_smag[k+2] = np.nan
             corrcoef_yu_smag[k+2] = np.nan
             corrcoef_zu_smag[k+2] = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1168,6 +1479,7 @@ if args.make_table:
             corrcoef_zw_smag[k+2] = np.nan
 
         else:
+            corrcoef_diss[k+2] = np.round(np.corrcoef(diss_tot_MLP[:,k,:,:].flatten(), diss_tot_lbl[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xu[k+2] = np.round(np.corrcoef(unres_tau_xu_MLP[:,k,:,:].flatten(), unres_tau_xu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_yu[k+2] = np.round(np.corrcoef(unres_tau_yu_MLP[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_MLP[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1177,7 +1489,8 @@ if args.make_table:
             corrcoef_xw[k+2] = np.round(np.corrcoef(unres_tau_xw_MLP[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_yw[k+2] = np.round(np.corrcoef(unres_tau_yw_MLP[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_zw[k+2] = np.round(np.corrcoef(unres_tau_zw_MLP[:,k,:,:].flatten(), unres_tau_zw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xu_smag[k+2] = np.round(np.corrcoef(unres_tau_xu_smag[:,k,:,:].flatten(), unres_tau_xu_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_diss_smag[k+2] = np.round(np.corrcoef(diss_tot_smag[:,k,:,:].flatten(), diss_tot_lbl[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_xu_smag[k+2] = np.round(np.corrcoef(unres_tau_xu_smag[:,k,:,:].flatten(), unres_tau_xu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_yu_smag[k+2] = np.round(np.corrcoef(unres_tau_yu_smag[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_zu_smag[k+2] = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xv_smag[k+2] = np.round(np.corrcoef(unres_tau_xv_smag[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1189,10 +1502,10 @@ if args.make_table:
 
     #Add correlation coefficients to DataFrame
     corr_coef = np.array(
-               [corrcoef_xu,corrcoef_yu,corrcoef_zu,
+               [corrcoef_diss,corrcoef_xu,corrcoef_yu,corrcoef_zu,
                 corrcoef_xv,corrcoef_yv,corrcoef_zv,
                 corrcoef_xw,corrcoef_yw,corrcoef_zw,
-                corrcoef_xu_smag,corrcoef_yu_smag,corrcoef_zu_smag,
+                corrcoef_diss_smag,corrcoef_xu_smag,corrcoef_yu_smag,corrcoef_zu_smag,
                 corrcoef_xv_smag,corrcoef_yv_smag,corrcoef_zv_smag,
                 corrcoef_xw_smag,corrcoef_yw_smag,corrcoef_zw_smag]
                ,dtype=np.float32)
@@ -1239,33 +1552,52 @@ if args.make_table:
     mpl.rc('text', usetex=True) #Switch latex usage for matplotlib back on
 
 #Define function for making horizontal cross-sections
-def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is_smag = False, time_step = 0, delta = 1):
-    #NOTE1: sixth last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: fifth last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
-    #NOTE3: fourth last input is the friction velocity [m/s], used to normalize
-    #NOTE4: thirth last input of this function is a boolean that specifies whether the Smagorinsky fluxes are plotted (True) or not (False)
-    #NOTE5: the second last input of this function is an integer specifying which test time step stored in the nc-file is plotted.
-    #NOTE6: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 1m, effectively not rescaling). 
+def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is_smag = False, time_step = 0, delta = 1, plot_dissipation=False):
+    #NOTE1: the seventh last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the sixth last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
+    #NOTE3: the fifth last input is the friction velocity [m/s], used to normalize
+    #NOTE4: the fourth last input of this function is a boolean that specifies whether the Smagorinsky fluxes are plotted (True) or not (False)
+    #NOTE5: the thrid last input of this function is an integer specifying which test time step stored in the nc-file is plotted.
+    #NOTE6: the second last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 1m, effectively not rescaling). 
+    #NOTE7: the last input of this function is a boolean that specifies whether the SGS fluxes (False) or dissipation values are being plotted.
 
     #Check that component is not both specified as label and Smagorinsky value
     if is_lbl and is_smag:
         raise RuntimeError("Value specified as both label and Smagorinsky value, which is not possible.")
 
     for k in range(len(z)-1):
-        values_height = values[time_step,k,:,:] / (utau_ref_moser ** 2.)
+        
+        if plot_dissipation:
+            values_height = (values[time_step,k,:,:] / (utau_ref_moser ** 3.)) * delta
+        else:
+            values_height = values[time_step,k,:,:] / (utau_ref_moser ** 2.)
 
         #Make horizontal cross-sections of the values
         plt.figure()
-        if is_smag:
-            plt.pcolormesh(x / delta, y / delta, values_height, vmin=-0.5, vmax=0.5)
+        if plot_dissipation:
+            if is_smag:
+                plt.pcolormesh(x / delta, y / delta, values_height, vmin=-150.0, vmax=150.0)
+            else:
+                plt.pcolormesh(x / delta, y / delta, values_height, vmin=-500.0, vmax=500.0)
         else:
-            plt.pcolormesh(x / delta, y / delta, values_height, vmin=-5.0, vmax=5.0)
+            if is_smag:
+                plt.pcolormesh(x / delta, y / delta, values_height, vmin=-0.5, vmax=0.5)
+            else:
+                plt.pcolormesh(x / delta, y / delta, values_height, vmin=-5.0, vmax=5.0)
         ax = plt.gca()
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
         ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize=16)
-        cbar.set_label(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',rotation=270,fontsize=20,labelpad=30)
+        if plot_dissipation:
+            if is_lbl:
+                cbar.set_label(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=20,labelpad=30)
+            elif is_smag:
+                cbar.set_label(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=20,labelpad=30)
+            else:
+                cbar.set_label(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=20,labelpad=30)
+        else:
+            cbar.set_label(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',rotation=270,fontsize=20,labelpad=30)
         plt.xlabel(r'$ x \ \delta^{-1} \ [-]$',fontsize=20)
         plt.ylabel(r'$ y \ \delta^{-1} \ [-]$',fontsize=20)
         #plt.xticks(fontsize=16, rotation=90)
@@ -1273,21 +1605,30 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is
         plt.yticks(fontsize=16, rotation=0)
         fig = plt.gcf()
         fig.set_tight_layout(True)
-        if is_lbl:
-            plt.savefig("Horcross_label_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".pdf")
-        elif is_smag:
-            plt.savefig("Horcross_smag_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".pdf")
+        if plot_dissipation:
+            if is_lbl:
+                plt.savefig("Diss_horcross_label_" + str((z[k]+z[k+1])/2.) + ".pdf")
+            elif is_smag:
+                plt.savefig("Diss_horcross_smag_" + str((z[k]+z[k+1])/2.) + ".pdf")
+            else:
+                plt.savefig("Diss_horcross_" + str((z[k]+z[k+1])/2.) + ".pdf")
         else:
-            plt.savefig("Horcross_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".pdf")
+            if is_lbl:
+                plt.savefig("Horcross_label_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".pdf")
+            elif is_smag:
+                plt.savefig("Horcross_smag_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".pdf")
+            else:
+                plt.savefig("Horcross_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".pdf")
         plt.close()
 
 #Define function for making spectra
-def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_ref_moser, domainsize_x = 1, domainsize_y = 1):
-    #NOTE1: sixth last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: fifth last input of this function is an integer specifying which testing time step stored in the nc-file is plotted
-    #NOTE3: fourth last input of this function is an integer specifying the channel half with [in meter] 
-    #NOTE4: third last input is the friction velocity [m/s], used to normalize
-    #NOTE5: last two inputs indicate the domain size in the stream- and spanwise directions respectively [in meter].
+def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_ref_moser, domainsize_x = 1, domainsize_y = 1, plot_dissipation=False):
+    #NOTE1: the seventh last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the sixth last input of this function is an integer specifying which testing time step stored in the nc-file is plotted
+    #NOTE3: the fifth last input of this function is an integer specifying the channel half with [in meter] 
+    #NOTE4: the fourth last input is the friction velocity [m/s], used to normalize
+    #NOTE5: the third and second last inputs indicate the domain size in the stream- and spanwise directions respectively [in meter].
+    #NOTE6: the last input of this function is a boolean that specifies whether the SGS fluxes (False) or dissipation values are being plotted.
     for k in range(len(z)):
         
         ann_height  = ann[time_step,k,:,:]  
@@ -1373,53 +1714,86 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
 
         #Plot spectra
         plt.figure()
-        plt.plot(ann_k_streamwise  * delta, ann_spec_x / (utau_ref_moser ** 2. * delta),  label = 'ANN')
-        plt.plot(smag_k_streamwise  * delta, smag_spec_x / (utau_ref_moser ** 2. * delta), label = 'Smagorinsky')
-        plt.plot(dns_k_streamwise * delta, dns_spec_x / (utau_ref_moser ** 2. * delta),  label = 'DNS')
+        if plot_dissipation:
+            plt.plot(ann_k_streamwise  * delta, ann_spec_x / (utau_ref_moser ** 3.),  label = 'ANN')
+            plt.plot(smag_k_streamwise  * delta, smag_spec_x / (utau_ref_moser ** 3.), label = 'Smagorinsky')
+            plt.plot(dns_k_streamwise * delta, dns_spec_x / (utau_ref_moser ** 3.),  label = 'DNS')
+        else:
+            plt.plot(ann_k_streamwise  * delta, ann_spec_x / (utau_ref_moser ** 2. * delta),  label = 'ANN')
+            plt.plot(smag_k_streamwise  * delta, smag_spec_x / (utau_ref_moser ** 2. * delta), label = 'Smagorinsky')
+            plt.plot(dns_k_streamwise * delta, dns_spec_x / (utau_ref_moser ** 2. * delta),  label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
         ax.set_xscale('log')
-        plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
+        if plot_dissipation:
+            plt.ylabel(r'$ E_{\epsilon} \ u_{\tau}^{-3} \ [-]$',fontsize=20)
+        else:
+            plt.ylabel(r'$ E_{\tau_{wu}} \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
         plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
         plt.legend(loc='upper left')
         fig = plt.gcf()
         fig.set_tight_layout(True)
-        plt.savefig("Spectrax_tau_" + component + "_" + str(z[k]) + ".pdf")
+        if plot_dissipation:
+            plt.savefig("Diss_spectrax_" + str(z[k]) + ".pdf")
+        else:
+            plt.savefig("Spectrax_tau_" + component + "_" + str(z[k]) + ".pdf")
         plt.close()
         #
         plt.figure()
-        plt.plot(ann_k_spanwise * delta, ann_spec_y / (utau_ref_moser ** 2. * delta),  label = 'ANN')
-        plt.plot(smag_k_spanwise * delta, smag_spec_y / (utau_ref_moser ** 2. * delta), label = 'Smagorinsky')
-        plt.plot(dns_k_spanwise * delta, dns_spec_y / (utau_ref_moser ** 2. * delta),  label = 'DNS')
+        if plot_dissipation:
+            plt.plot(ann_k_spanwise * delta, ann_spec_y / (utau_ref_moser ** 3.),  label = 'ANN')
+            plt.plot(smag_k_spanwise * delta, smag_spec_y / (utau_ref_moser ** 3.), label = 'Smagorinsky')
+            plt.plot(dns_k_spanwise * delta, dns_spec_y / (utau_ref_moser ** 3.),  label = 'DNS')
+        else:
+            plt.plot(ann_k_spanwise * delta, ann_spec_y / (utau_ref_moser ** 2. * delta),  label = 'ANN')
+            plt.plot(smag_k_spanwise * delta, smag_spec_y / (utau_ref_moser ** 2. * delta), label = 'Smagorinsky')
+            plt.plot(dns_k_spanwise * delta, dns_spec_y / (utau_ref_moser ** 2. * delta),  label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
         ax.set_xscale('log')
-        plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
+        if plot_dissipation:
+            plt.ylabel(r'$ E \ u_{\tau}^{-3} \ [-]$',fontsize=20)
+        else:
+            plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
         plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
         plt.legend(loc='upper left')
         fig = plt.gcf()
         fig.set_tight_layout(True)
-        plt.savefig("Spectray_tau_" + component + "_" + str(z[k]) + ".pdf")
+        if plot_dissipation:
+            plt.savefig("Diss_spectray_" + str(z[k]) + ".pdf")
+        else:
+            plt.savefig("Spectray_tau_" + component + "_" + str(z[k]) + ".pdf")
         plt.close()
 
 #Define function for making pdfs
-def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_moser):
-    #NOTE1: third last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: second last input of this function is an integer specifying which testing time step stored in the nc-file is plotted
-    #NOTE3: last input is the friction velocity [m/s], used to normalize
+def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_moser, plot_dissipation=False):
+    #NOTE1: the fourth last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the third last input of this function is an integer specifying which testing time step stored in the nc-file is plotted
+    #NOTE3: the second last input is the friction velocity [m/s], used to normalize
+    #NOTE4: the last input of this function is a boolean that specifies whether the SGS fluxes (False) or dissipation values are being plotted.
     for k in range(len(z)+1):
         if k == len(z):
-            values_height = values[time_step,:,:,:].flatten() / (utau_ref_moser ** 2.)
-            smag_height   = smag[time_step,:,:,:].flatten() / (utau_ref_moser ** 2.)
-            labels_height = labels[time_step,:,:,:].flatten() / (utau_ref_moser ** 2.)
+            if plot_dissipation:
+                values_height = (values[time_step,:,:,:].flatten() / (utau_ref_moser ** 3.)) * delta
+                smag_height   = (smag[time_step,:,:,:].flatten() / (utau_ref_moser ** 3.)) * delta
+                labels_height = (labels[time_step,:,:,:].flatten() / (utau_ref_moser ** 3.)) * delta
+            else:
+                values_height = values[time_step,:,:,:].flatten() / (utau_ref_moser ** 2.)
+                smag_height   = smag[time_step,:,:,:].flatten() / (utau_ref_moser ** 2.)
+                labels_height = labels[time_step,:,:,:].flatten() / (utau_ref_moser ** 2.)
         else:
-            values_height = values[time_step,k,:,:].flatten() / (utau_ref_moser ** 2.)
-            smag_height   = smag[time_step,k,:,:].flatten() / (utau_ref_moser ** 2.)
-            labels_height = labels[time_step,k,:,:].flatten() / (utau_ref_moser ** 2.)
+            if plot_dissipation:
+                values_height = (values[time_step,k,:,:].flatten() / (utau_ref_moser ** 3.)) * delta
+                smag_height   = (smag[time_step,k,:,:].flatten() / (utau_ref_moser ** 3.)) * delta
+                labels_height = (labels[time_step,k,:,:].flatten() / (utau_ref_moser ** 3.)) * delta
+            else:
+                values_height = values[time_step,k,:,:].flatten() / (utau_ref_moser ** 2.)
+                smag_height   = smag[time_step,k,:,:].flatten() / (utau_ref_moser ** 2.)
+                labels_height = labels[time_step,k,:,:].flatten() / (utau_ref_moser ** 2.)
 
         #Determine bins
         num_bins = 100
@@ -1434,56 +1808,89 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_mo
         plt.hist(labels_height, bins = bin_edges, density = True, histtype = 'step', label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
-        ax.set_ylim(bottom=0.008)
-        ax.set_xlim(left=-10, right=10)
+        if plot_dissipation:
+            ax.set_ylim(bottom=0.00008)
+            ax.set_xlim(left=-800, right=800)
+        else:
+            ax.set_ylim(bottom=0.008)
+            ax.set_xlim(left=-10, right=10)
         plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=20)
-        plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
+        if plot_dissipation:
+            plt.xlabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=20)
+        else:
+            plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
         plt.legend(loc='upper right')
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if k == len(z):
-            plt.savefig("PDF_tau_" + component + ".pdf")
+            if plot_dissipation:
+                plt.savefig("Diss_PDF.pdf")
+            else:
+                plt.savefig("PDF_tau_" + component + ".pdf")
         else:
-            plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".pdf")
+            if plot_dissipation:
+                plt.savefig("Diss_PDF_" + str(z[k]) + ".pdf")
+            else:
+                plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".pdf")
         plt.close()
 
 #Define function for making pdfs
-def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref_moser):
-    #NOTE1: fourth last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: third last input of this function is an integer specifying which testing time step stored in the nc-file is plotted.
-    #NOTE3: second last input of this function is an integer specifying the channel half with [in meter]
-    #NOTE4: last input is the friction velocity [m/s], used to normalize
+def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref_moser, plot_dissipation=
+        False):
+    #NOTE1: the fifth last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the fourth last input of this function is an integer specifying which testing time step stored in the nc-file is plotted.
+    #NOTE3: the third last input of this function is an integer specifying the channel half with [in meter]
+    #NOTE4: the second input is the friction velocity [m/s], used to normalize
+    #NOTE5: the last input of this function is a boolean that specifies whether the SGS fluxes (False) or dissipation values are being plotted.
 
     #Make vertical profile
     plt.figure()
-    plt.plot(z / delta, values[time_step,:] / (utau_ref_moser ** 2.), label = 'ANN', marker = 'o', markersize = 2.0)
-    plt.plot(z / delta, smag[time_step,:] / (utau_ref_moser ** 2.), label = 'Smagorinsky', marker = 'o', markersize = 2.0)
-    plt.plot(z / delta, labels[time_step,:] / (utau_ref_moser ** 2.), label = 'DNS', marker = 'o', markersize = 2.0)
-    plt.ylabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
+    if plot_dissipation:
+        plt.plot(z / delta, (values[time_step,:] / (utau_ref_moser ** 3.)) * delta, label = 'ANN', marker = 'o', markersize = 2.0)
+        plt.plot(z / delta, (smag[time_step,:] / (utau_ref_moser ** 3.)) * delta, label = 'Smagorinsky', marker = 'o', markersize = 2.0)
+        plt.plot(z / delta, (labels[time_step,:] / (utau_ref_moser ** 3.)) * delta, label = 'DNS', marker = 'o', markersize = 2.0)
+        plt.ylabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=20)
+    else:
+        plt.plot(z / delta, values[time_step,:] / (utau_ref_moser ** 2.), label = 'ANN', marker = 'o', markersize = 2.0)
+        plt.plot(z / delta, smag[time_step,:] / (utau_ref_moser ** 2.), label = 'Smagorinsky', marker = 'o', markersize = 2.0)
+        plt.plot(z / delta, labels[time_step,:] / (utau_ref_moser ** 2.), label = 'DNS', marker = 'o', markersize = 2.0)
+        plt.ylabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
     plt.xlabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=20)
     plt.xticks(fontsize=16, rotation=90)
     plt.yticks(fontsize=16, rotation=0)
     plt.legend(loc='upper left')
     fig = plt.gcf()
     fig.set_tight_layout(True)
-    plt.savefig("vertprof_tau_" + component + ".pdf")
+    if plot_dissipation:
+        plt.savefig("Diss_vertprof.pdf")
+    else:
+        plt.savefig("vertprof_tau_" + component + ".pdf")
     plt.close()
 
 #Define function for making scatterplots
-def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag, time_step, utau_ref_moser):
-    #NOTE1: fourth last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: third last input of this function is a boolean that specifies whether the Smagorinsky fluxes are being plotted (True) or the MLP fluxes (False).
-    #NOTE3: second last input of this function is an integer specifying which testing time step stored in the nc-file is plotted.
-    #NOTE4: last input is the friction velocity [m/s], used to normalize
+def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag, time_step, utau_ref_moser, plot_dissipation=False):
+    #NOTE1: the fith last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the fourth last input of this function is a boolean that specifies whether the Smagorinsky fluxes are being plotted (True) or the MLP fluxes (False).
+    #NOTE3: the third last input of this function is an integer specifying which testing time step stored in the nc-file is plotted.
+    #NOTE4: the second last input is the friction velocity [m/s], used to normalize
+    #NOTE5: the last input of this function is a boolean that specifies whether the SGS fluxes (False) or dissipation values are being plotted.
     for k in range(len(heights)+1):
         if k == len(heights):
-            preds_height = preds_horavg[time_step,:] / (utau_ref_moser ** 2.)
-            lbls_height  = lbls_horavg[time_step,:] / (utau_ref_moser ** 2.)
+            if plot_dissipation:
+                preds_height = (preds_horavg[time_step,:] / (utau_ref_moser ** 3.)) * delta
+                lbls_height  = (lbls_horavg[time_step,:] / (utau_ref_moser ** 3.)) * delta
+            else:
+                preds_height = preds_horavg[time_step,:] / (utau_ref_moser ** 2.)
+                lbls_height  = lbls_horavg[time_step,:] / (utau_ref_moser ** 2.)
         else:
-            preds_height = preds[time_step,k,:,:] / (utau_ref_moser ** 2.)
-            lbls_height  = lbls[time_step,k,:,:] / (utau_ref_moser ** 2.)
+            if plot_dissipation:
+                preds_height = (preds[time_step,k,:,:] / (utau_ref_moser ** 3.)) * delta
+                lbls_height  = (lbls[time_step,k,:,:] / (utau_ref_moser ** 3.)) * delta
+            else:
+                preds_height = preds[time_step,k,:,:] / (utau_ref_moser ** 2.)
+                lbls_height  = lbls[time_step,k,:,:] / (utau_ref_moser ** 2.)
         preds_height = preds_height.flatten()
         lbls_height  = lbls_height.flatten()
         
@@ -1491,27 +1898,34 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         plt.figure()
         plt.scatter(lbls_height, preds_height, s=6, marker='o', alpha=0.2)
         if k == len(heights):
-            #plt.xlim([-0.004, 0.004])
-            #plt.ylim([-0.004, 0.004])
-            #plt.xlim([-0.000004, 0.000004])
-            #plt.ylim([-0.000004, 0.000004])
-            plt.xlim([-2.0, 2.0])
-            plt.ylim([-2.0, 2.0])
+            if plot_dissipation:
+                plt.xlim([-200.0, 200.0])
+                plt.ylim([-200.0, 200.0])
+            else:
+                plt.xlim([-2.0, 2.0])
+                plt.ylim([-2.0, 2.0])
         else:
-            plt.xlim([-15.0, 15.0])
-            plt.ylim([-15.0, 15.0])
-            #plt.xlim([-40.0, 40.0])
-            #plt.ylim([-40.0, 40.0])
-            #plt.xlim([-0.0005, 0.0005])
-            #plt.ylim([-0.0005, 0.0005])
+            if plot_dissipation:
+                plt.xlim([-1500.0, 1500.0])
+                plt.ylim([-1500.0, 1500.0])
+            else:
+                plt.xlim([-15.0, 15.0])
+                plt.ylim([-15.0, 15.0])
         axes = plt.gca()
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
-        plt.xlabel(r'$ \tau_{wu,DNS} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
-        if is_smag:
-            plt.ylabel(r'$ \tau_{wu,Smag} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+        if plot_dissipation:
+            plt.xlabel(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 20)
+            if is_smag:
+                plt.ylabel(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 20)
+            else:
+                plt.ylabel(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 20)
         else:
-            plt.ylabel(r'$ \tau_{wu,ANN} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+            plt.xlabel(r'$ \tau_{wu,DNS} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+            if is_smag:
+                plt.ylabel(r'$ \tau_{wu,Smag} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+            else:
+                plt.ylabel(r'$ \tau_{wu,ANN} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
         #plt.title("ρ = " + str(corrcoef),fontsize = 20)
         plt.axhline(c='black')
         plt.axvline(c='black')
@@ -1521,17 +1935,28 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         fig.set_tight_layout(True)
         if is_smag:
             if k == len(heights):
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.pdf")
+                if plot_dissipation:
+                    plt.savefig("Diss_scatter_Smagorinsky_horavg.pdf")
+                else:
+                    plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.pdf")
             else:
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".pdf")
+                if plot_dissipation:
+                    plt.savefig("Diss_scatter_Smagorinsky_" + str(heights[k]) + ".pdf")
+                else:
+                    plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".pdf")
         else:
             if k == len(heights):
-                plt.savefig("Scatter_tau_" + component + "_horavg.pdf")
+                if plot_dissipation:
+                    plt.savefig("Diss_scatter_horavg.pdf")
+                else:
+                    plt.savefig("Scatter_tau_" + component + "_horavg.pdf")
             else:
-                plt.savefig("Scatter_tau_" + component + "_" + str(heights[k]) + ".pdf")
+                if plot_dissipation:
+                    plt.savefig("Diss_scatter_" + str(heights[k]) + ".pdf")
+                else:
+                    plt.savefig("Scatter_tau_" + component + "_" + str(heights[k]) + ".pdf")
 
         plt.close()
-
 
 #Call function multiple times to make all plots for smagorinsky and MLP (currently selected time step: 29, corresponds to first time step (0) in test set)
 if args.make_plots:
@@ -1623,5 +2048,23 @@ if args.make_plots:
     print('Finished making plots')
 if args.plot_dissipation:
     print('Start making dissipation plots')
-    #Call adapted existing plot functions
+    
+    #Make spectra of labels and MLP predictions
+    make_spectra_heights(diss_tot_MLP, diss_tot_smag, diss_tot_lbl, zc, 'diss', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    
+    #Plot vertical profiles
+    make_vertprof(diss_tot_MLP_horavg, diss_tot_smag_horavg, diss_tot_lbl_horavg, zc, 'diss', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    
+    #Make PDFs of labels and MLP predictions
+    make_pdfs_heights(diss_tot_MLP, diss_tot_smag, diss_tot_lbl, zc, 'diss', time_step = 0, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    
+    #Make horizontal cross-sections
+    make_horcross_heights(diss_tot_lbl, zhc, yhc, xhc,'diss', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    make_horcross_heights(diss_tot_MLP, zhc, yhc, xhc,'diss', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    make_horcross_heights(diss_tot_smag, zhc, yhc, xhc,'diss', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    
+    #Make scatterplots
+    make_scatterplot_heights(diss_tot_MLP, diss_tot_lbl, diss_tot_MLP_horavg, diss_tot_lbl_horavg, zc, 'diss', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
+    #
+    make_scatterplot_heights(diss_tot_smag, diss_tot_lbl, diss_tot_smag_horavg, diss_tot_lbl_horavg, zc, 'diss', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
     print('Finished making dissipation plots')

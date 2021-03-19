@@ -86,25 +86,6 @@ fi
 
 #For testing purposes
 python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/test/MLP4" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden 1 --num_steps 100000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000
-##Postprocessing for incorporation in MicroHH, only do this once and for the MLP to be selected
-#if [ $SLURM_ARRAY_TASK_ID == 9 ]
-#then
-#
-#    #Extract paramters from MLP and store them in txt-files
-#    bash extract_weights_frozen_graph.sh #NOTE: currently selects MLP7 (with NHIDDEN=64) as MLP to extract the parameters from. This should be identical to the MLP selected in this job script to incoporate in MicroHH (see other lines in postprocessing part of this job script)!
-#    
-#    #Create directory for MLP to be selected, remove it first if it already exists
-#    if [ -d "/projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected" ]; then
-#        rm -r /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected
-#    fi
-#    
-#    mkdir /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected
-#    
-#    #Copy the txt-files, containing the paramters of the MLP selected for incorporation in MicroHH, and the predictions nc-file to another directory. This is needed because the path containing the ANN parameters is hard-coded in MicroHH and in the job script job_readCNNsmagpredictions.
-#    cp /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP7/*.txt /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected
-#    cp /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP7/*.nc  /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected
-#
-#fi
 
 ##After or during the running of the script, visualize in Tensorboard, on the login node, using the following commands:
 #export PORT=40600

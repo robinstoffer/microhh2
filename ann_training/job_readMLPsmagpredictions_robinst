@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -t 1:00:00
-####SBATCH -t 3-00:00:00
+####SBATCH -t 04:00:00
 #SBATCH -N 1
 #SBATCH -p short
 
@@ -21,6 +21,66 @@ module load Doxygen/1.8.14-GCCcore-7.3.0
 source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 #Post-process selected ANN trained on 8dx4dz, tested on 8dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
-cd /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP_selected/
+cd /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP7
+mkdir -p test_8dx4dz
+cd test_8dx4dz
 
-python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "./MLP_predictions_8dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/8dx4dz/smagorinsky_fluxes.nc' --make_plots --make_table --reconstruct_fields
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_8dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/8dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on 8dx4dz, tested on 4dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP7
+mkdir -p test_4dx4dz
+cd test_4dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_4dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/4dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on 8dx4dz, tested on 12dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP7
+mkdir -p test_12dx4dz
+cd test_12dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_12dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/12dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on 4dx4dz_12dx4dz, tested on 8dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_4dx4dz_12dx4dz_test_all/MLP7
+mkdir -p test_8dx4dz
+cd test_8dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_8dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/8dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on 4dx4dz_12dx4dz, tested on 4dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_4dx4dz_12dx4dz_test_all/MLP7
+mkdir -p test_4dx4dz
+cd test_4dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_4dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/4dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on 4dx4dz_12dx4dz, tested on 12dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_4dx4dz_12dx4dz_test_all/MLP7
+mkdir -p test_12dx4dz
+cd test_12dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_12dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/12dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on all, tested on 8dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_all_test_all/MLP7
+mkdir -p test_8dx4dz
+cd test_8dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_8dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/8dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on all, tested on 4dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_all_test_all/MLP7
+mkdir -p test_4dx4dz
+cd test_4dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_4dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/4dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+#Post-process selected ANN trained on all, tested on 12dx4dz. Specifying this cd ensures all the figures are stored on the project disc.
+cd /projects/1/flowsim/gmd_results_training/train_all_test_all/MLP7
+mkdir -p test_12dx4dz
+cd test_12dx4dz
+
+python3 -u /home/robinst/microhh2/ann_training/read_MLPsmagpredictions.py --prediction_file "../MLP_predictions_12dx4dz.nc" --training_file '/projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc' --smagorinsky_file '/projects/1/flowsim/gmd_training_data/12dx4dz/smagorinsky_fluxes.nc' --calc_dissipation --make_table --plot_dissipation & #--make_plots --reconstruct_fields &
+
+wait

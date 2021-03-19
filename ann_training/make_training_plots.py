@@ -5,6 +5,7 @@
 import warnings
 import glob
 import numpy as np
+import os
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 import matplotlib as mpl
@@ -141,6 +142,9 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
     plt.close()
 
 if __name__ == '__main__':
+    #os.chdir('/projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all')#Set working directory
+    #os.chdir('/projects/1/flowsim/gmd_results_training/train_4dx4dz_12dx4dz_test_all')#Set working directory
+    os.chdir('/projects/1/flowsim/gmd_results_training/train_all_test_all')#Set working directory
     log_files_training = [];
     log_files_validation = [];
     n_hidden_list = [1,2,4,8,16,32,64,128,256,512]; #Number of hidden neurons in each trained MLP, ordered according to the numbering of the MLPs
