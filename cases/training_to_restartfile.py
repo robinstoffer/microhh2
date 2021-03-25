@@ -2,12 +2,19 @@
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
 import numpy as np
 import netCDF4 as nc
+import os
+
+#Change working directory
+#os.chdir("./moser600lesNN_restart/restart_files")
+os.chdir("./moser600lesNN_restart_4dx4dz/restart_files")
 
 #Select time step to create the restart file from, the specific time step selected is not important
 t = 28 #29th timestep, as this one is also evaluated during the offline a priori test of the NN
 
 #Specify where training file is stored
-training_filepath = "../../moser600/training_data/training_data.nc"
+#training_filepath = "../../moser600/training_data/training_data.nc"
+#training_filepath = "/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc"
+training_filepath = "/projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc"
 
 #Fetch training data
 a = nc.Dataset(training_filepath, 'r')
@@ -31,6 +38,10 @@ wc_singlefield = np.array(a['wc'][t,kgc_edge:khend,jgc:jend,igc:iend])
 uint_uu_singlefield = (np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc:iend]) + np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc+1:iend+1])) / 2.0
 
 #Write flow fields to binary files
+#uc_singlefield.tofile("./moser600lesNN_restart/restart_files/u.restart")
+#vc_singlefield.tofile("./moser600lesNN_restart/restart_files/v.restart")
+#wc_singlefield.tofile("./moser600lesNN_restart/restart_files/w.restart")
+#uint_uu_singlefield.tofile("./moser600lesNN_restart/restart_files/uint_uu.restart")
 uc_singlefield.tofile("u.restart")
 vc_singlefield.tofile("v.restart")
 wc_singlefield.tofile("w.restart")

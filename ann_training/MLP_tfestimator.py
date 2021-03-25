@@ -598,7 +598,7 @@ print("Validation files:")
 print('\n'.join(val_filenames))
 print(len(val_filenames))
 print("Testing files:")
-#print('\n'.join(test_filenames))
+print('\n'.join(test_filenames))
 print(len(test_filenames))
 
 #Extract means and stdevs for input variables (which is needed for the normalisation).
