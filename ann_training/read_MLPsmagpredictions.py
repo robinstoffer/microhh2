@@ -23,10 +23,10 @@ parser.add_argument('--training_file', default=None, \
         help='NetCDF file that contains the training data, including the actual unresolved transports.')
 parser.add_argument('--make_plots', dest='make_plots', default=None, \
         action='store_true', \
-        help='Make plots at each height for the predictions of the MLP, Smagorinsky, and the training data')
+        help='Make plots at each height for the predictions of the MLP, Smagorinsky, and the training data. Note1: f --make_table flag is also specified, additionally vertical profiles of the correlation coefficients are made.')
 parser.add_argument('--make_table', dest='make_table', default=None, \
         action='store_true', \
-        help='Make table with all correlation coefficients between the predictions of the MLP, Smagorinsky, and the training data. Note: if --make_table flag is specified, netCDF files called "reconstructed_fields.nc" and "dissipation.nc" should be present. These are created with the --reconstruct_fields and --calc_dissipation flags.')
+        help='Make table with all correlation coefficients between the predictions of the MLP, Smagorinsky, and the training data. Note1: if --make_table flag is specified, netCDF files called "reconstructed_fields.nc" and "dissipation.nc" should be present. These are created with the --reconstruct_fields and --calc_dissipation flags. Note2: if --in addition --make_plots and/or --plot_dissipation is specified, vertical profiles are made of the correlation coefficients corresponding to the considered variables.')
 parser.add_argument('--reconstruct_fields', dest='reconstruct_fields', default=None, \
         action='store_true', \
         help="Reconstruct the corresponding transport fields for the predictions of the MLP. If not specified, a netCDF file called 'reconstructed_fields.nc' should be present in the current directory.")
@@ -35,7 +35,7 @@ parser.add_argument('--calc_dissipation', dest='calc_dissipation', default=None,
         help="Calculate the corresponding dissipation fields for the predictions of the MLP, the Smagorinsky SGS model, and the filtered DNS fields. If specified, a netCDF file called 'reconstructed_fields.nc' should be present in the current directory. (created with --reconstruct_fields flag). Creates netCDF-file called 'dissipation.nc' in current directory.")
 parser.add_argument('--plot_dissipation', dest='plot_dissipation', default=None, \
         action='store_true', \
-        help="Make plots of the dissipation fields inferred from the MLP predictions, Smagorinsky SGS model, and the filtered DNS fields. If specified, a netCDF file called 'dissipation.nc' should be present in the current directory. (created with --calc_dissipation flag). Note: if --make_table flag is specified, a correlation table is made of the dissipation.")
+        help="Make plots of the dissipation fields inferred from the MLP predictions, Smagorinsky SGS model, and the filtered DNS fields. If specified, a netCDF file called 'dissipation.nc' should be present in the current directory. (created with --calc_dissipation flag). Note1: if --make_table flag is also specified, additionally vertical profiles of the correlation coefficients are made.")
 args = parser.parse_args()
 
 ###Fetch Smagorinsky fluxes, training fluxes, MLP predictions, and heights. Next, calculate isotropic part subgrid-scale stress and subtract it.###
@@ -1551,6 +1551,67 @@ if args.make_table:
     
     mpl.rc('text', usetex=True) #Switch latex usage for matplotlib back on
 
+
+#Define function for making vertical profiles of correlation coefficients
+def make_vertprof_corr(corx, cory, corz, cordis, zc, zhc, control_volume, delta, utau_ref_moser, plot_dissipation=
+        False):
+    #NOTE1: the fifth last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the fourth last input of this function is an integer specifying which testing time step stored in the nc-file is plotted.
+    #NOTE3: the third last input of this function is an integer specifying the channel half with [in meter]
+    #NOTE4: the second input is the friction velocity [m/s], used to normalize
+    #NOTE5: the last input of this function is a boolean that specifies whether the SGS fluxes (False) or dissipation values are being plotted.
+
+    #Make vertical profile
+    plt.figure()
+    if plot_dissipation:
+        zcordis = zc
+        plt.plot(cordis[2:], zcordis / delta, label = r'$ \epsilon $', marker = 'o', markersize = 2.0)
+
+    else:
+        if control_volume == 'u':
+            zcorx = zc
+            zcory = zc
+            zcorz = zhc
+            cornamex = r'$\tau_{uu}$'
+            cornamey = r'$\tau_{vu}$'
+            cornamez = r'$\tau_{wu}$'
+        elif control_volume == 'v':
+            zcorx = zc
+            zcory = zc
+            zcorz = zhc
+            cornamex = r'$\tau_{uv}$'
+            cornamey = r'$\tau_{vv}$'
+            cornamez = r'$\tau_{wv}$'
+        elif control_volume == 'w':
+            zcorx = zhc
+            zcory = zhc
+            zcorz = zc
+            cornamex = r'$\tau_{uw}$'
+            cornamey = r'$\tau_{vw}$'
+            cornamez = r'$\tau_{ww}$'
+        else:
+            raise RuntimeError("Specified control volume invalid. Should be either 'u', 'v', or 'w'.")
+
+        plt.plot(corx[2:], zcorx / delta, label = cornamex, marker = 'o', markersize = 2.0)
+        plt.plot(cory[2:], zcory / delta, label = cornamey, marker = 'o', markersize = 2.0)
+        plt.plot(corz[2:], zcorz / delta, label = cornamez, marker = 'o', markersize = 2.0)
+
+    plt.xlim(0.5,1)
+    plt.ylim(0,2)
+    plt.xlabel(r'$ \rho \ [-]$',fontsize=30)
+    plt.ylabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=30)
+    plt.xticks(fontsize=16, rotation=90)
+    plt.yticks(fontsize=16, rotation=0)
+    plt.legend(loc='upper left', fontsize=16)
+    fig = plt.gcf()
+    fig.set_tight_layout(True)
+    if plot_dissipation:
+        plt.savefig("Diss_vertprof_corr.pdf")
+    else:
+        plt.savefig("vertprof_corr_" + control_volume + ".pdf")
+    plt.close()
+
+
 #Define function for making horizontal cross-sections
 def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is_smag = False, time_step = 0, delta = 1, plot_dissipation=False):
     #NOTE1: the seventh last input of this function is a string indicating the name of the component being plotted.
@@ -1591,15 +1652,15 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is
         cbar.ax.tick_params(labelsize=16)
         if plot_dissipation:
             if is_lbl:
-                cbar.set_label(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=20,labelpad=30)
+                cbar.set_label(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
             elif is_smag:
-                cbar.set_label(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=20,labelpad=30)
+                cbar.set_label(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
             else:
-                cbar.set_label(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=20,labelpad=30)
+                cbar.set_label(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
         else:
-            cbar.set_label(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',rotation=270,fontsize=20,labelpad=30)
-        plt.xlabel(r'$ x \ \delta^{-1} \ [-]$',fontsize=20)
-        plt.ylabel(r'$ y \ \delta^{-1} \ [-]$',fontsize=20)
+            cbar.set_label(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',rotation=270,fontsize=30,labelpad=30)
+        plt.xlabel(r'$ x \ \delta^{-1} \ [-]$',fontsize=30)
+        plt.ylabel(r'$ y \ \delta^{-1} \ [-]$',fontsize=30)
         #plt.xticks(fontsize=16, rotation=90)
         plt.xticks(fontsize=16, rotation=0)
         plt.yticks(fontsize=16, rotation=0)
@@ -1726,13 +1787,13 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
         ax.set_yscale('log')
         ax.set_xscale('log')
         if plot_dissipation:
-            plt.ylabel(r'$ E_{\epsilon} \ u_{\tau}^{-3} \ [-]$',fontsize=20)
+            plt.ylabel(r'$ E_{\epsilon} \ u_{\tau}^{-3} \ [-]$',fontsize=30)
         else:
-            plt.ylabel(r'$ E_{\tau_{wu}} \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
-        plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=20)
+            plt.ylabel(r'$ E_{\tau_{wu}} \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=30)
+        plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=30)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
-        plt.legend(loc='upper left')
+        plt.legend(loc='upper left',fontsize=16)
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if plot_dissipation:
@@ -1754,13 +1815,13 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
         ax.set_yscale('log')
         ax.set_xscale('log')
         if plot_dissipation:
-            plt.ylabel(r'$ E \ u_{\tau}^{-3} \ [-]$',fontsize=20)
+            plt.ylabel(r'$ E \ u_{\tau}^{-3} \ [-]$',fontsize=30)
         else:
-            plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=20)
-        plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=20)
+            plt.ylabel(r'$ E \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=30)
+        plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=30)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
-        plt.legend(loc='upper left')
+        plt.legend(loc='upper left',fontsize=16)
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if plot_dissipation:
@@ -1814,14 +1875,14 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_mo
         else:
             ax.set_ylim(bottom=0.008)
             ax.set_xlim(left=-10, right=10)
-        plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=20)
+        plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=30)
         if plot_dissipation:
-            plt.xlabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=20)
+            plt.xlabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=30)
         else:
-            plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
+            plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=30)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
-        plt.legend(loc='upper right')
+        plt.legend(loc='upper right',fontsize=16)
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if k == len(z):
@@ -1836,7 +1897,7 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_mo
                 plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".pdf")
         plt.close()
 
-#Define function for making pdfs
+#Define function for making vertical profiles
 def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref_moser, plot_dissipation=
         False):
     #NOTE1: the fifth last input of this function is a string indicating the name of the component being plotted.
@@ -1848,19 +1909,19 @@ def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref
     #Make vertical profile
     plt.figure()
     if plot_dissipation:
-        plt.plot(z / delta, (values[time_step,:] / (utau_ref_moser ** 3.)) * delta, label = 'ANN', marker = 'o', markersize = 2.0)
-        plt.plot(z / delta, (smag[time_step,:] / (utau_ref_moser ** 3.)) * delta, label = 'Smagorinsky', marker = 'o', markersize = 2.0)
-        plt.plot(z / delta, (labels[time_step,:] / (utau_ref_moser ** 3.)) * delta, label = 'DNS', marker = 'o', markersize = 2.0)
-        plt.ylabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=20)
+        plt.plot((values[time_step,:] / (utau_ref_moser ** 3.)) * delta, z / delta, label = 'ANN', marker = 'o', markersize = 2.0)
+        plt.plot((smag[time_step,:] / (utau_ref_moser ** 3.)) * delta, z / delta, label = 'Smagorinsky', marker = 'o', markersize = 2.0)
+        plt.plot((labels[time_step,:] / (utau_ref_moser ** 3.)) * delta, z / delta, label = 'DNS', marker = 'o', markersize = 2.0)
+        plt.xlabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=30)
     else:
-        plt.plot(z / delta, values[time_step,:] / (utau_ref_moser ** 2.), label = 'ANN', marker = 'o', markersize = 2.0)
-        plt.plot(z / delta, smag[time_step,:] / (utau_ref_moser ** 2.), label = 'Smagorinsky', marker = 'o', markersize = 2.0)
-        plt.plot(z / delta, labels[time_step,:] / (utau_ref_moser ** 2.), label = 'DNS', marker = 'o', markersize = 2.0)
-        plt.ylabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=20)
-    plt.xlabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=20)
+        plt.plot(values[time_step,:] / (utau_ref_moser ** 2.), z / delta, label = 'ANN', marker = 'o', markersize = 2.0)
+        plt.plot(smag[time_step,:] / (utau_ref_moser ** 2.), z / delta, label = 'Smagorinsky', marker = 'o', markersize = 2.0)
+        plt.plot(labels[time_step,:] / (utau_ref_moser ** 2.), z / delta, label = 'DNS', marker = 'o', markersize = 2.0)
+        plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=30)
+    plt.ylabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=30)
     plt.xticks(fontsize=16, rotation=90)
     plt.yticks(fontsize=16, rotation=0)
-    plt.legend(loc='upper left')
+    plt.legend(loc='upper left', fontsize=16)
     fig = plt.gcf()
     fig.set_tight_layout(True)
     if plot_dissipation:
@@ -1896,7 +1957,7 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         
         #Make scatterplots of Smagorinsky/MLP fluxes versus labels
         plt.figure()
-        plt.scatter(lbls_height, preds_height, s=6, marker='o', alpha=0.2)
+        plt.hexbin(lbls_height, preds_height, bins='log', gridsize=100, mincnt=1, cmap='Blues')
         if k == len(heights):
             if plot_dissipation:
                 plt.xlim([-200.0, 200.0])
@@ -1906,8 +1967,8 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
                 plt.ylim([-2.0, 2.0])
         else:
             if plot_dissipation:
-                plt.xlim([-1500.0, 1500.0])
-                plt.ylim([-1500.0, 1500.0])
+                plt.xlim([-500.0, 500.0])
+                plt.ylim([-500.0, 500.0])
             else:
                 plt.xlim([-15.0, 15.0])
                 plt.ylim([-15.0, 15.0])
@@ -1915,22 +1976,25 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
         if plot_dissipation:
-            plt.xlabel(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 20)
+            plt.xlabel(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
             if is_smag:
-                plt.ylabel(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 20)
+                plt.ylabel(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
             else:
-                plt.ylabel(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 20)
+                plt.ylabel(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
         else:
-            plt.xlabel(r'$ \tau_{wu,DNS} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+            plt.xlabel(r'$ \tau_{wu,DNS} \ u_{\tau}^{-2} \ [-]$',fontsize = 30)
             if is_smag:
-                plt.ylabel(r'$ \tau_{wu,Smag} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+                plt.ylabel(r'$ \tau_{wu,Smag} \ u_{\tau}^{-2} \ [-]$',fontsize = 30)
             else:
-                plt.ylabel(r'$ \tau_{wu,ANN} \ u_{\tau}^{-2} \ [-]$',fontsize = 20)
+                plt.ylabel(r'$ \tau_{wu,ANN} \ u_{\tau}^{-2} \ [-]$',fontsize = 30)
         #plt.title("ρ = " + str(corrcoef),fontsize = 20)
         plt.axhline(c='black')
         plt.axvline(c='black')
         plt.xticks(fontsize = 16, rotation = 90)
         plt.yticks(fontsize = 16, rotation = 0)
+        cbar = plt.colorbar()
+        cbar.ax.tick_params(labelsize=16)
+        cbar.set_label('Number of points',rotation=270,fontsize=20,labelpad=30)
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if is_smag:
@@ -1961,93 +2025,103 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 #Call function multiple times to make all plots for smagorinsky and MLP (currently selected time step: 29, corresponds to first time step (0) in test set)
 if args.make_plots:
     print('start making plots')
-    
-    #Make spectra of labels and MLP predictions
-    make_spectra_heights(unres_tau_xu_MLP, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_yu_MLP, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_zu_MLP, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_xv_MLP, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_yv_MLP, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_zv_MLP, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_xw_MLP, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_yw_MLP, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    make_spectra_heights(unres_tau_zw_MLP, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
-    
-    #Plot vertical profiles
-    make_vertprof(unres_tau_xu_MLP_horavg, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,      'xu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_yu_MLP_horavg, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,      'yu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_zu_MLP_horavg, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc,     'zu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_xv_MLP_horavg, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,      'xv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_yv_MLP_horavg, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,      'yv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_zv_MLP_horavg, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc,     'zv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_xw_MLP_horavg, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_yw_MLP_horavg, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_vertprof(unres_tau_zw_MLP_horavg, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,      'zw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
 
-    #Make PDFs of labels and MLP predictions
-    make_pdfs_heights(unres_tau_xu_MLP, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_yu_MLP, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_zu_MLP, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_xv_MLP, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_yv_MLP, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_zv_MLP, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_xw_MLP, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_yw_MLP, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_pdfs_heights(unres_tau_zw_MLP, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #Make vertical profiles of correlation coefficients if table has been generated
+    if args.make_table: 
+        make_vertprof_corr(corrcoef_xu[:-1], corrcoef_yu[:-1], corrcoef_zu, corrcoef_diss[:-1], zc, zhc, 'u', delta, utau_ref_moser, plot_dissipation=False)
+        make_vertprof_corr(corrcoef_xv[:-1], corrcoef_yv[:-1], corrcoef_zv, corrcoef_diss[:-1], zc, zhc, 'v', delta, utau_ref_moser, plot_dissipation=False)
+        make_vertprof_corr(corrcoef_xw, corrcoef_yw, corrcoef_zw[:-1], corrcoef_diss[:-1], zc, zhc, 'w', delta, utau_ref_moser, plot_dissipation=False)
     
-    #Make horizontal cross-sections
-    make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##Make spectra of labels and MLP predictions
+    ##make_spectra_heights(unres_tau_xu_MLP, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_yu_MLP, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    make_spectra_heights(unres_tau_zu_MLP, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_xv_MLP, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_yv_MLP, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_zv_MLP, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_xw_MLP, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_yw_MLP, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    ##make_spectra_heights(unres_tau_zw_MLP, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser)
+    #
+    ##Plot vertical profiles
+    ##make_vertprof(unres_tau_xu_MLP_horavg, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,      'xu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_yu_MLP_horavg, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,      'yu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    make_vertprof(unres_tau_zu_MLP_horavg, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc,     'zu', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_xv_MLP_horavg, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,      'xv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_yv_MLP_horavg, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,      'yv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_zv_MLP_horavg, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc,     'zv', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_xw_MLP_horavg, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_yw_MLP_horavg, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_vertprof(unres_tau_zw_MLP_horavg, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,      'zw', time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+
+    ##Make PDFs of labels and MLP predictions
+    ##make_pdfs_heights(unres_tau_xu_MLP, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_yu_MLP, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0, utau_ref_moser = utau_ref_moser)
+    make_pdfs_heights(unres_tau_zu_MLP, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_xv_MLP, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_yv_MLP, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_zv_MLP, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_xw_MLP, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_yw_MLP, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    ##make_pdfs_heights(unres_tau_zw_MLP, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0, utau_ref_moser = utau_ref_moser)
+    #
+    ##Make horizontal cross-sections
+    ##make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     make_horcross_heights(unres_tau_zu, zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xu_MLP, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yu_MLP, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_xu_MLP, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yu_MLP, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     make_horcross_heights(unres_tau_zu_MLP, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xv_MLP, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yv_MLP, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zv_MLP, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xw_MLP, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yw_MLP, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zw_MLP, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xu_smag, zhc, yhc, xhc,           'xu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yu_smag, zhc, ygcextra, xgcextra, 'yu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_xv_MLP, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yv_MLP, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_zv_MLP, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_xw_MLP, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yw_MLP, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_zw_MLP, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_xu_smag, zhc, yhc, xhc,           'xu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    ##make_horcross_heights(unres_tau_yu_smag, zhc, ygcextra, xgcextra, 'yu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     make_horcross_heights(unres_tau_zu_smag, zgcextra, yhc, xgcextra, 'zu', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xv_smag, zhc, ygcextra, xgcextra, 'xv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yv_smag, zhc, yhc, xhc,           'yv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zv_smag, zgcextra, ygcextra, xhc, 'zv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_xw_smag, zgcextra, yhc, xgcextra, 'xw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_yw_smag, zgcextra, ygcextra, xhc, 'yw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
-    make_horcross_heights(unres_tau_zw_smag, zhc, yhc, xhc,           'zw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xv_smag, zhc, ygcextra, xgcextra, 'xv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yv_smag, zhc, yhc, xhc,           'yv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zv_smag, zgcextra, ygcextra, xhc, 'zv', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_xw_smag, zgcextra, yhc, xgcextra, 'xw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_yw_smag, zgcextra, ygcextra, xhc, 'yw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
+    #make_horcross_heights(unres_tau_zw_smag, zhc, yhc, xhc,           'zw', False, is_smag = True, time_step = 0, delta = delta, utau_ref_moser = utau_ref_moser)
     
     #Make scatterplots
-    make_scatterplot_heights(unres_tau_xu_MLP, unres_tau_xu, unres_tau_xu_MLP_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yu_MLP, unres_tau_yu, unres_tau_yu_MLP_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xu_MLP, unres_tau_xu, unres_tau_xu_MLP_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yu_MLP, unres_tau_yu, unres_tau_yu_MLP_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
     make_scatterplot_heights(unres_tau_zu_MLP, unres_tau_zu, unres_tau_zu_MLP_horavg, unres_tau_zu_horavg, zhc, 'zu', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xv_MLP, unres_tau_xv, unres_tau_xv_MLP_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yv_MLP, unres_tau_yv, unres_tau_yv_MLP_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zv_MLP, unres_tau_zv, unres_tau_zv_MLP_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xw_MLP, unres_tau_xw, unres_tau_xw_MLP_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yw_MLP, unres_tau_yw, unres_tau_yw_MLP_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zw_MLP, unres_tau_zw, unres_tau_zw_MLP_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xv_MLP, unres_tau_xv, unres_tau_xv_MLP_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yv_MLP, unres_tau_yv, unres_tau_yv_MLP_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zv_MLP, unres_tau_zv, unres_tau_zv_MLP_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xw_MLP, unres_tau_xw, unres_tau_xw_MLP_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yw_MLP, unres_tau_yw, unres_tau_yw_MLP_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zw_MLP, unres_tau_zw, unres_tau_zw_MLP_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = False, time_step = 0, utau_ref_moser = utau_ref_moser)
     #
-    make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
     make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
-    make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
+    #make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', is_smag = True, time_step = 0, utau_ref_moser = utau_ref_moser)
     
     print('Finished making plots')
 if args.plot_dissipation:
+ 
     print('Start making dissipation plots')
+    #Make vertical profiles of correlation coefficients
+    if args.make_table:
+        make_vertprof_corr('dummy', 'dummy', 'dummy', corrcoef_diss[:-1], zc, zhc, 'dummy', delta, utau_ref_moser, plot_dissipation=True)
     
     #Make spectra of labels and MLP predictions
     make_spectra_heights(diss_tot_MLP, diss_tot_smag, diss_tot_lbl, zc, 'diss', time_step = 0, delta = delta, domainsize_x = 2 * np.pi, domainsize_y = np.pi, utau_ref_moser = utau_ref_moser, plot_dissipation=True)
