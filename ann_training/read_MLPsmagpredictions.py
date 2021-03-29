@@ -1793,7 +1793,7 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
         plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=30)
         plt.xticks(fontsize=16, rotation=90)
         plt.yticks(fontsize=16, rotation=0)
-        plt.legend(loc='upper left',fontsize=16)
+        plt.legend(loc='bottom left',fontsize=16)
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if plot_dissipation:
@@ -1871,7 +1871,7 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_mo
         ax.set_yscale('log')
         if plot_dissipation:
             ax.set_ylim(bottom=0.00008)
-            ax.set_xlim(left=-800, right=800)
+            ax.set_xlim(left=-500, right=500)
         else:
             ax.set_ylim(bottom=0.008)
             ax.set_xlim(left=-10, right=10)
@@ -1921,12 +1921,13 @@ def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref
     plt.ylabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=30)
     plt.xticks(fontsize=16, rotation=90)
     plt.yticks(fontsize=16, rotation=0)
-    plt.legend(loc='upper left', fontsize=16)
     fig = plt.gcf()
     fig.set_tight_layout(True)
     if plot_dissipation:
+        plt.legend(loc='center right', fontsize=16)
         plt.savefig("Diss_vertprof.pdf")
     else:
+        plt.legend(loc='upper left', fontsize=16)
         plt.savefig("vertprof_tau_" + component + ".pdf")
     plt.close()
 
@@ -1957,7 +1958,7 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         
         #Make scatterplots of Smagorinsky/MLP fluxes versus labels
         plt.figure()
-        plt.hexbin(lbls_height, preds_height, bins='log', gridsize=100, mincnt=1, cmap='Blues')
+        plt.hexbin(lbls_height, preds_height, bins='log', gridsize=100, mincnt=1, vmin=1, vmax=2000, cmap='Blues')
         if k == len(heights):
             if plot_dissipation:
                 plt.xlim([-200.0, 200.0])
@@ -1970,8 +1971,8 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
                 plt.xlim([-500.0, 500.0])
                 plt.ylim([-500.0, 500.0])
             else:
-                plt.xlim([-15.0, 15.0])
-                plt.ylim([-15.0, 15.0])
+                plt.xlim([-10.0, 10.0])
+                plt.ylim([-10.0, 10.0])
         axes = plt.gca()
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
@@ -1994,7 +1995,7 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         plt.yticks(fontsize = 16, rotation = 0)
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize=16)
-        cbar.set_label('Number of points',rotation=270,fontsize=20,labelpad=30)
+        cbar.set_label(r'$\rm Number\ of\ points$',rotation=270,fontsize=30,labelpad=30)
         fig = plt.gcf()
         fig.set_tight_layout(True)
         if is_smag:
