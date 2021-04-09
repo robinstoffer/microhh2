@@ -3,7 +3,7 @@
 ####SBATCH -t 1-12:00:00
 #SBATCH -t 10:00:00
 #SBATCH -N 1
-####SBATCH -p short
+#####SBATCH -p short
 
 #Load modules new environment
 module purge
@@ -18,24 +18,158 @@ module load Doxygen/1.8.14-GCCcore-7.3.0
 
 source ~/virtualenv/firstMLP_intel_CPU/bin/activate
 
+#Ensure that all necessary ANN parameters are extracted
+bash extract_weights_frozen_graph.sh
+
 #Do inference
 #Only zu_upstream, only log-layer
 
 #Calculate loss without permutation
-python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_upstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_upstream.nc --variables_filepath ./MLP_selected/ --only_zu_upstream --only_loglayer --calc_loss
-#Calculate increase loss with permutations
-python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_upstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_upstream.nc --variables_filepath ./MLP_selected/ --only_zu_upstream --only_loglayer #--calc_loss
-#Make horizontal cross-sections of calculated permutation importances
-cd ./MLP_selected
-python3 -u ../horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
 #
-#Only zu_downstream, only log-layer
-cd ..
-#Calculate loss without permutation
-python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_downstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --variables_filepath ./MLP_selected/ --only_zu_downstream --only_loglayer --calc_loss
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_upstream --only_loglayer --calc_loss &
+#
+wait
+
 #Calculate increase loss with permutations
-python3 -u inference_MLP_permutation.py --training_filename ../cases/moser600/training_data/training_data.nc --loss_filename ./MLP_selected/loss_loglayer_zu_downstream.nc --inference_filename ./MLP_selected/inference_permutation_loglayer_zu_downstream.nc --variables_filepath ./MLP_selected/ --only_zu_downstream --only_loglayer #--calc_loss
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_upstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_upstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_upstream --only_loglayer & #--calc_loss &
+#
+wait
+
 #Make horizontal cross-sections of calculated permutation importances
-cd ./MLP_selected
-python3 -u ../horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu
+cd /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+##
+cd /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+##
+cd /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_upstream.nc --upstream --only_zu &
+#
+wait
+
+#Only zu_downstream, only log-layer
+cd /home/robinst/microhh2/ann_training/
+echo 'Done with zu_upstream'
+
+#Calculate loss without permutation
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_downstream --only_loglayer --calc_loss &
+#
+wait
+
+#Calculate increase loss with permutations
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+##
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/4dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/gmd_training_data/12dx4dz/training_data.nc --loss_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/loss_loglayer_zu_downstream.nc --inference_filename /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/inference_permutation_loglayer_zu_downstream.nc --variables_filepath /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/ --only_zu_downstream --only_loglayer & #--calc_loss &
+#
+wait
+
+#Make horizontal cross-sections of calculated permutation importances
+cd /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_8dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_4dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/test_12dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+##
+cd /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_8dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_4dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP7/test_12dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+##
+cd /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_8dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_4dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+cd /projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP7/test_12dx4dz/
+python3 -u /home/robinst/microhh2/ann_training/horcross_inference_permutation.py --permute_file ./inference_permutation_loglayer_zu_downstream.nc --downstream --only_zu &
+#
+wait
+
 echo 'finished'

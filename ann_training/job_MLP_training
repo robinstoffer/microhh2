@@ -1,7 +1,7 @@
 #!/bin/bash
 ####SBATCH -t 5:00
-#SBATCH -t 6:00:00
-####SBATCH -t 1-00:00:00
+####SBATCH -t 1:00:00
+#SBATCH -t 1-00:00:00
 #SBATCH -N 1
 ####SBATCH -p short
 
@@ -76,16 +76,18 @@ fi
 #Train ANN
 #NOTE: select batch size such that is an exact multiple of the number of resolutions times the number of samples per tfrecord, to ensure each batch has an equal share of every resolution
 #Train only on 8dx4dz
-#python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000 --train_dir1 '8dx4dz'
+python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000 --train_dir1 '8dx4dz' &
 
 #Train on both 4dx4dz and 12dxdz
-#python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/train_4dx4dz_12dx4dz_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000 --train_dir1 '4dx4dz' --train_dir2 '12dx4dz'
+python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training_final/train_4dx4dz_12dx4dz_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000 --train_dir1 '4dx4dz' --train_dir2 '12dx4dz' &
 
 #Train on all resolutions
-#python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/train_all_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000
+python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training_final/train_all_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000 &
+
+wait
 
 #For testing purposes
-python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/test/MLP4" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden 1 --num_steps 100000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000
+#python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/test/MLP4" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden 1 --num_steps 100000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000
 
 ##After or during the running of the script, visualize in Tensorboard, on the login node, using the following commands:
 #export PORT=40600

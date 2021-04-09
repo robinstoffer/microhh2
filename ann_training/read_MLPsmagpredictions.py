@@ -1565,7 +1565,7 @@ def make_vertprof_corr(corx, cory, corz, cordis, zc, zhc, control_volume, delta,
     plt.figure()
     if plot_dissipation:
         zcordis = zc
-        plt.plot(cordis[2:], zcordis / delta, label = r'$ \epsilon $', marker = 'o', markersize = 2.0)
+        plt.plot(cordis[2:], zcordis / delta, label = r'$ \epsilon $', color = cmap(6), marker = 'o', markersize = 2.0)
 
     else:
         if control_volume == 'u':
@@ -1592,9 +1592,10 @@ def make_vertprof_corr(corx, cory, corz, cordis, zc, zhc, control_volume, delta,
         else:
             raise RuntimeError("Specified control volume invalid. Should be either 'u', 'v', or 'w'.")
 
-        plt.plot(corx[2:], zcorx / delta, label = cornamex, marker = 'o', markersize = 2.0)
-        plt.plot(cory[2:], zcory / delta, label = cornamey, marker = 'o', markersize = 2.0)
-        plt.plot(corz[2:], zcorz / delta, label = cornamez, marker = 'o', markersize = 2.0)
+        cmap = plt.get_cmap("tab10")
+        plt.plot(corx[2:], zcorx / delta, label = cornamex, color = cmap(3), marker = 'o', markersize = 2.0)
+        plt.plot(cory[2:], zcory / delta, label = cornamey, color = cmap(4), marker = 'o', markersize = 2.0)
+        plt.plot(corz[2:], zcorz / delta, label = cornamez, color = cmap(5), marker = 'o', markersize = 2.0)
 
     plt.xlim(0.5,1)
     plt.ylim(0,2)
@@ -1602,7 +1603,7 @@ def make_vertprof_corr(corx, cory, corz, cordis, zc, zhc, control_volume, delta,
     plt.ylabel(r'$ z \ \delta^{-1} \ [-]$',fontsize=30)
     plt.xticks(fontsize=16, rotation=90)
     plt.yticks(fontsize=16, rotation=0)
-    plt.legend(loc='upper left', fontsize=16)
+    plt.legend(loc='upper left', fontsize=20)
     fig = plt.gcf()
     fig.set_tight_layout(True)
     if plot_dissipation:
@@ -1637,7 +1638,7 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is
         plt.figure()
         if plot_dissipation:
             if is_smag:
-                plt.pcolormesh(x / delta, y / delta, values_height, vmin=-150.0, vmax=150.0)
+                plt.pcolormesh(x / delta, y / delta, values_height, vmin=-50.0, vmax=50.0)
             else:
                 plt.pcolormesh(x / delta, y / delta, values_height, vmin=-500.0, vmax=500.0)
         else:

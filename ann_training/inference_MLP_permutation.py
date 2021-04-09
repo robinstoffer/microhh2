@@ -463,7 +463,6 @@ if __name__ == '__main__':
 
     ###Extract flow fields and from netCDF file###
     #Specify time steps NOTE: SHOULD BE 28 TO 31 to access testing field
-    #NOTE: flow fields were normalized stored, UNDO first normalisation!
     tstart = 28
     tend   = 31
     tstep_unique = np.arange(tstart, tend)

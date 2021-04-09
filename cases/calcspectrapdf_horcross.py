@@ -10,13 +10,13 @@ mpl.rc('text', usetex=True)
 mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]
 mpl.rcParams.update({'figure.autolayout':True})
 from matplotlib.pyplot import *
-sys.path.append("../../python")
+sys.path.append("../python")
 from microhh_tools import *
 
 
-input_dir = './'
+input_dir = './moser600lesNN_restart/'
 
-stats_dir = './moser600lesNN.default.0000000.nc'
+stats_dir = './moser600lesNN_restart/moser600lesNN.default.0000000.nc'
 
 nx = 96
 ny = 48
@@ -24,7 +24,7 @@ nz = 64
 
 iter_begin = 0
 iterstep = 3
-nt = 10
+nt = 13
 
 #iter_begin = 0
 #iterstep = 1
