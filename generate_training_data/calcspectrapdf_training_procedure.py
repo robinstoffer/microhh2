@@ -18,7 +18,7 @@ t_training = 0 #Refers to time step of a representative flow field in training d
 #NOTE: ensure that t_dns and t_training select the same time step
 
 #Perform pre-processing needed for visualizing the spectra: for one of the training snapshots (here chosen to be the one at 3000s simulation time), convert the binary high-resolution DNS fields to netCDF-files
-subprocess.run(["python3", "../python/3d_to_nc.py", "--directory", "../cases/moser600" ,"--filename", "moser600.ini", "--vars", "u", "--precision", "double", "-t0", str(t_dns), "-t1", str(t_dns), "-tstep", "1"])
+subprocess.run(["python3", "../python/3d_to_nc.py", "--directory", "../cases/moser600_gmd" ,"--filename", "moser600.ini", "--vars", "u", "--precision", "double", "-t0", str(t_dns), "-t1", str(t_dns), "-tstep", "1"])
 
 #Define height index to consider the xy-crosssection for the training data
 index_local_training = 3
@@ -27,17 +27,17 @@ index_local_training = 3
 index_local_dnsu = 46
 
 #Fetch training data
-training_filepath = "../cases/moser600/training_data/training_data.nc"
+training_filepath = "/projects/1/flowsim/gmd_training_data/8dx4dz/training_data.nc"
 a = nc.Dataset(training_filepath, 'r')
 
 #Fetch DNS data
-dnsu_filepath = '../cases/moser600/u.nc'
+dnsu_filepath = '../cases/moser600_gmd/u.nc' #Generated via 3d_to_nc.py script stored in MicroHH python directory, processing only t=1200, done using line 21.
 dnsu = nc.Dataset(dnsu_filepath, 'r')
 
 #Define settings (amongst others for normalization, currently reflect chosen Moser case
 delta = 1
 reynolds_tau_moser = 590
-mvisc_ref_moser = a['mvisc'][:]
+mvisc_ref_moser = 10 ** (-5)
 domainsize_x = 2 * np.pi
 domainsize_y = np.pi
 

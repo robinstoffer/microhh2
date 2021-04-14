@@ -5,7 +5,8 @@ import netCDF4 as nc
 import os
 
 #Change working directory
-os.chdir("./moser600lesNN_restart/restart_files")
+os.chdir("./restart_files")
+#os.chdir("./moser600lesNN_restart/restart_files")
 #os.chdir("./moser600lesNN_restart_4dx4dz/restart_files")
 
 #Select time step to create the restart file from, the specific time step selected is not important

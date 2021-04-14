@@ -17,35 +17,35 @@ module load Doxygen/1.8.14-GCCcore-7.3.0
 
 source ~/virtualenv/firstMLP_intel_CPU/bin/activate #Note: to ensure consistent runs, actives virtual environment created with install_tensorflow_cpu_cartesius.sh.
 
-#Build MicroHH on CPU node where run is executed for optimal performance
-cd ../../config
-cp cartesius.cmake default.cmake
-
-cd ..
-
-if [ -d "build" ]; then
-    rm -r build
-fi
-
-mkdir build
-
-cd build
-
-cmake ..
-make -j 4
-
-cd ../cases/moser600lesNN_restart
-
-
-if [ ! -L "microhh" ]; then
-    ln -s ../../build/microhh microhh
-fi
+##Build MicroHH on CPU node where run is executed for optimal performance
+#cd ../../config
+#cp cartesius.cmake default.cmake
+#
+#cd ..
+#
+#if [ -d "build" ]; then
+#    rm -r build
+#fi
+#
+#mkdir build
+#
+#cd build
+#
+#cmake ..
+#make -j 4
+#
+#cd ../cases/moser600lesNN_restart
+#
+#
+#if [ ! -L "microhh" ]; then
+#    ln -s ../../build/microhh microhh
+#fi
 
 #Generate input data
 python3 moser600lesNN_input.py 
 
 #Copy selected MLP to directory hard-coded in MicroHH
-cp /projects/1/flowsim/gmd_results_training/train_8dx4dz_test_all/MLP7/*.txt ../../ann_training/MLP_selected/.
+cp /projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP7/*.txt ../../ann_training/MLP_selected/.
 
 #Initialize and run MicroHH for specified case. To ensure initialization from a coarse-grained DNS flow field, the initial flow fields are overwritten with binary fields previously produced from the training data.
 ./microhh init moser600lesNN

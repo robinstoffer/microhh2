@@ -1563,9 +1563,10 @@ def make_vertprof_corr(corx, cory, corz, cordis, zc, zhc, control_volume, delta,
 
     #Make vertical profile
     plt.figure()
+    cmap = plt.get_cmap("tab10")
     if plot_dissipation:
         zcordis = zc
-        plt.plot(cordis[2:], zcordis / delta, label = r'$ \epsilon $', color = cmap(6), marker = 'o', markersize = 2.0)
+        plt.plot(cordis[2:], zcordis / delta, label = r'$ \epsilon_{SGS} $', color = cmap(6), marker = 'o', markersize = 2.0)
 
     else:
         if control_volume == 'u':
@@ -1592,7 +1593,6 @@ def make_vertprof_corr(corx, cory, corz, cordis, zc, zhc, control_volume, delta,
         else:
             raise RuntimeError("Specified control volume invalid. Should be either 'u', 'v', or 'w'.")
 
-        cmap = plt.get_cmap("tab10")
         plt.plot(corx[2:], zcorx / delta, label = cornamex, color = cmap(3), marker = 'o', markersize = 2.0)
         plt.plot(cory[2:], zcory / delta, label = cornamey, color = cmap(4), marker = 'o', markersize = 2.0)
         plt.plot(corz[2:], zcorz / delta, label = cornamez, color = cmap(5), marker = 'o', markersize = 2.0)
@@ -1653,11 +1653,11 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, utau_ref_moser, is
         cbar.ax.tick_params(labelsize=16)
         if plot_dissipation:
             if is_lbl:
-                cbar.set_label(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
+                cbar.set_label(r'$ \epsilon_{SGS,DNS} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
             elif is_smag:
-                cbar.set_label(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
+                cbar.set_label(r'$ \epsilon_{SGS,Smag} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
             else:
-                cbar.set_label(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
+                cbar.set_label(r'$ \epsilon_{SGS,ANN} \ u_{\tau}^{-3} \ \delta \ [-]$',rotation=270,fontsize=30,labelpad=30)
         else:
             cbar.set_label(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',rotation=270,fontsize=30,labelpad=30)
         plt.xlabel(r'$ x \ \delta^{-1} \ [-]$',fontsize=30)
@@ -1788,7 +1788,7 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step, delta, utau_re
         ax.set_yscale('log')
         ax.set_xscale('log')
         if plot_dissipation:
-            plt.ylabel(r'$ E_{\epsilon} \ u_{\tau}^{-3} \ [-]$',fontsize=30)
+            plt.ylabel(r'$ E_{\epsilon_{SGS}} \ u_{\tau}^{-3} \ [-]$',fontsize=30)
         else:
             plt.ylabel(r'$ E_{\tau_{wu}} \ u_{\tau}^{-2} \ \delta^{-1} \ [-]$',fontsize=30)
         plt.xlabel(r'$\kappa \delta \ [-]$',fontsize=30)
@@ -1878,7 +1878,7 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step, utau_ref_mo
             ax.set_xlim(left=-10, right=10)
         plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=30)
         if plot_dissipation:
-            plt.xlabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=30)
+            plt.xlabel(r'$ \epsilon_{SGS} \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=30)
         else:
             plt.xlabel(r'$ \tau_{wu} \ u_{\tau}^{-2} \ [-]$',fontsize=30)
         plt.xticks(fontsize=16, rotation=90)
@@ -1913,7 +1913,7 @@ def make_vertprof(values, smag, labels, z, component, time_step, delta, utau_ref
         plt.plot((values[time_step,:] / (utau_ref_moser ** 3.)) * delta, z / delta, label = 'ANN', marker = 'o', markersize = 2.0)
         plt.plot((smag[time_step,:] / (utau_ref_moser ** 3.)) * delta, z / delta, label = 'Smagorinsky', marker = 'o', markersize = 2.0)
         plt.plot((labels[time_step,:] / (utau_ref_moser ** 3.)) * delta, z / delta, label = 'DNS', marker = 'o', markersize = 2.0)
-        plt.xlabel(r'$ \epsilon \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=30)
+        plt.xlabel(r'$ \epsilon_{SGS} \ u_{\tau}^{-3} \ \delta \ [-]$',fontsize=30)
     else:
         plt.plot(values[time_step,:] / (utau_ref_moser ** 2.), z / delta, label = 'ANN', marker = 'o', markersize = 2.0)
         plt.plot(smag[time_step,:] / (utau_ref_moser ** 2.), z / delta, label = 'Smagorinsky', marker = 'o', markersize = 2.0)
@@ -1978,11 +1978,11 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
         if plot_dissipation:
-            plt.xlabel(r'$ \epsilon_{DNS} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
+            plt.xlabel(r'$ \epsilon_{SGS,DNS} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
             if is_smag:
-                plt.ylabel(r'$ \epsilon_{Smag} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
+                plt.ylabel(r'$ \epsilon_{SGS,Smag} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
             else:
-                plt.ylabel(r'$ \epsilon_{ANN} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
+                plt.ylabel(r'$ \epsilon_{SGS,ANN} \ u_{\tau}^{-3} \delta \ [-]$',fontsize = 30)
         else:
             plt.xlabel(r'$ \tau_{wu,DNS} \ u_{\tau}^{-2} \ [-]$',fontsize = 30)
             if is_smag:
