@@ -1,4 +1,4 @@
-MicroHH (v2.0 with ANN SGS model from Stoffer et al. (2020))
+MicroHH (v2.0 with ANN SGS model from Stoffer et al. (2021))
 -------
 [![Travis](https://api.travis-ci.org/microhh/microhh.svg?branch=master)](https://travis-ci.org/microhh/microhh) [![Documentation Status](https://readthedocs.org/projects/microhh/badge/?version=latest)](https://microhh.readthedocs.io/en/latest/?badge=latest)
 
@@ -8,11 +8,11 @@ The base code of MicroHH (v2.0) is hosted on GitHub (http://github.com/microhh2)
 
 [![DOI](https://zenodo.org/badge/14754940.svg)](https://zenodo.org/badge/latestdoi/14754940)
 
-Additionally, this repository contains the ANN SGS model described in detail by Stoffer et al. (2020). It is fully integrated in the MicroHH (v2.0) code. All the scripts needed to train the ANN are included a well.
+Additionally, this repository contains the ANN SGS model described in detail by Stoffer et al. (2021). It is fully integrated in the MicroHH (v2.0) code. All the scripts used to generate the training data, train the ANN, and produce the presented figures are included a well.
 
-Requirements + software libraries used by Stoffer et al. (2020)
+Requirements + software libraries used by Stoffer et al. (2021)
 ------------
-In order to compile MicroHH and use all the scripts related to the ANN SGS model, you need several additional software libraries. We list them below, together with the versions used by Stoffer et al. (2020):
+In order to compile MicroHH and use all the scripts related to the ANN SGS model, you need several additional software libraries. We list them below, together with the versions used by Stoffer et al. (2021):
 * C++ compiler (Used: Intel compiler version 18.0 update 3 for Linux).
 * Intel MKL (Used: version 18.0 update 3 for Linux).
     Note: the Intel MKL library is only needed for the calls to the `cblas_sgemv` function in `diff_nn.cxx`. It is therefore possible to use other CBLAS libraries. If you want       this, do change the header file named in `diff_nn.cxx:46` to the one corresponding with the desired CBLAS library. Furthermore, the configuration files mentioned below (with     extension `.cmake`) have to be changed accordingly as well.
@@ -27,7 +27,7 @@ In order to compile MicroHH and use all the scripts related to the ANN SGS model
     * Scipy (Used: version 1.2.0).
     * Matplotlib (Used: version 3.0.2).
     * NetCDF4 (Used: version 1.14.2).
-    * Scikit-learn (Used: version 3.0.2).
+    * Scikit-learn (Used: version 0.23.1).
 
 Note: in the `config` directory, for Cartesius a bash script `install_tensorflow_cpu_cartesius.sh` is provided that creates a virtual environment with all the required Python libraries.
 
@@ -37,7 +37,7 @@ First, enter the config directory:
 
     cd config
 
-Here, you find two `.cmake` files with settings for the Dutch national supercomputer Cartesius (https://userinfo.surfsara.nl/systems/cartesius) and ubunty systems (tested for version 18.04.4 LTS). All the results shown in Stoffer et al. (2020) have been created on Cartesius. If you want to run the code on an ubunty system, check that the specified library locations are correct for your specific system and update if necessary. If you want to run the code on another system, create a new cmake file with the correct compiler settings and the proper location for all libraries.
+Here, you find two `.cmake` files with settings for the Dutch national supercomputer Cartesius (https://userinfo.surfsara.nl/systems/cartesius) and ubunty systems (tested for version 18.04.4 LTS). All the results shown in Stoffer et al. (2021) have been created on Cartesius. If you want to run the code on an ubunty system, check that the specified library locations are correct for your specific system and update if necessary. If you want to run the code on another system, create a new cmake file with the correct compiler settings and the proper location for all libraries.
 
 Subsequently, copy the file corresponding with your system to default.cmake. Let us assume your system is Ubuntu:
 
@@ -61,7 +61,7 @@ or
 
     cmake .. -DUSECUDA=TRUE
 
-(Note that once the build has been configured and you wish to change the `USECUDA` or `USEMPI` setting, you must delete the build directory or create an additional empty directory from which `cmake` is run. For the moser600 DNS test case used in Stoffer et al. (2020), it is recommended to enable MPI to keep the total simulation time feasible.)
+(Note that once the build has been configured and you wish to change the `USECUDA` or `USEMPI` setting, you must delete the build directory or create an additional empty directory from which `cmake` is run. For the moser600 DNS test case used in Stoffer et al. (2021), it is recommended to enable MPI to keep the total simulation time feasible.)
 
 With the previous command you have triggered the build system and created the make files, if the `default.cmake` file contains the correct settings. Now, you can start the compilation of the code and create the microhh executable with:
 
@@ -69,11 +69,11 @@ With the previous command you have triggered the build system and created the ma
 
 Your directory should contain a file named `microhh` now. This is the main executable.
 
-Running the moser600 DNS test case used by Stoffer et al. (2020)
+Running the moser600 DNS test case used by Stoffer et al. (2021)
 -----------------------
-To start one of the included test cases, go back to the main directory and  open the directory `cases`. Here, the high-resolution DNS `moser600` case and the corresponding LES case with ANN SGS model `moser600_lesNNrestart` have been included. We start with the DNS `moser600` case, the high-resolution direct numerical simulation of turbulent channel flow used by Stoffer et al. (2020).
+To start one of the included test cases, go back to the main directory and  open the directory `cases`. Here, the high-resolution DNS `moser600_gmd` case and the corresponding LES case with ANN SGS model `moser600_lesNNrestart` have been included. We start with the DNS `moser600_gmd` case, the high-resolution direct numerical simulation of turbulent channel flow used by Stoffer et al. (2020).
 
-    cd cases/moser600
+    cd cases/moser600_gmd
 
 First, we have to create the vertical profiles for our prognostic variables:
 
@@ -95,6 +95,18 @@ This will take, depending on the run settings in the file 'moser600.ini', quite 
 
 After the simulation is finished, a statistics file called `moser600.default.0000000.nc` is created. You can open this file with a plotting tool like `ncview`, or plot the results against the reference data of Moser et al. (1999) with the three scripts provided (`moser600budget.py`, `moser600spectra.py`, `moser600stats.py`). Depending on where you have stored this reference data, you may have to change some of the paths specified in the scripts.
 
-Generating the training data
+Running the moser600 LES test case with the ANN SGS model shown in Stoffer et al. (2021)
 -----------------------
-After running the DNS case described above, you should have binary velocity fields stored in the `moser600` directory together with all the other corresponding settings/output files. Subsequently, you can generate the training data by running `main_training.py`, which produces with its current settings 1) a netCDF-file with the training data called `training_data.nc` and 2) binary TFRecord-files that contain ~10.000 samples per file (generated from `training_data.nc`). The TFRecord files will serve as direct input to the ANN training scripts. For Cartesius, the job script we used has been provided as an example (which again needs the output from the `install_tensorflow_cpu_cartesius.sh` script). To recreate the individual panels of the training generation procedure visualization in the paper, run `visualization_training_procedure.py`.
+To run the moser600 LES test case used by Stoffer et al. (2021) (incuding the trained ANN SGS model), to a large extent the same steps can be followed as for running the DNS test case. Most importantly, you have to refer to the `moser600lesNN_restart` directory instead. In addition, some additional care is needed to initialize the simulation, similar as Stoffer et al. (2021), from one of the training flow snapshots. These are indicated in the given job script (`job_runmoserann`). Note: Since MicroHH directly uses the txt-files provided in the `MLP_selected` directory to load the ANN parameters, the selected LES test case (with ANN SGS model) can be run directly without first training the ANN (see next sections). To visualize the numeric instability occuring when running this case (as highlighted in the manuscript), we used `calcspectra_horcross.py` stored in the `cases` directory.
+
+Training data generation performed by Stoffer et al. (2021) (note: not needed to run the previously described moser600 LES test case)
+-----------------------
+In Stoffer et al. (2021), we generated the training data by running `main_training.py` (note: in most used scripts from this point, changes in the specified filepaths are required to rerun them at other systems), which produces with its current settings for the three different horizontal coarse-graining factors shown by Stoffer et al. (2021) 1) a netCDF-file with the training data called `training_data.nc`, and 2) binary TFRecord-files that contain ~1000 samples per file. The output corresponding to the different horizontal coarse-graining factors are stored in separate, specified subdirectories. The TFRecord files serve as direct input to the ANN training scripts. We additionally provide the job script we used on Cartesius to run the scripts (which again needs the output from the `install_tensorflow_cpu_cartesius.sh` script). To create individual horizontal panels representing different steps in the training data generation, we used `visualization_training_procedure.py` (note: the corresponding figure has not been included in the final manuscript of Stoffer et al. (2021); it is only included in the preprint). To create the spectra representing different steps in the training procedure (presented in Fig. 2 of the final manuscript), we used `calcspectrapdf_training_procedure.py`.
+
+Training the ANN performed by Stoffer et al. (2021) (note: not needed to run the previously described moser600 LES test case)
+-----------------------
+After we generated the TFRecord-files with the training samples using the script mentioned in the previous section, we trained and post-processed the ANN using the scripts in the `ann_training` directory. We used the `MLP_tfestimator.py` script to define the ANN, train it (using the three different configurations described in the manuscript), and make predictions on the test set (where the latter generates corresponding nc-files). The corresponding used job script (again on Cartesius) is `job_MLP_training`, which generates separate directories for the three used training configurations and all tested MLPs (which have a varying number of hidden neurons in the single hidden layer). We visualized the corresponding train/validation curves using `make_training_plots.py`. On top of that, we used the (job) scripts provided in the `comparison_smag` directory to generate, using the training data, predictions corresponding to a common implementation of the Smagorinsky SGS model (which is described in Stoffer et al.(2021)).
+
+We subsequnelty post-processed the made predictions on the test set (both of the ANN and the implemented Smagorinsky SGS model) with `read_MLPsmagpredictions.py`, in order to visualize the results (which includes horizontal cross-sections, correlation coefficients, PDFs, vertical profiles, hexbin plots and spectra; part of which is shown in chapter 4.1 of the final manuscript). The corresponding used job script (on Cartesius) is `job_readMLPsmagpredictions`. In addition, we calculated and visualized the feature importances corresponding to the input stencils of the defined ANN SGS model with `inference_MLP_permutation.py`, `horcross_inference_permutation.py`, and `job_inference_permutation`.
+
+Finally, in order to run MicroHH with the trained ANN SGS model, we used several (job) scripts to extract and store (as txt-files) the parameters of the previously trained ANN: `extract_weights_frozen_graph.sh`, `extract_weights_frozen_graph.py`, `freeze_graph.py`, and `optimize_for_inference.py`. We copied the extracted parameters of the final selected ANN to the `MLP_selected` directory, where MicroHH reads them when running the moser600 LES test case (see previous section).
