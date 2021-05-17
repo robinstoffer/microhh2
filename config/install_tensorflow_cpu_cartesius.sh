@@ -29,7 +29,7 @@ export MPICC=mpicc
 export MPICXX=mpicxx
 
 # Install standard libraries
-pip3 install numpy==1.15.4
+pip3 install numpy==1.19.0
 pip3 install scipy==1.2.0
 pip3 install netCDF4==1.4.2
 pip3 install pandas==1.0.3
