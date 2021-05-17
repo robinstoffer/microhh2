@@ -17,7 +17,7 @@ t_dns = 1200  #Refers to time step of corresponding DNS binary fields
 t_training = 0 #Refers to time step of a representative flow field in training data.
 #NOTE: ensure that t_dns and t_training select the same time step
 
-#Perform pre-processing needed for visualizing the spectra: for one of the training snapshots (here chosen to be the one at 3000s simulation time), convert the binary high-resolution DNS fields to netCDF-files
+#Perform pre-processing needed for visualizing the spectra: for one of the training snapshots (here chosen to be the one at 1200s simulation time), convert the binary high-resolution DNS fields to netCDF-files
 subprocess.run(["python3", "../python/3d_to_nc.py", "--directory", "../cases/moser600_gmd" ,"--filename", "moser600.ini", "--vars", "u", "--precision", "double", "-t0", str(t_dns), "-t1", str(t_dns), "-tstep", "1"])
 
 #Define height index to consider the xy-crosssection for the training data
