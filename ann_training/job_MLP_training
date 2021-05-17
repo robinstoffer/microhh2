@@ -74,7 +74,6 @@ then
 fi
 
 #Train ANN
-#NOTE: select batch size such that is an exact multiple of the number of resolutions times the number of samples per tfrecord, to ensure each batch has an equal share of every resolution
 #Train only on 8dx4dz
 python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training_final/train_8dx4dz_test_all/MLP$MLPNUM" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000 --train_dir1 '8dx4dz' &
 
@@ -86,11 +85,3 @@ python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data
 
 wait
 
-#For testing purposes
-#python3 -u MLP_tfestimator.py --input_dir '/projects/1/flowsim/gmd_training_data/' --checkpoint_dir "/projects/1/flowsim/gmd_results_training/test/MLP4" --stored_means_stdevs_filename 'means_stdevs_allfields.nc' --n_hidden 1 --num_steps 100000 --batch_size 1000 --profile_steps 10000 --summary_steps 1000 --checkpoint_steps 10000
-
-##After or during the running of the script, visualize in Tensorboard, on the login node, using the following commands:
-#export PORT=40600
-#tensorboard --logdir=./MLP$MLPNUM --port=$PORT
-##On LOCAL terminal: ssh -N -L40600:localhost:40600 robinst@int[1,2,3]-bb.cartesius.surfsara.nl
-#Local terminal: 
