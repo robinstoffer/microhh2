@@ -1,6 +1,6 @@
 MicroHH (v2.0 with ANN SGS model from Stoffer et al. (2021))
 -------
-[![Travis](https://api.travis-ci.org/microhh/microhh.svg?branch=master)](https://travis-ci.org/microhh/microhh) [![Documentation Status](https://readthedocs.org/projects/microhh/badge/?version=latest)](https://microhh.readthedocs.io/en/latest/?badge=latest)
+[![Travis](https://api.travis-ci.org/microhh/microhh.svg?branch=master)](https://travis-ci.org/microhh/microhh) [![Documentation Status](https://readthedocs.org/projects/microhh/badge/?version=latest)](https://microhh.readthedocs.io/en/latest/?badge=latest)[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4767902.svg)](https://doi.org/10.5281/zenodo.4767902)
 
 MicroHH (v2.0) is a computational fluid dynamics code made for Direct Numerical Simulation (DNS) and Large-Eddy Simulation of turbulent flows in the atmospheric boundary layer. The code is written in C++.
 
